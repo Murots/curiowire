@@ -10,7 +10,18 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>
+      <body
+        style={{
+          backgroundColor: "var(--color-bg)",
+          color: "var(--color-text)",
+          fontFamily: "Inter, sans-serif",
+          margin: 0,
+          padding: 0,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <ThemeRegistry>
           <Header />
           <main

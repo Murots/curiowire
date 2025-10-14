@@ -1,33 +1,36 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { HeaderWrapper, Logo, Nav, NavLink } from "./Header.styles";
+import { HeaderWrapper, Logo, Nav, NavItem } from "./Header.styles";
 
 export default function Header() {
-  const pathname = usePathname();
-
-  const links = [
-    { href: "/", label: "All" },
-    { href: "/science", label: "Science" },
-    { href: "/history", label: "History" },
-    { href: "/astronomy", label: "Astronomy" },
-    { href: "/nature", label: "Nature" },
-    { href: "/technology", label: "Technology" },
-    { href: "/sports", label: "Sports" },
-    { href: "/culture", label: "Culture" },
-    { href: "/products", label: "Products" },
-    { href: "/news", label: "News" },
+  const categories = [
+    "science",
+    "technology",
+    "space",
+    "nature",
+    "health",
+    "history",
+    "culture",
+    "sports",
+    "products",
+    "world",
   ];
 
   return (
     <HeaderWrapper>
-      <Logo>CurioWire</Logo>
+      <Logo>
+        <Link href="/">CurioWire</Link>
+      </Logo>
+
       <Nav>
-        {links.map(({ href, label }) => (
-          <NavLink key={href} href={href} $active={pathname === href}>
-            {label}
-          </NavLink>
+        {categories.map((cat) => (
+          <NavItem key={cat}>
+            <Link href={`/${cat}`}>
+              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+            </Link>
+          </NavItem>
         ))}
       </Nav>
     </HeaderWrapper>

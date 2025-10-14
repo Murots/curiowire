@@ -1,41 +1,54 @@
 import styled from "styled-components";
-import Link from "next/link";
 
 export const HeaderWrapper = styled.header`
-  background: ${({ theme }) => theme.colors.card};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  box-shadow: ${({ theme }) => theme.shadow};
-  padding: 1rem 2rem;
+  width: 100%;
+  //   background: var(--color-bg);
+  background: #f9f9fb;
+  border-bottom: 1px solid var(--color-muted);
+  padding: 20px 40px;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 10;
 `;
 
 export const Logo = styled.h1`
-  font-family: ${({ theme }) => theme.fonts.heading};
-  font-size: 1.8rem;
-  color: ${({ theme }) => theme.colors.text};
+  font-family: "Playfair Display", serif;
+  font-size: 2rem;
+  margin: 0;
+
+  a {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-accent);
+  }
 `;
 
 export const Nav = styled.nav`
   display: flex;
   flex-wrap: wrap;
-  gap: 1.2rem;
+  justify-content: center;
+  gap: 14px;
 `;
 
-export const NavLink = styled(Link)`
-  color: ${({ theme, $active }) =>
-    $active ? theme.colors.link : theme.colors.text};
-  font-weight: ${({ $active }) => ($active ? "700" : "500")};
-  border-bottom: ${({ $active, theme }) =>
-    $active ? `2px solid ${theme.colors.link}` : "2px solid transparent"};
-  transition: 0.2s;
+export const NavItem = styled.span`
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  text-transform: capitalize;
 
-  &:hover {
-    color: ${({ theme }) => theme.colors.link};
-    border-bottom: 2px solid ${({ theme }) => theme.colors.link};
+  a {
+    text-decoration: none;
+    color: var(--color-text);
+    font-weight: 500;
+  }
+
+  a:hover {
+    color: var(--color-accent);
   }
 `;
