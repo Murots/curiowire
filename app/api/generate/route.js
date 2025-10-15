@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
-import sharp from "sharp"; // 🆕 lagt til
+import sharp from "sharp";
+import { updateAndPingSearchEngines } from "../utils/seoTools.js";
 
-export const runtime = "nodejs"; // 🧩 sikre Buffer/Sharp-støtte
+export const runtime = "nodejs";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -17,7 +18,10 @@ const supabase = createClient(
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
-// === Kategorier og tone ===
+// 🔁 Lokal minnevariabel for rotasjon mellom kilder
+let lastUsedSource = "google";
+
+/* === 1️⃣ Kategorier og tone === */
 const categories = {
   science: { tone: "scientific and intriguing discovery", image: "unsplash" },
   technology: {
@@ -35,16 +39,32 @@ const categories = {
     image: "dalle",
   },
   world: { tone: "geopolitical or global social phenomenon", image: "dalle" },
-  all: { tone: "fascinating general curiosity" },
 };
 
-// === Titteltrimmer ===
+/* === 2️⃣ Verktøy === */
 function trimHeadline(title) {
   const words = title.split(" ");
   return words.length > 12 ? words.slice(0, 12).join(" ") + "…" : title;
 }
 
-// === Hjelpefunksjon: hent bilde fra Unsplash ===
+async function fetchTrendingTopics() {
+  try {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000");
+
+    const res = await fetch(`${baseUrl}/api/trends`);
+    const data = await res.json();
+    return data.results || {};
+  } catch (err) {
+    console.error("⚠️ Failed to fetch trending topics:", err.message);
+    return {};
+  }
+}
+
+/* === 3️⃣ Bildelogikk === */
 async function fetchUnsplashImage(query) {
   try {
     const res = await fetch(
@@ -62,154 +82,223 @@ async function fetchUnsplashImage(query) {
   }
 }
 
-/* === 🆕 DALL·E-2 med base64-håndtering === */
-async function generateDalleImage(title, tone, category) {
+async function generateDalleImage(title, topic, tone, category) {
   try {
+    // 🔑 Hent nøkkelord fra tittelen (gir DALL·E mer presis kontekst)
+    const keywords = title
+      .split(" ")
+      .filter((w) => w.length > 3)
+      .slice(0, 6)
+      .join(", ");
+
+    // 🎨 Forbedret prompt: fjerner "newspaper"-referanser og forbyr tekst
     const imagePrompt = `
-Editorial illustration for an article titled "${title}".
-Theme: ${tone}.
-Style: vintage newspaper photography, realistic lighting, cinematic depth of field.
-Avoid text or logos.
-    `;
+Cinematic editorial illustration for a feature titled "${title}" (about "${topic}").
+Core ideas and visual cues: ${keywords}.
+Category: ${category}.
+Mood & tone: ${tone}.
+Style: realistic 1930s-inspired cinematic photography — soft light, symbolic composition, subtle color depth.
+Focus on atmosphere, metaphor, and emotional storytelling — not literal reporting or text elements.
+Do NOT include any text, letters, numbers, words, handwriting, logos, captions, signs, screens, or printed materials.
+Absolutely no visible writing, titles, or words in the scene.
+`;
 
+    // 🧠 Generer bilde
     const result = await openai.images.generate({
-      model: "dall-e-2", // 🧩 byttet modell til DALL·E 2 (billigere)
+      model: "dall-e-2",
       prompt: imagePrompt,
-      size: "1024x1024", // 🧩 lavere kostnad
-      response_format: "b64_json", // støttes av DALL·E 2
+      size: "1024x1024",
+      response_format: "b64_json",
     });
-
-    // 🔇 Fjernet full JSON-logging – kun kort status
-    console.log(`🧠 DALL·E generated base64 for ${category}`);
 
     const b64 = result?.data?.[0]?.b64_json;
     if (!b64) {
-      console.warn(
-        `❌ DALL·E API failed for ${category}: No base64 image returned`
-      );
+      console.warn(`⚠️ DALL·E returned no base64 for ${category}`);
       return null;
     }
 
-    const pngBuffer = Buffer.from(b64, "base64");
-
-    // 🪄 Komprimer med Sharp før opplasting
-    const optimized = await sharp(pngBuffer)
+    // 🪄 Optimaliser og komprimer
+    const optimized = await sharp(Buffer.from(b64, "base64"))
       .resize({ width: 800 })
       .jpeg({ quality: 70 })
       .toBuffer();
 
-    // 📦 Last opp direkte til Supabase
+    // 📦 Last opp til Supabase Storage
     const filename = `${category}-${Date.now()}.jpg`;
-    const path = `curiowire/curiowire/${filename}`;
+    const path = `curiowire/${filename}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error } = await supabase.storage
       .from("curiowire")
       .upload(path, optimized, {
         contentType: "image/jpeg",
         upsert: true,
       });
 
-    if (uploadError) throw uploadError;
+    if (error) throw error;
 
-    const { data: publicUrlData } = supabase.storage
-      .from("curiowire")
-      .getPublicUrl(path);
-
-    const publicUrl = publicUrlData?.publicUrl;
-    console.log(`✅ DALL·E → Supabase OK for ${category}: ${publicUrl}`);
-    return publicUrl;
+    const { data } = supabase.storage.from("curiowire").getPublicUrl(path);
+    console.log(`🎨 DALL·E → Supabase OK for ${category}`);
+    return data.publicUrl;
   } catch (err) {
-    console.error(
-      `❌ DALL·E error for ${category}:`,
-      err?.response?.data || err.message
-    );
+    console.error(`❌ DALL·E error for ${category}:`, err.message);
     return null;
   }
 }
 
-// === Komprimer og cache eksisterende (Unsplash) bilder ===
 async function cacheImageToSupabase(imageUrl, filename, category) {
   try {
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      console.warn(
-        `⚠️ Failed to fetch image for ${category}: ${response.status}`
-      );
-      return imageUrl;
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const optimized = await sharp(buffer)
+    const res = await fetch(imageUrl);
+    if (!res.ok) return imageUrl;
+    const optimized = await sharp(Buffer.from(await res.arrayBuffer()))
       .resize({ width: 800 })
       .jpeg({ quality: 70 })
       .toBuffer();
 
     const path = `curiowire/${filename}.jpg`;
-
     const { error } = await supabase.storage
       .from("curiowire")
-      .upload(path, optimized, { contentType: "image/jpeg", upsert: true });
-
+      .upload(path, optimized, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
     if (error) throw error;
 
-    const { data: publicUrlData } = supabase.storage
-      .from("curiowire")
-      .getPublicUrl(path);
-
-    console.log(
-      `✅ Supabase upload OK for ${category}: ${publicUrlData.publicUrl}`
-    );
-    return publicUrlData.publicUrl;
+    const { data } = supabase.storage.from("curiowire").getPublicUrl(path);
+    return data.publicUrl;
   } catch (err) {
-    console.error(`❌ Supabase cache failed for ${category}:`, err.message);
+    console.error(`❌ Cache failed for ${category}:`, err.message);
     return imageUrl;
   }
 }
 
-/* === Hoved-rute === */
+/* === 4️⃣ Hovedrute === */
 export async function GET() {
+  const topicsByCategory = await fetchTrendingTopics();
   const results = [];
 
+  // 🔁 Bytter kilde annenhver kjøring
+  const primarySource = lastUsedSource === "google" ? "reddit" : "google";
+  const fallbackSource = primarySource === "google" ? "reddit" : "google";
+  lastUsedSource = primarySource;
+  console.log(`🌀 Using ${primarySource.toUpperCase()} as primary source.`);
+
   for (const [key, { tone, image }] of Object.entries(categories)) {
-    if (key === "all") {
-      console.log("Skipping 'all' category (aggregate only)");
-      continue;
+    const topicData = topicsByCategory[key];
+    const primaryList = topicData?.[primarySource] || [];
+    const fallbackList = topicData?.[fallbackSource] || [];
+
+    let topic =
+      primaryList[Math.floor(Math.random() * primaryList.length)] ||
+      fallbackList[Math.floor(Math.random() * fallbackList.length)] ||
+      `notable ${key} curiosity`;
+
+    if (!topic && primarySource === "reddit" && Array.isArray(primaryList)) {
+      for (const alt of primaryList) {
+        if (alt && alt !== topic) {
+          topic = alt;
+          break;
+        }
+      }
+    }
+
+    if (!topic) {
+      console.warn(`⚠️ ${key} empty — switching to ${fallbackSource}`);
+      topic =
+        fallbackList[Math.floor(Math.random() * fallbackList.length)] ||
+        `notable ${key} curiosity`;
     }
 
     try {
-      // === 1. Generer artikkeltekst ===
+      const { data: existing } = await supabase
+        .from("articles")
+        .select("id, title")
+        .eq("category", key)
+        .gte(
+          "created_at",
+          new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
+        );
+
+      const alreadyExists = existing?.some((a) =>
+        a.title.toLowerCase().includes(topic.toLowerCase())
+      );
+      if (alreadyExists) continue;
+
+      const recentTitles = existing?.slice(-5).map((a) => a.title) || [];
+      let isSimilar = false;
+
+      for (const prev of recentTitles) {
+        const simPrompt = `
+Determine if these two headlines are about the *same underlying topic*.
+Answer with "YES" if they describe the same story or idea.
+Headline A: "${prev}"
+Headline B: "${topic}"
+`;
+        const simCheck = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: simPrompt }],
+          max_tokens: 2,
+          temperature: 0,
+        });
+        const ans = simCheck.choices[0]?.message?.content
+          ?.trim()
+          ?.toUpperCase();
+        if (ans?.includes("YES")) {
+          isSimilar = true;
+          console.log(`🚫 Similar detected for ${key}: ${topic}`);
+          break;
+        }
+      }
+
+      if (isSimilar) {
+        const backup =
+          fallbackList.find((t) => t !== topic) ||
+          primaryList.find((t) => t !== topic);
+        if (backup) {
+          console.log(`🔁 Retrying ${key} with backup: ${backup}`);
+          topic = backup;
+        } else continue;
+      }
+
+      /* === 🧾 PROMPT (full versjon) === */
       const prompt = `
-You are a writer for *CurioWire* — a digital newspaper of fascinating curiosities.
+You are a journalist for *CurioWire* — a digital newspaper devoted to unusual facts, discoveries, and quiet marvels.
+Your assignment: write a short feature article about the trending topic: "${topic}".
 
-Write a short article in two parts:
+Category: ${key}
+Tone: ${tone}
+Voice: 1930s newsroom — articulate, poetic, lightly humorous, subtly dramatic.
+Audience: modern readers seeking wonder, beauty, and intelligent curiosity.
 
-1️⃣ A catchy headline (max 10–12 words) that captures the curiosity.
-2️⃣ A 120–180 word article body in a 1930s newspaper tone — curious, elegant, lightly humorous, and human.
+=== PURPOSE ===
+CurioWire articles are not breaking news — they are rediscoveries.
+They transform ordinary or trending facts into small works of storytelling.
+Each piece should feel *fresh, surprising, and resonant* — even if the topic has appeared before.
 
-Category: ${key}.
-Tone: ${tone}.
+=== VARIATION LOGIC ===
+- If this topic has been covered before, approach it from a **new human or philosophical angle**.
+- Example: If the last story was about the invention itself, explore the human consequences, the cultural echo, or symbolic meaning.
+- Avoid repetition or flat exposition. Every article must feel alive.
 
-Guidelines:
-- Do NOT use "Extra! Extra!" or category slogans — the UI adds that.
-- This is NOT a breaking news report. It should feel like a rediscovered story, an odd fact, or a quiet marvel.
-- Avoid lists or pure statistics; weave facts naturally into the prose.
-- Favor narrative curiosity: why something matters, what makes it strange or poetic.
-- Keep it factual but lightly whimsical.
-- End the article with: "Read all about it here → [source link]".
+=== STRUCTURE ===
+1️⃣ **Headline** — up to 12 words. Emotionally intriguing, poetic but natural.  
+2️⃣ **Body** — 130–190 words.  
+   - Hook immediately with a vivid first line.  
+   - Explain the essence of the topic clearly.  
+   - Add one human, cultural, or reflective layer.  
+   - Maintain rhythm, musicality, and curiosity throughout.  
+3️⃣ End with: "Read all about it here → [source link]"
 
-Special rule for "products":
-- Do NOT advertise or promote.
-- Choose a cultural or lifestyle curiosity that connects naturally to a consumer product.
-  Example: If the product is a robot vacuum, write about the modern "time squeeze" in families,
-  and mention the product subtly near the end as a small illustrative detail.
-- Product mentions should feel incidental, not commercial.
+=== STYLE RULES ===
+- No dates, “today”, “recently”, or time anchors.
+- No marketing or sensational tone.
+- Integrate the topic naturally for SEO (1–2 mentions).
+- Prefer metaphor and sensory phrasing over plain exposition.
+- Maintain a timeless, thoughtful journalistic rhythm.
 
-Output format:
-Headline: <headline text>
-Article: <article text>
-      `;
+=== OUTPUT FORMAT ===
+Headline: <headline>
+Article: <body>
+`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -219,36 +308,36 @@ Article: <article text>
       const text = completion.choices[0]?.message?.content?.trim() || "";
       const titleMatch = text.match(/Headline:\s*(.+)/i);
       const bodyMatch = text.match(/Article:\s*([\s\S]+)/i);
-
-      const rawTitle = titleMatch ? titleMatch[1].trim() : "CurioWire Update";
+      const rawTitle = titleMatch ? titleMatch[1].trim() : topic;
       const title = trimHeadline(rawTitle);
       const article = bodyMatch ? bodyMatch[1].trim() : text;
 
-      // === 3. Hent eller generer bilde ===
-      let imageUrl = null;
-      if (image === "dalle") {
-        imageUrl = await generateDalleImage(title, tone, key);
-      } else {
-        const query = `${title} ${tone}`;
-        imageUrl = await fetchUnsplashImage(query);
-      }
+      /* === 🎨 Bilde === */
+      const keywords = title
+        .split(" ")
+        .filter((w) => w.length > 3)
+        .slice(0, 6)
+        .join(", ");
 
+      let imageUrl =
+        image === "dalle"
+          ? await generateDalleImage(title, topic, tone, key)
+          : await fetchUnsplashImage(`${title} ${keywords} ${key}`);
+
+      if (!imageUrl && image === "dalle")
+        imageUrl = await fetchUnsplashImage(`${title} ${keywords} ${key}`);
       if (!imageUrl) imageUrl = `https://picsum.photos/seed/${key}/800/400`;
 
-      // === 4. Cache bilde i Supabase Storage ===
       const cachedUrl =
-        image === "dalle"
-          ? imageUrl // DALL·E-bilder lastes allerede opp
-          : await cacheImageToSupabase(imageUrl, `${key}-${Date.now()}`, key);
+        imageUrl.includes("unsplash") || imageUrl.includes("photos")
+          ? await cacheImageToSupabase(imageUrl, `${key}-${Date.now()}`, key)
+          : imageUrl;
 
-      // === 5. Dummy kilde ===
-      const sourceUrl = "https://wikipedia.org";
-
-      // === 6. Lagre i Supabase ===
-      const imageCredit =
-        image === "unsplash"
-          ? "Image courtesy of Unsplash"
-          : "Illustration by DALL·E";
+      const imageCredit = imageUrl.includes("unsplash")
+        ? "Image courtesy of Unsplash"
+        : imageUrl.includes("picsum")
+        ? "Placeholder image via Picsum"
+        : "Illustration by DALL·E";
 
       const { error } = await supabase.from("articles").insert([
         {
@@ -256,18 +345,20 @@ Article: <article text>
           title,
           excerpt: article,
           image_url: cachedUrl,
-          source_url: sourceUrl,
+          source_url: "https://wikipedia.org",
           image_credit: imageCredit,
         },
       ]);
-
       if (error) throw error;
-      results.push({ key, success: true, imageSource: image, cachedUrl });
+
+      console.log(`✅ Article saved for ${key}: ${title}`);
+      results.push({ category: key, topic, success: true });
     } catch (err) {
       console.error(`❌ Error for ${key}:`, err.message);
-      results.push({ key, success: false, error: err.message });
+      results.push({ category: key, topic, success: false });
     }
   }
 
+  await updateAndPingSearchEngines();
   return NextResponse.json({ success: true, results });
 }
