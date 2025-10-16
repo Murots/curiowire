@@ -7,57 +7,66 @@ import {
   ImageWrapper,
   Image,
   Content,
-  Category,
-  Headline,
-  SubIntro,
+  Meta,
   Title,
-  Excerpt,
   ReadMore,
 } from "./ArticleCard.styles";
+
+import { cleanText } from "@/app/api/utils/cleanText";
 
 export default function ArticleCard({
   id,
   category,
   title,
-  excerpt,
   image_url,
+  created_at,
+  index,
+  view_count,
 }) {
+  const formattedDate = new Date(created_at).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  const isEven = index % 2 === 0;
+
   return (
-    <Link href={`/article/${id}`} style={{ textDecoration: "none" }}>
-      <Card>
+    <Link
+      href={`/article/${id}`}
+      style={{
+        textDecoration: "none",
+        color: "inherit",
+        display: "block",
+      }}
+    >
+      <Card $reverse={isEven}>
         <ImageWrapper>
-          {image_url && <Image src={image_url} alt={title} />}
+          {image_url && <Image src={image_url} alt={cleanText(title)} />}
         </ImageWrapper>
 
         <Content>
-          <Category>{category.toUpperCase()}</Category>
-          <Headline>Extra! Extra!</Headline>
-          <SubIntro>{getCategoryIntro(category)}</SubIntro>
-          <Title>{title}</Title>
+          <Meta>
+            <span>{category.toUpperCase()}</span> — {formattedDate}
+          </Meta>
 
-          <Excerpt>{excerpt}</Excerpt>
+          <Title>{cleanText(title)}</Title>
+
+          {view_count !== undefined && (
+            <p
+              style={{
+                color: "var(--color-muted)",
+                fontSize: "0.9rem",
+                marginTop: "6px",
+              }}
+            >
+              🔥 {view_count} views this week
+            </p>
+          )}
 
           <ReadMore>Read more →</ReadMore>
         </Content>
       </Card>
     </Link>
   );
-}
-
-/* === Hjelpefunksjoner === */
-
-function getCategoryIntro(category) {
-  const intros = {
-    science: "Breakthrough in the lab —",
-    technology: "From the frontier of innovation —",
-    space: "From beyond the stars —",
-    nature: "From the wild corners of Earth —",
-    health: "Vital news for body and mind —",
-    history: "From the dusty archives —",
-    culture: "From the heart of civilization —",
-    sports: "Straight from the arena —",
-    products: "Hot off the market —",
-    world: "From the halls of power —",
-  };
-  return intros[category?.toLowerCase()] || "Hot off the wire —";
 }

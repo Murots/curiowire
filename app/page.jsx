@@ -3,33 +3,67 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import ArticleCard from "@/components/ArticleCard/ArticleCard";
-import styled from "styled-components";
+import { Wrapper, Headline, Grid, Loader } from "./page.styles";
 
 export default function HomePage() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchArticles = async () => {
-      const { data, error } = await supabase
-        .from("articles")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(12);
-      if (!error && data) setArticles(data);
-      setLoading(false);
+    const fetchWeeklyTopArticles = async () => {
+      try {
+        // === 1️⃣ Hent ukens mest leste artikler fra viewet ===
+        const { data, error } = await supabase
+          .from("weekly_top_articles")
+          .select("*")
+          .order("view_count", { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error(
+            "❌ Error fetching weekly top articles:",
+            error.message
+          );
+          setArticles([]);
+        } else if (data && data.length > 0) {
+          setArticles(data);
+        } else {
+          // === 2️⃣ Fallback: hent nyeste artikler hvis ingen visninger denne uken ===
+          const { data: fallback, error: fallbackError } = await supabase
+            .from("articles")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(10);
+
+          if (fallbackError) {
+            console.error(
+              "❌ Error fetching fallback articles:",
+              fallbackError.message
+            );
+            setArticles([]);
+          } else {
+            setArticles(fallback || []);
+          }
+        }
+      } catch (err) {
+        console.error("⚠️ Unexpected error:", err);
+        setArticles([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    fetchArticles();
+    fetchWeeklyTopArticles();
   }, []);
 
-  if (loading) return <Loader>Hot news coming in from the wire...</Loader>;
+  if (loading) return <Loader>Fetching this week’s top curiosities...</Loader>;
 
   return (
     <Wrapper>
-      <Headline>Hot off the wire — Latest curiosities</Headline>
+      <Headline>🔥 This Week’s Top 10 Curiosities</Headline>
+
       <Grid>
-        {articles.map((a) => (
+        {articles.map((a, i) => (
           <ArticleCard
             key={a.id}
             id={a.id}
@@ -37,39 +71,11 @@ export default function HomePage() {
             title={a.title}
             excerpt={a.excerpt}
             image_url={a.image_url}
+            created_at={a.created_at}
+            index={i}
           />
         ))}
       </Grid>
     </Wrapper>
   );
 }
-
-/* --- Styles --- */
-
-const Wrapper = styled.div`
-  max-width: 1300px;
-  margin: 80px auto;
-  padding: 0 40px 100px;
-  background: var(--color-bg);
-`;
-
-const Headline = styled.h1`
-  font-family: "Playfair Display", serif;
-  font-size: 2.4rem;
-  text-align: center;
-  margin-bottom: 50px;
-  color: var(--color-text);
-`;
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 30px;
-`;
-
-const Loader = styled.p`
-  font-family: "Inter", sans-serif;
-  text-align: center;
-  margin-top: 150px;
-  color: var(--color-muted);
-`;

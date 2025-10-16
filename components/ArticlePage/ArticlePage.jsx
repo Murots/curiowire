@@ -17,6 +17,8 @@ import {
   Divider,
 } from "./ArticlePage.styles";
 
+import { cleanText } from "../../app/api/utils/cleanText";
+
 export default function ArticlePage() {
   const { id } = useParams();
   const router = useRouter();
@@ -24,15 +26,34 @@ export default function ArticlePage() {
 
   useEffect(() => {
     if (!id) return;
-    const fetchArticle = async () => {
+
+    const fetchArticleAndLogView = async () => {
+      // === 1️⃣ Hent artikkelen ===
       const { data, error } = await supabase
         .from("articles")
         .select("*")
         .eq("id", id)
         .single();
-      if (!error) setArticle(data);
+
+      if (!error && data) {
+        setArticle(data);
+
+        // === 2️⃣ Logg visning ===
+        const { error: viewError } = await supabase
+          .from("article_views")
+          .insert([{ article_id: id }]);
+
+        if (viewError) {
+          console.error("❌ Error logging view:", viewError.message);
+        } else {
+          console.log("👁️ Logged view for article:", id);
+        }
+      } else {
+        console.error("❌ Error fetching article:", error);
+      }
     };
-    fetchArticle();
+
+    fetchArticleAndLogView();
   }, [id]);
 
   if (!article) return <Wrapper>Loading curiosity...</Wrapper>;
@@ -46,11 +67,11 @@ export default function ArticlePage() {
 
       <Headline>Extra! Extra!</Headline>
       <SubIntro>{getCategoryIntro(category)}</SubIntro>
-      <Title>{title}</Title>
+      <Title>{cleanText(title)}</Title>
 
-      {image_url && <Image src={image_url} alt={title} />}
+      {image_url && <Image src={image_url} alt={cleanText(title)} />}
 
-      <Excerpt>{excerpt}</Excerpt>
+      <Excerpt>{cleanText(excerpt)}</Excerpt>
 
       <SourceLink href={source_url} target="_blank" rel="noopener noreferrer">
         Read all about it here →

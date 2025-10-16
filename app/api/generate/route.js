@@ -18,9 +18,6 @@ const supabase = createClient(
 
 const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
-// 🔁 Lokal minnevariabel for rotasjon mellom kilder
-let lastUsedSource = "google";
-
 /* === 1️⃣ Kategorier og tone === */
 const categories = {
   science: { tone: "scientific and intriguing discovery", image: "unsplash" },
@@ -176,10 +173,9 @@ export async function GET() {
   const topicsByCategory = await fetchTrendingTopics();
   const results = [];
 
-  // 🔁 Bytter kilde annenhver kjøring
-  const primarySource = lastUsedSource === "google" ? "reddit" : "google";
+  // 🔁 Velg kilde tilfeldig (50/50)
+  const primarySource = Math.random() < 0.5 ? "google" : "reddit";
   const fallbackSource = primarySource === "google" ? "reddit" : "google";
-  lastUsedSource = primarySource;
   console.log(`🌀 Using ${primarySource.toUpperCase()} as primary source.`);
 
   for (const [key, { tone, image }] of Object.entries(categories)) {

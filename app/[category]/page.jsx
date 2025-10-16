@@ -39,14 +39,15 @@ export default function CategoryPage() {
       </Title>
 
       <Grid>
-        {articles.map((a) => (
+        {articles.map((a, i) => (
           <ArticleCard
             key={a.id}
             id={a.id}
             category={a.category}
             title={a.title}
-            excerpt={a.excerpt}
             image_url={a.image_url}
+            created_at={a.created_at}
+            index={i}
           />
         ))}
       </Grid>

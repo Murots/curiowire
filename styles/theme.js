@@ -2,7 +2,7 @@ export const theme = {
   colors: {
     bg: "#f9f9fb",
     text: "#222",
-    link: "#0066ff",
+    link: "#222",
     card: "#fff",
     border: "#ddd",
   },

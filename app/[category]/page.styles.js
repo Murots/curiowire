@@ -20,9 +20,9 @@ export const Title = styled.h1`
 `;
 
 export const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* vi bruker border-bottom på kortene i stedet */
 `;
 
 export const Loader = styled.p`
