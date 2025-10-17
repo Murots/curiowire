@@ -1,8 +1,24 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
-import sharp from "sharp";
 import { updateAndPingSearchEngines } from "../utils/seoTools.js";
+
+// === Hjelpemoduler ===
+import { categories } from "../utils/categories.js";
+import { trimHeadline } from "../utils/textTools.js";
+import { fetchTrendingTopics } from "../utils/fetchTopics.js";
+import {
+  fetchUnsplashImage,
+  generateDalleImage,
+  cacheImageToSupabase,
+} from "../utils/imageTools.js";
+import {
+  buildArticlePrompt,
+  affiliateAppendix,
+  naturalEnding,
+  buildProductPrompt,
+} from "../utils/prompts.js";
+import { makeAffiliateSearchLink } from "../utils/affiliateTools.js";
 
 export const runtime = "nodejs";
 
@@ -16,159 +32,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
-
-/* === 1️⃣ Kategorier og tone === */
-const categories = {
-  science: { tone: "scientific and intriguing discovery", image: "unsplash" },
-  technology: {
-    tone: "cutting-edge invention or digital phenomenon",
-    image: "unsplash",
-  },
-  space: { tone: "astronomical or cosmic curiosity", image: "dalle" },
-  nature: { tone: "environmental or wildlife phenomenon", image: "unsplash" },
-  health: { tone: "psychological or medical curiosity", image: "unsplash" },
-  history: { tone: "archaeological or historical rediscovery", image: "dalle" },
-  culture: { tone: "artistic or cultural oddity", image: "dalle" },
-  sports: { tone: "athletic or human endurance story", image: "unsplash" },
-  products: {
-    tone: "modern consumer trend or lifestyle insight",
-    image: "dalle",
-  },
-  world: { tone: "geopolitical or global social phenomenon", image: "dalle" },
-};
-
-/* === 2️⃣ Verktøy === */
-function trimHeadline(title) {
-  const words = title.split(" ");
-  return words.length > 12 ? words.slice(0, 12).join(" ") + "…" : title;
-}
-
-async function fetchTrendingTopics() {
-  try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000");
-
-    const res = await fetch(`${baseUrl}/api/trends`);
-    const data = await res.json();
-    return data.results || {};
-  } catch (err) {
-    console.error("⚠️ Failed to fetch trending topics:", err.message);
-    return {};
-  }
-}
-
-/* === 3️⃣ Bildelogikk === */
-async function fetchUnsplashImage(query) {
-  try {
-    const res = await fetch(
-      `https://api.unsplash.com/photos/random?query=${encodeURIComponent(
-        query
-      )}&orientation=landscape&client_id=${UNSPLASH_KEY}`
-    );
-    const data = await res.json();
-    return data.urls?.regular
-      ? `${data.urls.regular}&auto=format&fit=crop&w=800&q=75`
-      : null;
-  } catch (err) {
-    console.warn("⚠️ Unsplash fetch failed:", err.message);
-    return null;
-  }
-}
-
-async function generateDalleImage(title, topic, tone, category) {
-  try {
-    // 🔑 Hent nøkkelord fra tittelen (gir DALL·E mer presis kontekst)
-    const keywords = title
-      .split(" ")
-      .filter((w) => w.length > 3)
-      .slice(0, 6)
-      .join(", ");
-
-    // 🎨 Forbedret prompt: fjerner "newspaper"-referanser og forbyr tekst
-    const imagePrompt = `
-Cinematic editorial illustration for a feature titled "${title}" (about "${topic}").
-Core ideas and visual cues: ${keywords}.
-Category: ${category}.
-Mood & tone: ${tone}.
-Style: realistic 1930s-inspired cinematic photography — soft light, symbolic composition, subtle color depth.
-Focus on atmosphere, metaphor, and emotional storytelling — not literal reporting or text elements.
-Do NOT include any text, letters, numbers, words, handwriting, logos, captions, signs, screens, or printed materials.
-Absolutely no visible writing, titles, or words in the scene.
-`;
-
-    // 🧠 Generer bilde
-    const result = await openai.images.generate({
-      model: "dall-e-2",
-      prompt: imagePrompt,
-      size: "1024x1024",
-      response_format: "b64_json",
-    });
-
-    const b64 = result?.data?.[0]?.b64_json;
-    if (!b64) {
-      console.warn(`⚠️ DALL·E returned no base64 for ${category}`);
-      return null;
-    }
-
-    // 🪄 Optimaliser og komprimer
-    const optimized = await sharp(Buffer.from(b64, "base64"))
-      .resize({ width: 800 })
-      .jpeg({ quality: 70 })
-      .toBuffer();
-
-    // 📦 Last opp til Supabase Storage
-    const filename = `${category}-${Date.now()}.jpg`;
-    const path = `curiowire/${filename}`;
-
-    const { error } = await supabase.storage
-      .from("curiowire")
-      .upload(path, optimized, {
-        contentType: "image/jpeg",
-        upsert: true,
-      });
-
-    if (error) throw error;
-
-    const { data } = supabase.storage.from("curiowire").getPublicUrl(path);
-    console.log(`🎨 DALL·E → Supabase OK for ${category}`);
-    return data.publicUrl;
-  } catch (err) {
-    console.error(`❌ DALL·E error for ${category}:`, err.message);
-    return null;
-  }
-}
-
-async function cacheImageToSupabase(imageUrl, filename, category) {
-  try {
-    const res = await fetch(imageUrl);
-    if (!res.ok) return imageUrl;
-    const optimized = await sharp(Buffer.from(await res.arrayBuffer()))
-      .resize({ width: 800 })
-      .jpeg({ quality: 70 })
-      .toBuffer();
-
-    const path = `curiowire/${filename}.jpg`;
-    const { error } = await supabase.storage
-      .from("curiowire")
-      .upload(path, optimized, {
-        contentType: "image/jpeg",
-        upsert: true,
-      });
-    if (error) throw error;
-
-    const { data } = supabase.storage.from("curiowire").getPublicUrl(path);
-    return data.publicUrl;
-  } catch (err) {
-    console.error(`❌ Cache failed for ${category}:`, err.message);
-    return imageUrl;
-  }
-}
-
-/* === 4️⃣ Hovedrute === */
 export async function GET() {
   const topicsByCategory = await fetchTrendingTopics();
   const results = [];
@@ -255,46 +118,10 @@ Headline B: "${topic}"
         } else continue;
       }
 
-      /* === 🧾 PROMPT (full versjon) === */
-      const prompt = `
-You are a journalist for *CurioWire* — a digital newspaper devoted to unusual facts, discoveries, and quiet marvels.
-Your assignment: write a short feature article about the trending topic: "${topic}".
-
-Category: ${key}
-Tone: ${tone}
-Voice: 1930s newsroom — articulate, poetic, lightly humorous, subtly dramatic.
-Audience: modern readers seeking wonder, beauty, and intelligent curiosity.
-
-=== PURPOSE ===
-CurioWire articles are not breaking news — they are rediscoveries.
-They transform ordinary or trending facts into small works of storytelling.
-Each piece should feel *fresh, surprising, and resonant* — even if the topic has appeared before.
-
-=== VARIATION LOGIC ===
-- If this topic has been covered before, approach it from a **new human or philosophical angle**.
-- Example: If the last story was about the invention itself, explore the human consequences, the cultural echo, or symbolic meaning.
-- Avoid repetition or flat exposition. Every article must feel alive.
-
-=== STRUCTURE ===
-1️⃣ **Headline** — up to 12 words. Emotionally intriguing, poetic but natural.  
-2️⃣ **Body** — 130–190 words.  
-   - Hook immediately with a vivid first line.  
-   - Explain the essence of the topic clearly.  
-   - Add one human, cultural, or reflective layer.  
-   - Maintain rhythm, musicality, and curiosity throughout.  
-3️⃣ End with: "Read all about it here → [source link]"
-
-=== STYLE RULES ===
-- No dates, “today”, “recently”, or time anchors.
-- No marketing or sensational tone.
-- Integrate the topic naturally for SEO (1–2 mentions).
-- Prefer metaphor and sensory phrasing over plain exposition.
-- Maintain a timeless, thoughtful journalistic rhythm.
-
-=== OUTPUT FORMAT ===
-Headline: <headline>
-Article: <body>
-`;
+      /* === 🧾 PROMPT (nå bygget via utils/prompts.js) === */
+      let prompt = buildArticlePrompt(topic, key, tone);
+      if (key === "products") prompt += affiliateAppendix;
+      else prompt += naturalEnding;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -302,11 +129,56 @@ Article: <body>
       });
 
       const text = completion.choices[0]?.message?.content?.trim() || "";
+
       const titleMatch = text.match(/Headline:\s*(.+)/i);
       const bodyMatch = text.match(/Article:\s*([\s\S]+)/i);
       const rawTitle = titleMatch ? titleMatch[1].trim() : topic;
       const title = trimHeadline(rawTitle);
       const article = bodyMatch ? bodyMatch[1].trim() : text;
+
+      // === 1️⃣ Forsøk å finne produktnavn fra artikkel ===
+      let source_url = null;
+      let productName = null;
+      const nameMatch = text.match(/\[Product Name\]:\s*(.+)/i);
+      if (nameMatch && key === "products") {
+        productName = nameMatch[1].trim();
+        source_url = makeAffiliateSearchLink(productName);
+        console.log(`🛍️ Found product name: "${productName}"`);
+      }
+
+      // === 2️⃣ Hvis ikke funnet, be GPT foreslå et produktnavn ===
+      if (!productName && key === "products") {
+        console.log(
+          `🧠 No product name found — asking GPT for match on "${topic}"`
+        );
+        const productPrompt = buildProductPrompt(title, topic, article);
+        try {
+          const productSearch = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: productPrompt }],
+            max_tokens: 50,
+            temperature: 0.3,
+          });
+          productName = productSearch.choices[0]?.message?.content?.trim();
+          if (productName) {
+            source_url = makeAffiliateSearchLink(productName);
+            console.log(
+              `✅ Created affiliate search link for "${productName}"`
+            );
+          } else {
+            console.warn(
+              `⚠️ GPT returned no valid product name for "${topic}"`
+            );
+          }
+        } catch (err) {
+          console.error("❌ Error fetching product name:", err.message);
+        }
+      }
+
+      // === 3️⃣ Fjern produktlinjen fra artikkelteksten ===
+      const cleanedArticle = article
+        .replace(/\[Product Name\]:\s*.+/i, "")
+        .trim();
 
       /* === 🎨 Bilde === */
       const keywords = title
@@ -339,9 +211,9 @@ Article: <body>
         {
           category: key,
           title,
-          excerpt: article,
+          excerpt: cleanedArticle,
           image_url: cachedUrl,
-          source_url: "https://wikipedia.org",
+          source_url: source_url,
           image_credit: imageCredit,
         },
       ]);

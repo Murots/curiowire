@@ -52,7 +52,7 @@ export default function ArticleCard({
 
           <Title>{cleanText(title)}</Title>
 
-          {view_count !== undefined && (
+          {/* {view_count !== undefined && (
             <p
               style={{
                 color: "var(--color-muted)",
@@ -62,7 +62,7 @@ export default function ArticleCard({
             >
               🔥 {view_count} views this week
             </p>
-          )}
+          )} */}
 
           <ReadMore>Read more →</ReadMore>
         </Content>

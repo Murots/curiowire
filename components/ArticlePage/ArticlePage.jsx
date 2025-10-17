@@ -73,9 +73,12 @@ export default function ArticlePage() {
 
       <Excerpt>{cleanText(excerpt)}</Excerpt>
 
-      <SourceLink href={source_url} target="_blank" rel="noopener noreferrer">
-        Read all about it here →
-      </SourceLink>
+      {/* 🛒 Affiliate-link kun for produktartikler */}
+      {category === "products" && source_url && (
+        <SourceLink href={source_url} target="_blank" rel="noopener noreferrer">
+          See featured product→
+        </SourceLink>
+      )}
 
       {article.image_credit && (
         <p
@@ -96,6 +99,21 @@ export default function ArticlePage() {
         </BackButton>
         <NextLink href={`/${category}`}>Next curiosity →</NextLink>
       </div>
+      {/* === Amazon affiliate disclaimer (kun for product-kategorien) === */}
+      {category?.toLowerCase() === "products" && (
+        <p
+          style={{
+            fontSize: "0.7rem",
+            color: "var(--color-muted)",
+            textAlign: "center",
+            marginTop: "30px",
+            fontStyle: "italic",
+            lineHeight: "1.4",
+          }}
+        >
+          As an Amazon Associate, CurioWire earns from qualifying purchases.
+        </p>
+      )}
     </Wrapper>
   );
 }
