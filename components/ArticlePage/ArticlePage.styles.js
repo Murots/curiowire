@@ -51,13 +51,28 @@ export const Title = styled.h1`
 
 export const Image = styled.img`
   width: 100%;
-  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: center;
   border-radius: 8px;
-  margin: 20px 0 24px;
+  margin: 24px 0 28px;
+  display: block;
 `;
 
-export const Excerpt = styled.p`
+// export const Excerpt = styled.p`
+//   font-size: 1.1rem;
+//   margin-bottom: 30px;
+// `;
+
+export const Excerpt = styled.div`
   font-size: 1.1rem;
+  color: var(--color-text);
+  line-height: 1.7;
+
+  p {
+    margin-bottom: 1.5rem;
+  }
+
   margin-bottom: 30px;
 `;
 

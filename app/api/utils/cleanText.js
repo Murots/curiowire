@@ -3,9 +3,7 @@
  * CurioWire tekst-rensefunksjon
  *
  * Fjerner markdown, HTML, spesialtegn og konverterer Reddit-subreddits
- * (f.eks. "/r/sports") til naturlige redaksjonelle uttrykk.
- *
- * Brukes i både ArticleCard.jsx, ArticlePage.jsx og generate/route.js
+ * til naturlige redaksjonelle uttrykk — men bevarer linjeskift.
  */
 
 export function cleanText(text) {
@@ -17,7 +15,7 @@ export function cleanText(text) {
       .replace(/\*\*/g, "") // fjerner bold (**)
       .replace(/\*/g, "") // fjerner italic (*)
       .replace(/_/g, "") // fjerner underscore-format
-      .replace(/<[^>]*>/g, "") // fjerner HTML-tags (f.eks. <p>, <br>)
+      .replace(/<[^>]*>/g, "") // fjerner HTML-tags
 
       // === Reddit-subnavn ===
       .replace(/\/r\/(\w+)/gi, (_, sub) => {
@@ -33,14 +31,10 @@ export function cleanText(text) {
           products: "the digital marketplace community",
           nature: "the online nature collective",
         };
-
-        // Hvis vi kjenner subreddit-navnet → bruk tilpasset uttrykk
-        if (dictionary[sub.toLowerCase()]) {
-          return dictionary[sub.toLowerCase()];
-        }
-
-        // Hvis ikke → bruk generisk uttrykk
-        return `the digital ${sub.toLowerCase()} community`;
+        return (
+          dictionary[sub.toLowerCase()] ||
+          `the digital ${sub.toLowerCase()} community`
+        );
       })
 
       // === Markdown-lenker [tekst](url) ===
@@ -52,8 +46,12 @@ export function cleanText(text) {
       .replace(/[‘’]/g, "'")
       .replace(/[—–]/g, "-")
 
-      // === Ekstra whitespace og trimming ===
-      .replace(/\s+/g, " ")
+      // === Ekstra mellomrom men behold linjeskift ===
+      .replace(/[ \t]+/g, " ") // fjerner doble mellomrom og tab, men lar \n stå
+
+      // === Fjern overflødige linjeskift (men behold avsnitt) ===
+      .replace(/\n{3,}/g, "\n\n")
+
       .trim()
   );
 }

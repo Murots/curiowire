@@ -71,7 +71,13 @@ export default function ArticlePage() {
 
       {image_url && <Image src={image_url} alt={cleanText(title)} />}
 
-      <Excerpt>{cleanText(excerpt)}</Excerpt>
+      <Excerpt>
+        {cleanText(excerpt)
+          .split(/\n{2,}/)
+          .map((p, i) => (
+            <p key={i}>{p.trim()}</p>
+          ))}
+      </Excerpt>
 
       {/* 🛒 Affiliate-link kun for produktartikler */}
       {category === "products" && source_url && (
