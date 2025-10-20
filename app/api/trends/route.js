@@ -111,56 +111,37 @@ async function getRedditAccessToken() {
   }
 }
 
-/* === Hent Reddit-trender via OAuth (med utvidelser) === */
+/* === 2️⃣ REDDIT AUTH TOKEN + TREND FETCH (bruk OAuth alltid) === */
 async function fetchRedditTrends(category, subs) {
   const topics = [];
-  const token = await getRedditAccessToken();
 
+  // 🌍 Alltid bruk Reddit OAuth API (samme for dev og prod)
+  const baseUrl = "https://oauth.reddit.com";
+
+  // 🔑 Hent gyldig token (cachet)
+  const token = await getRedditAccessToken();
   if (!token) {
     console.warn(`⚠️ Missing Reddit token — skipping ${category}`);
     return topics;
   }
 
-  // 🎲 Velg tilfeldig 2 subreddits av de tilgjengelige
-  const randomSubs = subs.sort(() => 0.5 - Math.random()).slice(0, 2);
+  // 🎲 Velg tilfeldig opptil 5 subreddits for variasjon
+  const randomSubs = subs.sort(() => 0.5 - Math.random()).slice(0, 5);
 
   for (const sub of randomSubs) {
     try {
-      const res = await fetch(
-        `https://oauth.reddit.com/r/${sub}/hot.json?limit=5`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "User-Agent": "CurioWireBot/1.0 (+https://curiowire.com)",
-          },
-        }
-      );
+      const res = await fetch(`${baseUrl}/r/${sub}/hot.json?limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "User-Agent":
+            process.env.REDDIT_USER_AGENT ||
+            "CurioWireBot/1.0 (+https://curiowire.com)",
+        },
+      });
 
-      // Hvis subreddit ikke finnes eller er privat
+      // 🚫 Håndter døde eller private subreddits
       if (res.status === 403 || res.status === 404) {
-        console.warn(`⚠️ r/${sub} is dead, replacing it for ${category}...`);
-
-        // Spør GPT om én ny subreddit i samme kategori
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "user",
-              content: `Suggest one active, safe, and popular subreddit about ${category}. Return only its name (no r/).`,
-            },
-          ],
-        });
-
-        const newSub = completion.choices[0]?.message?.content
-          ?.replace("r/", "")
-          ?.trim();
-
-        if (newSub) {
-          console.log(`✅ Replaced ${sub} → ${newSub}`);
-          const index = redditSubs[category].indexOf(sub);
-          redditSubs[category][index] = newSub;
-        }
-
+        console.warn(`⚠️ r/${sub} is dead — skipping for ${category}`);
         continue;
       }
 
@@ -174,14 +155,17 @@ async function fetchRedditTrends(category, subs) {
       const titles = posts
         .map((p) => p.data?.title)
         .filter(Boolean)
-        .slice(0, 3);
-      topics.push(...titles);
+        .slice(0, 5);
+
+      if (titles.length > 0) {
+        topics.push(...titles);
+      }
     } catch (err) {
       console.warn(`⚠️ Reddit fetch error for r/${sub}:`, err.message);
     }
   }
 
-  // === Hvis ingen eller alle duplikater → generer relatert, faktabasert emne ===
+  // 🧩 Fallback via GPT hvis ingen topics ble funnet
   if (topics.length === 0) {
     console.log(
       `🧠 No fresh topics for ${category} — generating related factual topic...`
@@ -200,6 +184,8 @@ Return only the short topic title (5–10 words).
             `,
           },
         ],
+        max_tokens: 40,
+        temperature: 0.5,
       });
 
       const related = completion.choices[0]?.message?.content?.trim();
