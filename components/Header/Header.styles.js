@@ -1,10 +1,10 @@
 import styled from "styled-components";
+import Link from "next/link";
 
 export const HeaderWrapper = styled.header`
   width: 100%;
-  //   background: var(--color-bg);
-  background: #f9f9fb;
-  border-bottom: 1px solid var(--color-muted);
+  background: ${({ theme }) => theme.colors.bgAlt || "#e9e9e9"};
+  // border-bottom: 1px solid ${({ theme }) => theme.colors.muted || "#ccc"};
   padding: 20px 40px;
   display: flex;
   flex-direction: column;
@@ -15,18 +15,21 @@ export const HeaderWrapper = styled.header`
   z-index: 10;
 `;
 
-export const Logo = styled.h1`
-  font-family: "Playfair Display", serif;
-  font-size: 2rem;
+export const Logo = styled.p`
   margin: 0;
 
-  a {
-    color: var(--color-text);
+  a,
+  a:link,
+  a:visited,
+  a:hover,
+  a:focus,
+  a:active {
+    color: ${({ theme }) => theme.colors.text};
     text-decoration: none;
-  }
-
-  a:hover {
-    color: var(--color-accent);
+    font-size: 2rem;
+    font-family: "Playfair Display", "Poppins", serif;
+    font-weight: 700;
+    cursor: pointer;
   }
 `;
 
@@ -34,21 +37,44 @@ export const Nav = styled.nav`
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 14px;
+  gap: 18px;
 `;
 
-export const NavItem = styled.span`
+export const NavLink = styled(Link)`
+  position: relative;
   font-family: "Inter", sans-serif;
   font-size: 0.95rem;
   text-transform: capitalize;
+  text-decoration: none;
+  color: ${({ theme }) => theme.colors.text};
+  font-weight: 500;
+  padding-bottom: 4px;
+  transition: color 0.2s ease;
 
-  a {
-    text-decoration: none;
-    color: var(--color-text);
-    font-weight: 500;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 2px;
+    width: 0%;
+    height: 2px;
+    background-color: ${({ theme }) => theme.colors.accent};
+    transition: width 0.25s ease;
   }
 
-  a:hover {
-    color: var(--color-accent);
+  &:hover {
+    color: ${({ theme }) => theme.colors.accent};
+  }
+
+  &:hover::after {
+    width: 100%;
+  }
+
+  &.active {
+    color: ${({ theme }) => theme.colors.accent};
+  }
+
+  &.active::after {
+    width: 100%;
   }
 `;

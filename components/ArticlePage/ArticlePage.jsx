@@ -62,14 +62,29 @@ export default function ArticlePage() {
 
   return (
     <Wrapper>
-      <CategoryTag>{category.toUpperCase()}</CategoryTag>
-      <Divider />
-
+      {/* <CategoryTag>{category.toUpperCase()}</CategoryTag> */}
       <Headline>Extra! Extra!</Headline>
       <SubIntro>{getCategoryIntro(category)}</SubIntro>
+      <Divider />
+
+      {/* <Headline>Extra! Extra!</Headline>
+      <SubIntro>{getCategoryIntro(category)}</SubIntro> */}
       <Title>{cleanText(title)}</Title>
 
       {image_url && <Image src={image_url} alt={cleanText(title)} />}
+
+      {article.image_credit && (
+        <p
+          style={{
+            fontSize: "0.8rem",
+            color: "var(--color-muted)",
+            fontStyle: "italic",
+            marginBottom: "16px",
+          }}
+        >
+          {article.image_credit}
+        </p>
+      )}
 
       <Excerpt>
         {cleanText(excerpt)
@@ -84,19 +99,6 @@ export default function ArticlePage() {
         <SourceLink href={source_url} target="_blank" rel="noopener noreferrer">
           See featured product→
         </SourceLink>
-      )}
-
-      {article.image_credit && (
-        <p
-          style={{
-            fontSize: "0.9rem",
-            color: "var(--color-muted)",
-            fontStyle: "italic",
-            marginTop: "8px",
-          }}
-        >
-          {article.image_credit}
-        </p>
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -128,16 +130,16 @@ export default function ArticlePage() {
 
 function getCategoryIntro(category) {
   const intros = {
-    science: "Breakthrough in the lab —",
-    technology: "From the frontier of innovation —",
-    space: "From beyond the stars —",
-    nature: "From the wild corners of Earth —",
-    health: "Vital news for body and mind —",
-    history: "From the dusty archives —",
-    culture: "From the heart of civilization —",
-    sports: "Straight from the arena —",
-    products: "Hot off the market —",
-    world: "From the halls of power —",
+    science: "🧪 Echoes from the lab",
+    technology: "⚙️ Traces from the down of innovation",
+    space: "🚀 Whispers from the silent cosmos",
+    nature: "🌿 Stories carved by wind and water",
+    health: "🫀 Secrets of the human vessel",
+    history: "🏺 Recovered from the dusty archives",
+    culture: "🎭 Fragments from the heart of civilization",
+    sports: "🏆 Legends born in the arena",
+    products: "🛍️ Artifacts of human ingenuity",
+    world: "🌍 Records from the halls of power",
   };
-  return intros[category?.toLowerCase()] || "Hot off the wire —";
+  return intros[category?.toLowerCase()] || "- Hot off the wire";
 }

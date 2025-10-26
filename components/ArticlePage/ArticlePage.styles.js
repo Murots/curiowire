@@ -1,12 +1,10 @@
 import styled from "styled-components";
 
 export const Wrapper = styled.div`
-  max-width: 750px;
-  margin: 80px auto;
-  padding: 0 24px 60px;
+  max-width: 1000px;
+  padding: 0 auto 60px auto;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: "Inter", sans-serif;
   line-height: 1.6;
 `;
 
@@ -27,18 +25,20 @@ export const Divider = styled.div`
 `;
 
 export const Headline = styled.h2`
-  font-family: "Playfair Display", serif;
-  font-size: 1.6rem;
   color: var(--color-accent);
-  margin-bottom: 4px;
+  margin-bottom: 0px;
+  text-transform: uppercase;
 `;
 
 export const SubIntro = styled.p`
-  font-family: "Inter", sans-serif;
   color: var(--color-muted);
   font-style: italic;
-  font-size: 1rem;
   margin-bottom: 14px;
+
+  /* første tegn (emoji) skal ikke være kursiv */
+  &::first-letter {
+    font-style: normal;
+  }
 `;
 
 export const Title = styled.h1`
@@ -53,9 +53,9 @@ export const Image = styled.img`
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  object-position: center;
+  object-position: 50% 35%;
   border-radius: 8px;
-  margin: 24px 0 28px;
+  margin: 24px 0 0 0;
   display: block;
 `;
 
@@ -73,7 +73,7 @@ export const Excerpt = styled.div`
     margin-bottom: 1.5rem;
   }
 
-  margin-bottom: 30px;
+  // margin-bottom: 60px;
 `;
 
 export const SourceLink = styled.a`
@@ -81,7 +81,7 @@ export const SourceLink = styled.a`
   color: var(--color-link);
   font-weight: 600;
   text-decoration: none;
-  margin-bottom: 40px;
+  // margin-bottom: 60px;
 
   &:hover {
     text-decoration: underline;
@@ -98,6 +98,8 @@ export const BackButton = styled.button`
   &:hover {
     color: var(--color-link);
   }
+
+  margin-top: 60px;
 `;
 
 export const NextLink = styled.a`
@@ -108,4 +110,6 @@ export const NextLink = styled.a`
   &:hover {
     text-decoration: underline;
   }
+
+  margin-top: 60px;
 `;

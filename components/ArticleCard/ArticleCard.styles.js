@@ -1,90 +1,9 @@
-// import styled from "styled-components";
-
-// export const Card = styled.div`
-//   background: var(--color-bg);
-//   border: 1px solid var(--color-muted);
-//   border-radius: 10px;
-//   overflow: hidden;
-//   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-//   transition: all 0.25s ease;
-//   cursor: pointer;
-
-//   &:hover {
-//     transform: translateY(-4px);
-//     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
-//   }
-// `;
-
-// export const ImageWrapper = styled.div`
-//   width: 100%;
-//   height: 180px;
-//   overflow: hidden;
-// `;
-
-// export const Image = styled.img`
-//   width: 100%;
-//   height: 100%;
-//   object-fit: cover;
-//   transition: transform 0.4s ease;
-
-//   ${Card}:hover & {
-//     transform: scale(1.05);
-//   }
-// `;
-
-// export const Content = styled.div`
-//   padding: 18px 20px 24px;
-// `;
-
-// export const Category = styled.div`
-//   font-size: 0.8rem;
-//   color: var(--color-accent);
-//   text-transform: uppercase;
-//   letter-spacing: 0.8px;
-//   margin-bottom: 6px;
-// `;
-
-// export const Headline = styled.div`
-//   font-family: "Playfair Display", serif;
-//   font-size: 1.1rem;
-//   color: var(--color-accent);
-//   margin-bottom: 2px;
-// `;
-
-// export const SubIntro = styled.p`
-//   font-family: "Inter", sans-serif;
-//   color: var(--color-muted);
-//   font-style: italic;
-//   font-size: 0.9rem;
-//   margin-bottom: 8px;
-// `;
-
-// export const Title = styled.h2`
-//   font-family: "Playfair Display", serif;
-//   font-size: 1.3rem;
-//   color: var(--color-text);
-//   margin-bottom: 8px;
-// `;
-
-// export const Excerpt = styled.p`
-//   font-family: "Inter", sans-serif;
-//   color: var(--color-text);
-//   font-size: 0.95rem;
-//   line-height: 1.5;
-//   margin-bottom: 12px;
-// `;
-
-// export const ReadMore = styled.span`
-//   font-weight: 600;
-//   color: var(--color-link);
-//   font-size: 0.95rem;
-// `;
-
 import styled from "styled-components";
 
 export const Card = styled.div`
   display: flex;
   flex-direction: ${({ $reverse }) => ($reverse ? "row-reverse" : "row")};
+  gap: 50px;
   align-items: stretch;
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-muted);
@@ -93,7 +12,8 @@ export const Card = styled.div`
   cursor: pointer;
   min-height: 150px;
   max-height: 250px;
-  Margin: 20px 0;
+  Margin: 0 0 50px 0;
+  padding: 30px 0;
 
   &:hover {
     background: var(--bg-color););
@@ -108,16 +28,22 @@ export const Card = styled.div`
 
 export const ImageWrapper = styled.div`
   flex: 0 0 45%;
+  position: relative;
   overflow: hidden;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 
+  /* Sikrer jevn høyde i desktop */
+  aspect-ratio: 16 / 9;
+  max-height: 250px;
+  border-radius: 6px;
+
   @media (max-width: 768px) {
     flex: none;
     width: 100%;
-    height: 200px;
+    aspect-ratio: 16 / 9;
+    max-height: none;
   }
 `;
 
@@ -125,9 +51,9 @@ export const Image = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: grayscale(100%) brightness(0.9);
+  object-position: 50% 35%;
   transition: all 0.6s ease;
-  padding: 30px;
+  filter: grayscale(100%) brightness(0.9);
 
   ${Card}:hover & {
     transform: scale(1.05);
@@ -137,7 +63,6 @@ export const Image = styled.img`
 
 export const Content = styled.div`
   flex: 1;
-  padding: 28px 36px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -158,8 +83,6 @@ export const Meta = styled.div`
 `;
 
 export const Title = styled.h2`
-  font-family: "Playfair Display", serif;
-  font-size: 1.4rem;
   color: var(--color-text);
   margin-bottom: 10px;
   line-height: 1.35;

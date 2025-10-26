@@ -32,14 +32,7 @@ export default function ArticleCard({
   const isEven = index % 2 === 0;
 
   return (
-    <Link
-      href={`/article/${id}`}
-      style={{
-        textDecoration: "none",
-        color: "inherit",
-        display: "block",
-      }}
-    >
+    <Link href={`/article/${id}`}>
       <Card $reverse={isEven}>
         <ImageWrapper>
           {image_url && <Image src={image_url} alt={cleanText(title)} />}
@@ -51,18 +44,6 @@ export default function ArticleCard({
           </Meta>
 
           <Title>{cleanText(title)}</Title>
-
-          {/* {view_count !== undefined && (
-            <p
-              style={{
-                color: "var(--color-muted)",
-                fontSize: "0.9rem",
-                marginTop: "6px",
-              }}
-            >
-              🔥 {view_count} views this week
-            </p>
-          )} */}
 
           <ReadMore>Read more →</ReadMore>
         </Content>

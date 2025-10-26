@@ -1,10 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { HeaderWrapper, Logo, Nav, NavItem } from "./Header.styles";
+import { HeaderWrapper, Logo, Nav, NavLink } from "./Header.styles";
 
 export default function Header() {
+  const pathname = usePathname();
+  const [active, setActive] = useState("/");
+
   const categories = [
     "science",
     "technology",
@@ -18,6 +22,26 @@ export default function Header() {
     "world",
   ];
 
+  /* === 🔹 1. Hent lagret aktiv lenke ved oppstart === */
+  useEffect(() => {
+    const saved = localStorage.getItem("activeLink");
+    if (saved) setActive(saved);
+  }, []);
+
+  /* === 🔹 2. Oppdater aktiv lenke ved ruteendring === */
+  useEffect(() => {
+    if (pathname) {
+      setActive(pathname);
+      localStorage.setItem("activeLink", pathname);
+    }
+  }, [pathname]);
+
+  /* === 🔹 3. Manuell klikk (fallback) === */
+  const handleClick = (path) => {
+    setActive(path);
+    localStorage.setItem("activeLink", path);
+  };
+
   return (
     <HeaderWrapper>
       <Logo>
@@ -25,13 +49,19 @@ export default function Header() {
       </Logo>
 
       <Nav>
-        {categories.map((cat) => (
-          <NavItem key={cat}>
-            <Link href={`/${cat}`}>
+        {categories.map((cat) => {
+          const path = `/${cat}`;
+          return (
+            <NavLink
+              key={cat}
+              href={path}
+              onClick={() => handleClick(path)}
+              className={active === path ? "active" : ""}
+            >
               {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </Link>
-          </NavItem>
-        ))}
+            </NavLink>
+          );
+        })}
       </Nav>
     </HeaderWrapper>
   );

@@ -20,9 +20,9 @@ export const GlobalStyle = createGlobalStyle`
     text-decoration: none;
   }
 
-  a:hover {
-    text-decoration: underline;
-  }
+  // a:hover {
+  //   text-decoration: underline;
+  // }
 
   h1, h2, h3 {
     font-family: ${({ theme }) => theme.fonts.heading};
@@ -30,8 +30,28 @@ export const GlobalStyle = createGlobalStyle`
     margin-bottom: 0.5rem;
   }
 
+  h1 {
+    font-family: "Playfair Display", "Poppins", serif;
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-family: "Playfair Display", "Poppins", serif;
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-family: "Playfair Display", "Poppins", serif;
+    font-size: 2rem;
+  }
+
+  p {
+    font-family: "Inter", sans-serif;
+    font-size: 1.1rem;
+  }
+
   main {
-    padding: 2rem;
+    padding: 4rem 15% 2rem 15%;
     max-width: 1200px;
     margin: 0 auto;
   }

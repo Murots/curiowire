@@ -21,7 +21,7 @@ import {
   affiliateAppendix,
   naturalEnding,
 } from "../utils/prompts.js";
-import { makeAffiliateSearchLink } from "../utils/affiliateTools.js";
+// import { makeAffiliateSearchLink } from "../utils/affiliateTools.js";
 
 // === Nye modulære utils ===
 import { pickNewTopic } from "../utils/topicUtils.js";
@@ -38,6 +38,7 @@ import {
   resolveProductCategory,
   findAffiliateProduct,
 } from "../utils/productUtils.js";
+import { selectBestImage } from "../utils/imageSelector.js";
 
 // === INIT ===
 const openai = new OpenAI({
@@ -187,32 +188,27 @@ export async function GET() {
           .trim();
 
         // === 🎨 Hent bilde ===
-        const keywords = title
-          .split(" ")
-          .filter((w) => w.length > 3)
-          .slice(0, 6)
-          .join(", ");
+        const imagePref = image === "photo" ? "photo" : "dalle";
 
-        let imageUrl =
-          image === "dalle"
-            ? await generateDalleImage(title, topic, tone, key)
-            : await fetchUnsplashImage(`${title} ${keywords} ${key}`);
+        const { imageUrl, source, score } = await selectBestImage(
+          title,
+          cleanedArticle,
+          key,
+          imagePref
+        );
 
-        if (!imageUrl && image === "dalle")
-          imageUrl = await fetchUnsplashImage(`${title} ${keywords} ${key}`);
-        if (!imageUrl) imageUrl = `https://picsum.photos/seed/${key}/800/400`;
+        const cachedUrl = imageUrl; // allerede cached i selectBestImage
 
-        const cachedUrl =
-          imageUrl.includes("unsplash") || imageUrl.includes("photos")
-            ? await cacheImageToSupabase(imageUrl, `${key}-${Date.now()}`, key)
-            : imageUrl;
-
-        const imageCredit = imageUrl.includes("unsplash")
-          ? "Image courtesy of Unsplash"
-          : imageUrl.includes("picsum")
-          ? "Placeholder image via Picsum"
-          : "Illustration by DALL·E";
-
+        const imageCredit =
+          source === "Wikimedia"
+            ? "Image via Wikimedia Commons"
+            : source === "Pexels"
+            ? "Image courtesy of Pexels"
+            : source === "Unsplash"
+            ? "Image courtesy of Unsplash"
+            : source === "DALL·E"
+            ? "Illustration by DALL·E 3"
+            : "Image source unknown";
         // === 📦 Lagre i Supabase ===
         const { error } = await supabase.from("articles").insert([
           {

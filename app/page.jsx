@@ -60,7 +60,7 @@ export default function HomePage() {
 
   return (
     <Wrapper>
-      <Headline>🔥 This Week’s Top 10 Curiosities</Headline>
+      <Headline>🔥Trending curiosities</Headline>
 
       <Grid>
         {articles.map((a, i) => (
