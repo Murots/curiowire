@@ -4,6 +4,7 @@ import Link from "next/link";
 export const HeaderWrapper = styled.header`
   width: 100%;
   background: ${({ theme }) => theme.colors.bgAlt || "#e9e9e9"};
+
   padding: 16px 24px;
   display: flex;
   flex-direction: column;
@@ -30,7 +31,7 @@ export const Logo = styled.p`
 export const NavLink = styled(Link)`
   position: relative;
   font-family: "Inter", sans-serif;
-  font-size: 1rem;
+  font-size: 0.8rem;
   text-transform: capitalize;
   text-decoration: none;
   color: ${({ theme }) => theme.colors.text};
@@ -70,7 +71,7 @@ export const Hamburger = styled.button`
   display: none;
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1rem;
   color: ${({ theme }) => theme.colors.text};
   cursor: pointer;
   position: absolute;
@@ -96,7 +97,7 @@ export const MobileMenu = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 19px;
+  gap: 24px;
   z-index: 55;
   animation: slideInLeft 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -112,7 +113,7 @@ export const MobileMenu = styled.div`
   }
 
   a {
-    font-size: 1rem;
+    font-size: 0.8rem;
     color: ${({ theme }) => theme.colors.text};
     text-decoration: none;
     transition: color 0.2s ease;

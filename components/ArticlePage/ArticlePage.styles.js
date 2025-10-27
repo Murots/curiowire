@@ -59,11 +59,6 @@ export const Image = styled.img`
   display: block;
 `;
 
-// export const Excerpt = styled.p`
-//   font-size: 1.1rem;
-//   margin-bottom: 30px;
-// `;
-
 export const Excerpt = styled.div`
   font-size: 1.1rem;
   color: var(--color-text);
@@ -72,8 +67,6 @@ export const Excerpt = styled.div`
   p {
     margin-bottom: 1.5rem;
   }
-
-  // margin-bottom: 60px;
 `;
 
 export const SourceLink = styled.a`

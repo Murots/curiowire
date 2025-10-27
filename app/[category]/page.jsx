@@ -4,37 +4,74 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import ArticleCard from "@/components/ArticleCard/ArticleCard";
-import { Wrapper, Title, Grid, Loader, SubIntro } from "./page.styles";
+import {
+  Wrapper,
+  Title,
+  Grid,
+  Loader,
+  SubIntro,
+  LoadMore,
+} from "./page.styles";
 
 export default function CategoryPage() {
   const { category } = useParams();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 15;
 
+  // === Hent artikler med paginering ===
+  const fetchCategoryArticles = async (pageIndex = 0) => {
+    const from = pageIndex * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error } = await supabase
+      .from("articles")
+      .select("*")
+      .eq("category", category)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error("❌ Error fetching articles:", error.message);
+      return [];
+    }
+
+    return data || [];
+  };
+
+  // === Første lasting ===
   useEffect(() => {
     if (!category) return;
 
-    const fetchCategoryArticles = async () => {
-      const { data, error } = await supabase
-        .from("articles")
-        .select("*")
-        .eq("category", category)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (!error && data) setArticles(data);
+    const loadInitial = async () => {
+      setLoading(true);
+      const initial = await fetchCategoryArticles(0);
+      setArticles(initial);
+      setHasMore(initial.length === PAGE_SIZE);
+      setPage(0);
       setLoading(false);
     };
 
-    fetchCategoryArticles();
+    loadInitial();
   }, [category]);
+
+  // === Hent flere artikler ===
+  const loadMore = async () => {
+    const nextPage = page + 1;
+    const newArticles = await fetchCategoryArticles(nextPage);
+
+    if (newArticles.length < PAGE_SIZE) setHasMore(false);
+    setArticles((prev) => [...prev, ...newArticles]);
+    setPage(nextPage);
+  };
 
   if (loading) return <Loader>Fetching stories from {category}...</Loader>;
 
   return (
     <Wrapper>
       <Title>{category.charAt(0).toUpperCase() + category.slice(1)}</Title>
-
       <SubIntro>{getCategoryIntro(category)}</SubIntro>
 
       <Grid>
@@ -50,16 +87,17 @@ export default function CategoryPage() {
           />
         ))}
       </Grid>
+
+      {hasMore && <LoadMore onClick={loadMore}>More ↓</LoadMore>}
     </Wrapper>
   );
 }
 
-/* === Hjelpefunksjoner === */
-
+/* === Hjelpefunksjon for intro === */
 function getCategoryIntro(category) {
   const intros = {
     science: "🧪 Echoes from the lab",
-    technology: "⚙️ Traces from the down of innovation",
+    technology: "⚙️ Traces from the dawn of innovation",
     space: "🚀 Whispers from the silent cosmos",
     nature: "🌿 Stories carved by wind and water",
     health: "🫀 Secrets of the human vessel",

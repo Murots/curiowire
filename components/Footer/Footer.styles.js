@@ -9,10 +9,14 @@ export const FooterWrapper = styled.footer`
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  font-family: "Inter", sans-serif;
-  font-size: 0.95rem;
+  // font-family: "Inter", sans-serif;
+  // font-size: 0.95rem;
   color: var(--color-muted);
   text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 `;
 
 export const Copy = styled.div`

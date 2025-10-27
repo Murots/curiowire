@@ -28,6 +28,8 @@ export const GlobalStyle = createGlobalStyle`
     font-family: ${({ theme }) => theme.fonts.heading};
     font-weight: 700;
     margin-bottom: 0.5rem;
+    letter-spacing: 0.02em;
+    text-transform: none;
   }
 
   h1 {
@@ -52,13 +54,16 @@ export const GlobalStyle = createGlobalStyle`
   p {
     font-family: "Inter", sans-serif;
     font-size: 1.1rem;
+    line-height: 1.75;
+    // max-width: 680px;
+    margin: 0 auto;
   }
 
   main {
-    padding: 4rem 15% 2rem 15%;
+    padding: 4rem 15% 6rem 15%;
     max-width: 1200px;
     margin: 0 auto;
-
+  
     @media (max-width: 450px) {
     padding: 4rem 5% 2rem 5%;
   }
