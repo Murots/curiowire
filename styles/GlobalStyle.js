@@ -33,6 +33,10 @@ export const GlobalStyle = createGlobalStyle`
   h1 {
     font-family: "Playfair Display", "Poppins", serif;
     font-size: 2rem;
+
+    @media (max-width: 450px) {
+    font-size: 1.7rem;
+  }
   }
 
   h2 {
@@ -54,5 +58,9 @@ export const GlobalStyle = createGlobalStyle`
     padding: 4rem 15% 2rem 15%;
     max-width: 1200px;
     margin: 0 auto;
+
+    @media (max-width: 450px) {
+    padding: 4rem 5% 2rem 5%;
+  }
   }
 `;

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import {
   Wrapper,
@@ -16,44 +17,59 @@ import {
   NextLink,
   Divider,
 } from "./ArticlePage.styles";
-
 import { cleanText } from "../../app/api/utils/cleanText";
 
 export default function ArticlePage() {
   const { id } = useParams();
   const router = useRouter();
   const [article, setArticle] = useState(null);
+  const [nextArticle, setNextArticle] = useState(null);
 
   useEffect(() => {
     if (!id) return;
 
-    const fetchArticleAndLogView = async () => {
-      // === 1️⃣ Hent artikkelen ===
-      const { data, error } = await supabase
+    const fetchArticleAndNext = async () => {
+      // 1️⃣ Hent artikkelen
+      const { data: current, error } = await supabase
         .from("articles")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (!error && data) {
-        setArticle(data);
+      if (error || !current) {
+        console.error("❌ Error fetching article:", error?.message);
+        return;
+      }
 
-        // === 2️⃣ Logg visning ===
-        const { error: viewError } = await supabase
-          .from("article_views")
-          .insert([{ article_id: id }]);
+      setArticle(current);
 
-        if (viewError) {
-          console.error("❌ Error logging view:", viewError.message);
-        } else {
-          console.log("👁️ Logged view for article:", id);
-        }
+      // 2️⃣ Logg visning
+      await supabase.from("article_views").insert([{ article_id: id }]);
+
+      // 3️⃣ Finn neste artikkel i samme kategori
+      const { data: nextData } = await supabase
+        .from("articles")
+        .select("id, title")
+        .eq("category", current.category)
+        .gt("created_at", current.created_at)
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      if (nextData && nextData.length > 0) {
+        setNextArticle(nextData[0]);
       } else {
-        console.error("❌ Error fetching article:", error);
+        // Hvis ingen nyere finnes, ta første (eldste) i kategorien
+        const { data: first } = await supabase
+          .from("articles")
+          .select("id, title")
+          .eq("category", current.category)
+          .order("created_at", { ascending: true })
+          .limit(1);
+        if (first && first.length > 0) setNextArticle(first[0]);
       }
     };
 
-    fetchArticleAndLogView();
+    fetchArticleAndNext();
   }, [id]);
 
   if (!article) return <Wrapper>Loading curiosity...</Wrapper>;
@@ -62,13 +78,10 @@ export default function ArticlePage() {
 
   return (
     <Wrapper>
-      {/* <CategoryTag>{category.toUpperCase()}</CategoryTag> */}
       <Headline>Extra! Extra!</Headline>
       <SubIntro>{getCategoryIntro(category)}</SubIntro>
       <Divider />
 
-      {/* <Headline>Extra! Extra!</Headline>
-      <SubIntro>{getCategoryIntro(category)}</SubIntro> */}
       <Title>{cleanText(title)}</Title>
 
       {image_url && <Image src={image_url} alt={cleanText(title)} />}
@@ -94,20 +107,26 @@ export default function ArticlePage() {
           ))}
       </Excerpt>
 
-      {/* 🛒 Affiliate-link kun for produktartikler */}
       {category === "products" && source_url && (
         <SourceLink href={source_url} target="_blank" rel="noopener noreferrer">
-          See featured product→
+          See featured product →
         </SourceLink>
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <BackButton onClick={() => router.back()}>
+        <BackButton onClick={() => router.push(`/${category}`)}>
           ← Back to {category}
         </BackButton>
-        <NextLink href={`/${category}`}>Next curiosity →</NextLink>
+
+        {nextArticle ? (
+          <NextLink href={`/article/${nextArticle.id}`}>
+            Next curiosity →
+          </NextLink>
+        ) : (
+          <NextLink href={`/${category}`}>Back to category →</NextLink>
+        )}
       </div>
-      {/* === Amazon affiliate disclaimer (kun for product-kategorien) === */}
+
       {category?.toLowerCase() === "products" && (
         <p
           style={{
@@ -126,12 +145,11 @@ export default function ArticlePage() {
   );
 }
 
-/* === Hjelpefunksjoner === */
-
+/* === Hjelpefunksjon === */
 function getCategoryIntro(category) {
   const intros = {
     science: "🧪 Echoes from the lab",
-    technology: "⚙️ Traces from the down of innovation",
+    technology: "⚙️ Traces from the dawn of innovation",
     space: "🚀 Whispers from the silent cosmos",
     nature: "🌿 Stories carved by wind and water",
     health: "🫀 Secrets of the human vessel",
