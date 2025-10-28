@@ -10,12 +10,26 @@ export default function Footer() {
       <Copy>
         © {new Date().getFullYear()} CurioWire — From the digital wire.
       </Copy>
+
       <Links>
         <Link href="/about">About</Link>
         <span>·</span>
         <Link href="/sources">Sources</Link>
         <span>·</span>
-        <a href="https://openai.com" target="_blank" rel="noopener noreferrer">
+        <Link href="/contact">Contact</Link>
+        <span>·</span>
+        <Link href="/disclaimer">Disclaimer</Link>
+        <span>·</span>
+        <Link href="/privacy">Privacy</Link>
+        <span>·</span>
+        <Link href="/sitemap">Sitemap</Link>
+        <span>·</span>
+        <a
+          href="https://openai.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit OpenAI"
+        >
           Powered by AI
         </a>
       </Links>
