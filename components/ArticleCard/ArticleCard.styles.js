@@ -51,7 +51,7 @@ export const Image = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 35%;
+  object-position: 50% 30%;
   transition: all 0.6s ease;
   filter: grayscale(100%) brightness(0.9);
 
