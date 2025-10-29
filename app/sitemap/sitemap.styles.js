@@ -104,27 +104,71 @@ export const Timestamp = styled.span`
 `;
 
 /* === CATEGORY LINK LIST (used on /sitemap) === */
+// export const CategoryList = styled.ul`
+//   list-style: none;
+//   padding: 0;
+//   margin: 0 auto 60px;
+//   text-align: center;
+// `;
+
+// export const CategoryItem = styled.li`
+//   display: inline-block;
+//   margin: 10px 15px;
+
+//   a {
+//     color: ${({ theme }) => theme.colors.accent};
+//     font-weight: 600;
+//     text-decoration: none;
+//     font-size: 1.1rem;
+//     transition: opacity 0.25s ease, color 0.25s ease;
+
+//     &:hover {
+//       color: ${({ theme }) => theme.colors.text};
+//       opacity: 0.8;
+//     }
+//   }
+// `;
+
 export const CategoryList = styled.ul`
-  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
   padding: 0;
   margin: 0 auto 60px;
-  text-align: center;
+  max-width: 800px;
+  list-style: none;
+
+  @media (max-width: 600px) {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+  }
 `;
 
 export const CategoryItem = styled.li`
-  display: inline-block;
-  margin: 10px 15px;
-
   a {
+    display: block;
+    background: ${({ theme }) => theme.colors.bgAlt};
     color: ${({ theme }) => theme.colors.accent};
-    font-weight: 600;
+    // border: 1px solid ${({ theme }) => theme.colors.muted};
+    border-radius: 6px;
+    padding: 6px 0;
+    text-align: center;
     text-decoration: none;
-    font-size: 1.1rem;
-    transition: opacity 0.25s ease, color 0.25s ease;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.03em;
+    transition: all 0.25s ease;
 
     &:hover {
-      color: ${({ theme }) => theme.colors.text};
-      opacity: 0.8;
+      background: ${({ theme }) => theme.colors.accent};
+      color: ${({ theme }) => theme.colors.bg};
+      border-color: ${({ theme }) => theme.colors.accent};
+      transform: translateY(-2px);
+    }
+
+    @media (max-width: 600px) {
+      font-size: 0.95rem;
+      padding: 10px 0;
     }
   }
 `;

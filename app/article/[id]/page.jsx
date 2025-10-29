@@ -1,9 +1,3 @@
-// import ArticlePage from "@/components/ArticlePage/ArticlePage";
-
-// export default function Page() {
-//   return <ArticlePage />;
-// }
-
 "use client";
 
 import React, { useEffect, useState } from "react";
