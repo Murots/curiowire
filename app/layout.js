@@ -77,6 +77,7 @@
 //     </html>
 //   );
 // }
+export const runtime = "nodejs";
 import { Suspense } from "react";
 import Script from "next/script";
 import ThemeRegistry from "./ThemeRegistry";
