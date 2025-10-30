@@ -14,7 +14,7 @@ export default function Page() {
 
   useEffect(() => {
     const fetchArticleAndNext = async () => {
-      // 📰 1️⃣ Hent artikkelen
+      // 📰 1️⃣ Hent artikkel
       const { data, error } = await supabase
         .from("articles")
         .select("*")
@@ -41,7 +41,7 @@ export default function Page() {
       if (nextData && nextData.length > 0) {
         setNextArticle(nextData[0]);
       } else {
-        // 🔁 3️⃣ Ingen nyere → hent første (eldste) for å gå sirkulært
+        // 🔁 3️⃣ Ingen nyere → hent første (eldste)
         const { data: first } = await supabase
           .from("articles")
           .select("id, title")
@@ -64,7 +64,6 @@ export default function Page() {
   const baseUrl = "https://curiowire.com";
   const url = `${baseUrl}/article/${id}`;
   const nextUrl = nextArticle ? `${baseUrl}/article/${nextArticle.id}` : null;
-
   const title = article.title || "Untitled — CurioWire";
   const description =
     article.excerpt?.slice(0, 160) ||
@@ -78,7 +77,7 @@ export default function Page() {
     article.excerpt.length < 50 ||
     article.title.toLowerCase().includes("test");
 
-  // --- Strukturert data (schema.org) ---
+  // === 🧩 STRUCTURED DATA ===
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -107,10 +106,36 @@ export default function Page() {
     },
   };
 
+  // === 🧭 BreadcrumbList (Home › Category › Article) ===
+  const breadcrumbList = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: category,
+        item: `${baseUrl}/${category}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: title,
+        item: url,
+      },
+    ],
+  };
+
   return (
     <>
       <Head>
-        {/* 🎯 Dynamisk SEO */}
+        {/* 🎯 Dynamic SEO */}
         <title>{title}</title>
         <meta name="description" content={description} />
         <meta
@@ -135,10 +160,12 @@ export default function Page() {
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={image} />
 
-        {/* 📰 Strukturert data */}
+        {/* 📰 Structured Data */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([structuredData, breadcrumbList]),
+          }}
         />
       </Head>
 

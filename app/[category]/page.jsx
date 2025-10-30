@@ -101,7 +101,7 @@ export default function CategoryPage() {
           name="keywords"
           content={`${formattedCategory}, CurioWire, AI journalism, history, curiosities, ${formattedCategory.toLowerCase()} news`}
         />
-        <meta name="Murots" content="CurioWire" />
+        <meta name="author" content="CurioWire" />
         <meta property="article:section" content={formattedCategory} />
         <link rel="canonical" href={canonicalUrl} />
         {prevUrl && <link rel="prev" href={prevUrl} />}
@@ -144,14 +144,27 @@ export default function CategoryPage() {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "CollectionPage",
-              name: `${formattedCategory} — CurioWire`,
-              description: `AI-curated ${formattedCategory.toLowerCase()} news and hidden histories on CurioWire.`,
-              url: canonicalUrl,
-              mainEntity: {
+            __html: JSON.stringify([
+              {
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                name: `${formattedCategory} — CurioWire`,
+                description: `AI-curated ${formattedCategory.toLowerCase()} news and hidden histories on CurioWire.`,
+                url: canonicalUrl,
+                publisher: {
+                  "@type": "Organization",
+                  name: "CurioWire",
+                  url: baseUrl,
+                  logo: {
+                    "@type": "ImageObject",
+                    url: `${baseUrl}/icon.png`,
+                  },
+                },
+              },
+              {
+                "@context": "https://schema.org",
                 "@type": "ItemList",
+                name: `${formattedCategory} Articles`,
                 itemListElement: articles.map((a, index) => ({
                   "@type": "ListItem",
                   position: index + 1,
@@ -162,16 +175,7 @@ export default function CategoryPage() {
                   dateModified: a.updated_at || a.created_at,
                 })),
               },
-              publisher: {
-                "@type": "Organization",
-                name: "CurioWire",
-                url: baseUrl,
-                logo: {
-                  "@type": "ImageObject",
-                  url: `${baseUrl}/icon.png`,
-                },
-              },
-            }),
+            ]),
           }}
         />
       </Head>
