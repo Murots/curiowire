@@ -1,4 +1,4 @@
-"use client";
+export const dynamic = "force-static";
 
 import styled from "styled-components";
 

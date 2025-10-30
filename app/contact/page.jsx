@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-static";
+
 import Head from "next/head";
 import { Wrapper, Headline, Paragraph, MailLink } from "./contact.styles";
 

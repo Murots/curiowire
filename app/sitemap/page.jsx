@@ -1,4 +1,4 @@
-"use client";
+export const dynamic = "force-static";
 
 import Head from "next/head";
 import Link from "next/link";
