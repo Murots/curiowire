@@ -1,6 +1,7 @@
+// === app/disclaimer/page.jsx ===
+// ⚖️ Editorial Disclaimer — CurioWire
 export const dynamic = "force-static";
 
-import Head from "next/head";
 import {
   Wrapper,
   Headline,
@@ -8,7 +9,8 @@ import {
   SectionTitle,
 } from "./disclaimer.styles";
 
-export default function DisclaimerPage() {
+/* === 🧠 SERVER-SIDE METADATA (SEO + JSON-LD) === */
+export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/disclaimer`;
 
@@ -17,7 +19,6 @@ export default function DisclaimerPage() {
     "Editorial disclaimer for CurioWire: automated content, AI-assisted reporting, and responsibility for accuracy, tone and representation.";
   const image = `${baseUrl}/icon.png`;
 
-  // 🧠 Strukturert data
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
@@ -28,7 +29,10 @@ export default function DisclaimerPage() {
       "@type": "Organization",
       name: "CurioWire",
       url: baseUrl,
-      logo: { "@type": "ImageObject", url: image },
+      logo: {
+        "@type": "ImageObject",
+        url: image,
+      },
     },
     mainEntity: {
       "@type": "WebPageElement",
@@ -37,120 +41,118 @@ export default function DisclaimerPage() {
     },
   };
 
+  return {
+    title,
+    description,
+    alternates: { canonical: pageUrl },
+    openGraph: {
+      type: "website",
+      siteName: "CurioWire",
+      title,
+      description,
+      url: pageUrl,
+      images: [
+        {
+          url: image,
+          width: 512,
+          height: 512,
+          alt: "CurioWire Logo",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@curiowire",
+      title,
+      description,
+      images: [image],
+    },
+    other: {
+      robots: "index,follow",
+      "theme-color": "#95010e",
+    },
+    scripts: [
+      {
+        type: "application/ld+json",
+        innerHTML: JSON.stringify(structuredData),
+      },
+    ],
+  };
+}
+
+/* === 🧩 PAGE COMPONENT === */
+export default function DisclaimerPage() {
   return (
-    <>
-      <Head>
-        {/* 🧭 Primary SEO Metadata */}
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <meta
-          name="keywords"
-          content="CurioWire disclaimer, AI journalism, automated reporting, editorial policy, content accuracy, responsibility, ethics"
-        />
-        <meta name="author" content="CurioWire" />
-        <meta httpEquiv="Content-Language" content="en" />
-        <link rel="canonical" href={pageUrl} />
-        <meta name="robots" content="index,follow" />
+    <Wrapper>
+      <Headline>Editorial Disclaimer</Headline>
 
-        {/* 🌍 Open Graph */}
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="CurioWire" />
-        <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
-        <meta property="og:url" content={pageUrl} />
-        <meta property="og:image" content={image} />
+      <Paragraph>
+        <strong>CurioWire</strong> is an experimental digital publication built
+        on automated tools, open data, and artificial intelligence. While every
+        effort is made to ensure factual alignment and narrative clarity,
+        content is generated or refined using algorithmic models and may not
+        always represent verified or up-to-date information.
+      </Paragraph>
 
-        {/* 🐦 Twitter Card */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@curiowire" />
-        <meta name="twitter:title" content={title} />
-        <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={image} />
+      <SectionTitle>1. Nature of the Content</SectionTitle>
+      <Paragraph>
+        Articles, images, and headlines published on CurioWire are composed with
+        the assistance of machine-learning systems. These systems summarize,
+        reinterpret, and occasionally fictionalize fragments of data, language,
+        and imagery. As a result, some stories may contain inaccuracies,
+        omissions, or artistic representations that do not perfectly reflect
+        real-world events.
+      </Paragraph>
 
-        {/* 📱 Favicon & Manifest */}
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="manifest" href="/manifest.json" />
+      <Paragraph>
+        Readers should treat all content as informational and exploratory, not
+        as definitive reporting or professional advice.
+      </Paragraph>
 
-        {/* 🧠 Structured Data (JSON-LD) */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(structuredData),
-          }}
-        />
-      </Head>
+      <SectionTitle>2. Expression and Tone</SectionTitle>
+      <Paragraph>
+        The tone and language of each article are designed to evoke a
+        twentieth-century editorial aesthetic — occasionally ironic, poetic, or
+        dramatic. Such expression is stylistic, not ideological. Any opinions,
+        implications, or interpretations expressed within the content are
+        generated by algorithms and do not represent the beliefs or positions of
+        CurioWire, its editors, or contributors.
+      </Paragraph>
 
-      <Wrapper>
-        <Headline>Editorial Disclaimer</Headline>
+      <SectionTitle>3. Imagery and Representation</SectionTitle>
+      <Paragraph>
+        Visual content generated or selected by AI is intended to complement the
+        narrative and theme of each article. These images should not be
+        interpreted as literal or documentary evidence of the subjects depicted.
+        Variations in realism, likeness, or historical accuracy are inherent to
+        the creative process.
+      </Paragraph>
 
-        <Paragraph>
-          <strong>CurioWire</strong> is an experimental digital publication
-          built on automated tools, open data, and artificial intelligence.
-          While every effort is made to ensure factual alignment and narrative
-          clarity, content is generated or refined using algorithmic models and
-          may not always represent verified or up-to-date information.
-        </Paragraph>
+      <SectionTitle>4. Responsibility and Liability</SectionTitle>
+      <Paragraph>
+        CurioWire assumes no responsibility for decisions made or opinions
+        formed based on the information provided on this site. We do not warrant
+        the accuracy, completeness, or suitability of any material for specific
+        purposes. External links are provided for context and convenience only —
+        CurioWire is not responsible for the content or policies of third-party
+        sites.
+      </Paragraph>
 
-        <SectionTitle>1. Nature of the Content</SectionTitle>
-        <Paragraph>
-          Articles, images, and headlines published on CurioWire are composed
-          with the assistance of machine learning systems. These systems
-          summarize, reinterpret, and occasionally fictionalize fragments of
-          data, language, and imagery. As a result, some stories may contain
-          inaccuracies, omissions, or artistic representations that do not
-          perfectly reflect real-world events.
-        </Paragraph>
+      <SectionTitle>5. Ethical and Cultural Sensitivity</SectionTitle>
+      <Paragraph>
+        Given the automated nature of our editorial process, some phrasing or
+        associations may unintentionally appear insensitive or controversial.
+        Such occurrences are never deliberate. We welcome thoughtful feedback
+        and continuously refine our models to avoid harm, bias, or
+        misrepresentation.
+      </Paragraph>
 
-        <Paragraph>
-          Readers should treat all content as informational and exploratory, not
-          as definitive reporting or professional advice.
-        </Paragraph>
-
-        <SectionTitle>2. Expression and Tone</SectionTitle>
-        <Paragraph>
-          The tone and language of each article are designed to evoke a
-          twentieth-century editorial aesthetic — occasionally ironic, poetic,
-          or dramatic. Such expression is stylistic, not ideological. Any
-          opinions, implications, or interpretations expressed within the
-          content are generated by algorithms and do not represent the beliefs
-          or positions of CurioWire, its editors, or contributors.
-        </Paragraph>
-
-        <SectionTitle>3. Imagery and Representation</SectionTitle>
-        <Paragraph>
-          Visual content generated or selected by AI is intended to complement
-          the narrative and theme of each article. These images should not be
-          interpreted as literal or documentary evidence of the subjects
-          depicted. Variations in realism, likeness, or historical accuracy are
-          inherent to the creative process.
-        </Paragraph>
-
-        <SectionTitle>4. Responsibility and Liability</SectionTitle>
-        <Paragraph>
-          CurioWire assumes no responsibility for decisions made or opinions
-          formed based on the information provided on this site. We do not
-          warrant the accuracy, completeness, or suitability of any material for
-          specific purposes. External links are provided for context and
-          convenience only — CurioWire is not responsible for the content or
-          policies of third-party sites.
-        </Paragraph>
-
-        <SectionTitle>5. Ethical and Cultural Sensitivity</SectionTitle>
-        <Paragraph>
-          Given the automated nature of our editorial process, some phrasing or
-          associations may unintentionally appear insensitive or controversial.
-          Such occurrences are never deliberate. We welcome thoughtful feedback
-          and continuously refine our models to avoid harm, bias, or
-          misrepresentation.
-        </Paragraph>
-
-        <Paragraph>
-          For feedback, factual corrections, or ethical concerns, readers may
-          reach out via our <a href="/contact">contact page</a>. Constructive
-          dialogue helps improve both our editorial process and technological
-          transparency.
-        </Paragraph>
-      </Wrapper>
-    </>
+      <Paragraph>
+        For feedback, factual corrections, or ethical concerns, readers may
+        reach out via our <a href="/contact">contact page</a>. Constructive
+        dialogue helps improve both our editorial process and technological
+        transparency.
+      </Paragraph>
+    </Wrapper>
   );
 }

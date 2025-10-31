@@ -1,9 +1,11 @@
+// === app/about/page.jsx ===
+// 📰 About CurioWire — AI Journalism Meets Vintage Design
 export const dynamic = "force-static";
 
-import Head from "next/head";
 import { Wrapper, Headline, Paragraph, Highlight } from "./about.styles";
 
-export default function AboutPage() {
+/* === 🧠 SERVER-SIDE METADATA (SEO + JSON-LD) === */
+export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/about`;
 
@@ -12,7 +14,6 @@ export default function AboutPage() {
     "CurioWire blends AI journalism with timeless editorial craftsmanship — rediscovering the world’s curiosities, one story at a time.";
   const image = `${baseUrl}/icon.png`;
 
-  // 🧠 Strukturert data (schema.org)
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "AboutPage",
@@ -38,81 +39,77 @@ export default function AboutPage() {
     },
   };
 
+  return {
+    title,
+    description,
+    alternates: { canonical: pageUrl },
+    openGraph: {
+      type: "website",
+      siteName: "CurioWire",
+      title,
+      description,
+      url: pageUrl,
+      images: [
+        {
+          url: image,
+          width: 512,
+          height: 512,
+          alt: "CurioWire Logo",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@curiowire",
+      title,
+      description,
+      images: [image],
+    },
+    other: {
+      robots: "index,follow",
+      "theme-color": "#95010e",
+    },
+    scripts: [
+      {
+        type: "application/ld+json",
+        innerHTML: JSON.stringify(structuredData),
+      },
+    ],
+  };
+}
+
+/* === 🧩 PAGE COMPONENT === */
+export default function AboutPage() {
   return (
-    <>
-      <Head>
-        {/* 🧭 Primary SEO Metadata */}
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <meta
-          name="keywords"
-          content="About CurioWire, AI journalism, digital newspaper, automated news, vintage design, editorial craft"
-        />
-        <meta name="author" content="CurioWire" />
-        <meta httpEquiv="Content-Language" content="en" />
-        <link rel="canonical" href={pageUrl} />
-        <meta name="robots" content="index,follow" />
+    <Wrapper>
+      <Headline>About CurioWire</Headline>
 
-        {/* 🌍 Open Graph */}
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="CurioWire" />
-        <meta property="og:title" content={title} />
-        <meta property="og:description" content={description} />
-        <meta property="og:url" content={pageUrl} />
-        <meta property="og:image" content={image} />
+      <Paragraph>
+        <Highlight>CurioWire</Highlight> is a digital newspaper built on
+        automation, design and curiosity. Inspired by early twentieth-century
+        editorial craft, it reimagines how stories are found, written and shared
+        — blending algorithmic precision with the tone of classic print.
+      </Paragraph>
 
-        {/* 🐦 Twitter Card */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@curiowire" />
-        <meta name="twitter:title" content={title} />
-        <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={image} />
+      <Paragraph>
+        Founded in <strong>2025</strong>, CurioWire began as an experiment in
+        automated journalism. The idea was simple: could artificial intelligence
+        rediscover the forgotten wonders of science, history and culture — and
+        tell them as if reported from a bustling newsroom a century ago?
+      </Paragraph>
 
-        {/* 📱 Favicon & Manifest */}
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="manifest" href="/manifest.json" />
+      <Paragraph>
+        Each story is collected from public data archives, re-written with
+        editorial balance, and presented with a deliberate visual calm. The
+        goal: to celebrate knowledge, invention and the timeless art of human
+        curiosity.
+      </Paragraph>
 
-        {/* 🧠 Structured Data */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(structuredData),
-          }}
-        />
-      </Head>
-
-      <Wrapper>
-        <Headline>About CurioWire</Headline>
-
-        <Paragraph>
-          <Highlight>CurioWire</Highlight> is a digital newspaper built on
-          automation, design and curiosity. Inspired by early twentieth-century
-          editorial craft, it reimagines how stories are found, written and
-          shared — blending algorithmic precision with the tone of classic
-          print.
-        </Paragraph>
-
-        <Paragraph>
-          Founded in <strong>2025</strong>, CurioWire began as an experiment in
-          automated journalism. The idea was simple: could artificial
-          intelligence rediscover the forgotten wonders of science, history and
-          culture — and tell them as if reported from a bustling newsroom a
-          century ago?
-        </Paragraph>
-
-        <Paragraph>
-          Each story is collected from public data archives, re-written with
-          editorial balance, and presented with a deliberate visual calm. The
-          goal: to celebrate knowledge, invention and the timeless art of human
-          curiosity.
-        </Paragraph>
-
-        <Paragraph>
-          Every headline published by CurioWire seeks the same thing — that
-          small spark of wonder that once made people stop, read, and say:
-          <em> “Now that’s curious.”</em>
-        </Paragraph>
-      </Wrapper>
-    </>
+      <Paragraph>
+        Every headline published by CurioWire seeks the same thing — that small
+        spark of wonder that once made people stop, read, and say:
+        <em> “Now that’s curious.”</em>
+      </Paragraph>
+    </Wrapper>
   );
 }
