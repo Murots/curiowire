@@ -178,7 +178,7 @@
 import { supabase } from "@/lib/supabaseClient";
 import ArticlePage from "@/components/ArticlePage/ArticlePage";
 
-/* === 🧠 SERVER-SIDE METADATA FOR SEO & SOCIAL === */
+/* === 🧠 SERVER-SIDE METADATA (nå med JSON-LD direkte i HEAD) === */
 export async function generateMetadata({ params }) {
   const { id } = params;
 
@@ -199,12 +199,10 @@ export async function generateMetadata({ params }) {
   const baseUrl = "https://curiowire.com";
   const url = `${baseUrl}/article/${id}`;
 
-  // 🧹 Fjern uønskede tegn fra tittel (f.eks. ** fra markdown)
   const cleanTitle = (article.title || "Untitled — CurioWire")
     .replace(/\*/g, "")
     .trim();
 
-  // 🧠 Forbedret CTR-optimalisert metabeskrivelse
   const rawExcerpt =
     article.excerpt?.replace(/\s+/g, " ").trim() ||
     "Explore unique stories and AI-generated curiosities on CurioWire.";
@@ -215,9 +213,81 @@ export async function generateMetadata({ params }) {
       : rawExcerpt;
 
   const description = `${trimmedExcerpt} Discover more →`;
-
   const image = article.image_url || `${baseUrl}/icon.png`;
   const category = article.category || "General";
+
+  /* === 🧩 JSON-LD direkte i HEAD === */
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: cleanTitle,
+    description,
+    image: [image],
+    articleSection: category,
+    url,
+    author: {
+      "@type": "Organization",
+      name: "CurioWire",
+      url: baseUrl,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "CurioWire",
+      logo: {
+        "@type": "ImageObject",
+        url: `${baseUrl}/icon.png`,
+      },
+    },
+    datePublished: article.created_at,
+    dateModified: article.updated_at || article.created_at,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
+    potentialAction: {
+      "@type": "ReadAction",
+      target: url,
+    },
+  };
+
+  const breadcrumbList = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: category,
+        item: `${baseUrl}/${category}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: cleanTitle,
+        item: url,
+      },
+    ],
+  };
+
+  const organizationData = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "CurioWire",
+    url: baseUrl,
+    logo: `${baseUrl}/icon.png`,
+  };
+
+  const allStructuredData = JSON.stringify([
+    structuredData,
+    breadcrumbList,
+    organizationData,
+  ]);
 
   return {
     title: cleanTitle,
@@ -249,9 +319,16 @@ export async function generateMetadata({ params }) {
       robots: "max-image-preview:large",
       "article:section": category,
       "og:image:alt": cleanTitle,
-      "theme-color": "#95010e", // 🔴 Merkevarefarge
-      "og:locale": "en_US", // 🌍 Språk/region
+      "theme-color": "#95010e",
+      "og:locale": "en_US",
     },
+    // 🪄 Hovedtrikset: injiser JSON-LD direkte i head
+    scripts: [
+      {
+        type: "application/ld+json",
+        innerHTML: allStructuredData,
+      },
+    ],
   };
 }
 
@@ -259,7 +336,7 @@ export async function generateMetadata({ params }) {
 export default async function Page({ params }) {
   const { id } = params;
 
-  // 📰 1️⃣ Hent artikkel
+  // 📰 Hent artikkel
   const { data: article, error } = await supabase
     .from("articles")
     .select("*")
@@ -271,7 +348,7 @@ export default async function Page({ params }) {
     return <p style={{ padding: "40px" }}>Article not found.</p>;
   }
 
-  // ➡️ 2️⃣ Finn neste artikkel (sirkulær logikk)
+  // ➡️ Finn neste artikkel (sirkulær logikk)
   const { data: nextData } = await supabase
     .from("articles")
     .select("id, title")
@@ -292,94 +369,6 @@ export default async function Page({ params }) {
     nextArticle = first?.[0] || null;
   }
 
-  // === 🧩 STRUCTURED DATA ===
-  const baseUrl = "https://curiowire.com";
-  const url = `${baseUrl}/article/${id}`;
-  const image = article.image_url || `${baseUrl}/icon.png`;
-
-  const cleanTitle = article.title?.replace(/\*/g, "").trim() || "Untitled";
-
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    headline: cleanTitle,
-    description:
-      article.excerpt?.slice(0, 200) ||
-      "Explore unique, AI-generated curiosities on CurioWire.",
-    image: [image],
-    articleSection: article.category,
-    url,
-    author: {
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      logo: {
-        "@type": "ImageObject",
-        url: `${baseUrl}/icon.png`,
-      },
-    },
-    datePublished: article.created_at,
-    dateModified: article.updated_at || article.created_at,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": url,
-    },
-    potentialAction: {
-      "@type": "ReadAction",
-      target: url,
-    },
-  };
-
-  // === 🧭 BreadcrumbList (Home › Category › Article) ===
-  const breadcrumbList = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: `${baseUrl}/`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: article.category,
-        item: `${baseUrl}/${article.category}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: cleanTitle,
-        item: url,
-      },
-    ],
-  };
-
-  // === 💬 Rich Snippet Kombinert Output ===
-  const allStructuredData = JSON.stringify([
-    structuredData,
-    breadcrumbList,
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-      logo: `${baseUrl}/icon.png`,
-    },
-  ]);
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: allStructuredData }}
-      />
-      <ArticlePage article={article} nextArticle={nextArticle} />
-    </>
-  );
+  // 🧩 Returner kun artikkelkomponenten
+  return <ArticlePage article={article} nextArticle={nextArticle} />;
 }
