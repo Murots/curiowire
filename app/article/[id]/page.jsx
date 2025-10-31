@@ -178,10 +178,11 @@
 import { supabase } from "@/lib/supabaseClient";
 import ArticlePage from "@/components/ArticlePage/ArticlePage";
 
-/* === 🧠 SERVER-SIDE METADATA (nå med JSON-LD direkte i HEAD) === */
+/* === 🧠 SERVER-SIDE METADATA (full Discover + schema-optimalisering) === */
 export async function generateMetadata({ params }) {
   const { id } = params;
 
+  // 📰 Hent artikkel fra Supabase
   const { data: article } = await supabase
     .from("articles")
     .select("*")
@@ -198,41 +199,44 @@ export async function generateMetadata({ params }) {
 
   const baseUrl = "https://curiowire.com";
   const url = `${baseUrl}/article/${id}`;
-
   const cleanTitle = (article.title || "Untitled — CurioWire")
     .replace(/\*/g, "")
     .trim();
+  const category = article.category || "General";
+  const image = article.image_url || `${baseUrl}/icon.png`;
 
+  // ✍️ Metabeskrivelse
   const rawExcerpt =
     article.excerpt?.replace(/\s+/g, " ").trim() ||
-    "Explore unique stories and AI-generated curiosities on CurioWire.";
-
+    "Explore unique, AI-generated curiosities on CurioWire.";
   const trimmedExcerpt =
     rawExcerpt.length > 155
       ? rawExcerpt.slice(0, 155).replace(/\s+\S*$/, "") + "…"
       : rawExcerpt;
-
   const description = `${trimmedExcerpt} Discover more →`;
-  const image = article.image_url || `${baseUrl}/icon.png`;
-  const category = article.category || "General";
 
-  /* === 🧩 JSON-LD direkte i HEAD === */
-  const structuredData = {
+  /* === 🧩 STRUKTURERT DATA === */
+
+  // 📰 A. NewsArticle
+  const newsArticleData = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: cleanTitle,
     description,
     image: [image],
+    keywords: [category, "AI journalism", "CurioWire", "hidden histories"],
     articleSection: category,
     url,
+    inLanguage: "en",
     author: {
       "@type": "Organization",
-      name: "CurioWire",
+      name: "CurioWire Editorial",
       url: baseUrl,
     },
     publisher: {
       "@type": "Organization",
       name: "CurioWire",
+      url: baseUrl,
       logo: {
         "@type": "ImageObject",
         url: `${baseUrl}/icon.png`,
@@ -250,6 +254,7 @@ export async function generateMetadata({ params }) {
     },
   };
 
+  // 🧭 B. BreadcrumbList
   const breadcrumbList = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -275,20 +280,32 @@ export async function generateMetadata({ params }) {
     ],
   };
 
-  const organizationData = {
+  // 🌐 C. WebSite (for kontekst og konsistens)
+  const websiteData = {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": "WebSite",
     name: "CurioWire",
     url: baseUrl,
-    logo: `${baseUrl}/icon.png`,
+    description:
+      "AI-generated stories and curiosities exploring science, history, nature, culture, and technology — updated daily.",
+    publisher: {
+      "@type": "Organization",
+      name: "CurioWire",
+      logo: {
+        "@type": "ImageObject",
+        url: `${baseUrl}/icon.png`,
+      },
+    },
   };
 
+  // Kombiner alt i ett JSON-LD-array
   const allStructuredData = JSON.stringify([
-    structuredData,
+    newsArticleData,
     breadcrumbList,
-    organizationData,
+    websiteData,
   ]);
 
+  /* === 🧭 FULL METADATA === */
   return {
     title: cleanTitle,
     description,
@@ -322,7 +339,6 @@ export async function generateMetadata({ params }) {
       "theme-color": "#95010e",
       "og:locale": "en_US",
     },
-    // 🪄 Hovedtrikset: injiser JSON-LD direkte i head
     scripts: [
       {
         type: "application/ld+json",
@@ -369,6 +385,6 @@ export default async function Page({ params }) {
     nextArticle = first?.[0] || null;
   }
 
-  // 🧩 Returner kun artikkelkomponenten
+  // 🧩 Returner artikkelen
   return <ArticlePage article={article} nextArticle={nextArticle} />;
 }
