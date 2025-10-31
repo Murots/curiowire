@@ -1,394 +1,89 @@
-// // "use client";
-
-// // import React, { useEffect, useState } from "react";
-// // import Head from "next/head";
-// // import { useParams, useSearchParams } from "next/navigation";
-// // import { createClient } from "@supabase/supabase-js";
-// // import {
-// //   Wrapper,
-// //   Title,
-// //   Info,
-// //   List,
-// //   Item,
-// //   LinkStyled,
-// //   Timestamp,
-// //   Pagination,
-// //   PageButton,
-// // } from "../sitemap.styles";
-
-// // const supabase = createClient(
-// //   process.env.NEXT_PUBLIC_SUPABASE_URL,
-// //   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-// // );
-
-// // const PAGE_SIZE = 20;
-
-// // /**
-// //  * 📚 Viser artikler for en gitt kategori (med paginering + strukturert data)
-// //  */
-// // export default function SitemapCategoryPage() {
-// //   const { category } = useParams();
-// //   const searchParams = useSearchParams();
-// //   const page = parseInt(searchParams.get("page") || "1", 10);
-
-// //   const [articles, setArticles] = useState([]);
-// //   const [totalCount, setTotalCount] = useState(0);
-// //   const [loading, setLoading] = useState(true);
-
-// //   useEffect(() => {
-// //     const fetchArticles = async () => {
-// //       setLoading(true);
-// //       const start = (page - 1) * PAGE_SIZE;
-// //       const end = start + PAGE_SIZE - 1;
-
-// //       const { data, count, error } = await supabase
-// //         .from("articles")
-// //         .select("id, title, created_at", { count: "exact" })
-// //         .eq("category", category)
-// //         .order("created_at", { ascending: false })
-// //         .range(start, end);
-
-// //       if (error) {
-// //         console.error("❌ Error fetching articles:", error.message);
-// //         return;
-// //       }
-
-// //       setArticles(data || []);
-// //       setTotalCount(count || 0);
-// //       setLoading(false);
-// //     };
-
-// //     fetchArticles();
-// //   }, [category, page]);
-
-// //   const formattedCategory =
-// //     category.charAt(0).toUpperCase() + category.slice(1);
-// //   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-
-// //   // 🧩 Strukturert data (schema.org JSON-LD)
-// //   const structuredData = {
-// //     "@context": "https://schema.org",
-// //     "@type": "CollectionPage",
-// //     name: `${formattedCategory} — CurioWire`,
-// //     description: `Explore all ${formattedCategory.toLowerCase()} stories published on CurioWire — automatically updated.`,
-// //     publisher: {
-// //       "@type": "Organization",
-// //       name: "CurioWire",
-// //       url: "https://curiowire.com",
-// //       logo: {
-// //         "@type": "ImageObject",
-// //         url: "https://curiowire.com/icon.png",
-// //       },
-// //     },
-// //     hasPart: articles.map((a) => ({
-// //       "@type": "NewsArticle",
-// //       headline: a.title || "Untitled",
-// //       url: `https://curiowire.com/article/${a.id}`,
-// //       datePublished: a.created_at,
-// //     })),
-// //   };
-
-// //   if (loading) {
-// //     return (
-// //       <Wrapper>
-// //         <Info>Loading {formattedCategory} articles...</Info>
-// //       </Wrapper>
-// //     );
-// //   }
-
-// //   return (
-// //     <>
-// //       {/* 🧭 SEO + strukturert data */}
-// //       <Head>
-// //         <title>{`${formattedCategory} Articles — CurioWire Sitemap`}</title>
-// //         <meta
-// //           name="description"
-// //           content={`Explore all ${formattedCategory.toLowerCase()} stories published on CurioWire — updated automatically as new articles are generated.`}
-// //         />
-// //         <meta
-// //           name="keywords"
-// //           content={`${formattedCategory}, CurioWire, AI journalism, sitemap, category archive`}
-// //         />
-// //         <meta
-// //           property="og:title"
-// //           content={`${formattedCategory} — CurioWire`}
-// //         />
-// //         <meta
-// //           property="og:description"
-// //           content={`Browse ${formattedCategory.toLowerCase()} stories from CurioWire’s AI-curated archives.`}
-// //         />
-// //         <meta
-// //           property="og:url"
-// //           content={`https://curiowire.com/sitemap/${category}`}
-// //         />
-// //         <meta property="og:type" content="website" />
-
-// //         {/* 🧠 Strukturert data for søkemotorer */}
-// //         <script
-// //           type="application/ld+json"
-// //           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-// //         />
-// //       </Head>
-
-// //       <Wrapper>
-// //         <Title>{formattedCategory}</Title>
-// //         <Info>
-// //           Showing {articles.length} of {totalCount} articles
-// //         </Info>
-
-// //         {articles.length === 0 ? (
-// //           <Info>No articles found in this category yet.</Info>
-// //         ) : (
-// //           <List>
-// //             {articles.map((a) => (
-// //               <Item key={a.id}>
-// //                 <LinkStyled href={`/article/${a.id}`}>
-// //                   {a.title || "Untitled"}
-// //                 </LinkStyled>
-// //                 <Timestamp>
-// //                   {new Date(a.created_at).toLocaleDateString()}
-// //                 </Timestamp>
-// //               </Item>
-// //             ))}
-// //           </List>
-// //         )}
-
-// //         {totalPages > 1 && (
-// //           <Pagination>
-// //             {page > 1 && (
-// //               <PageButton href={`/sitemap/${category}?page=${page - 1}`}>
-// //                 ← Previous
-// //               </PageButton>
-// //             )}
-// //             <span>
-// //               Page {page} of {totalPages}
-// //             </span>
-// //             {page < totalPages && (
-// //               <PageButton href={`/sitemap/${category}?page=${page + 1}`}>
-// //                 Next →
-// //               </PageButton>
-// //             )}
-// //           </Pagination>
-// //         )}
-// //       </Wrapper>
-// //     </>
-// //   );
-// // }
-// "use client";
-
-// import React, { useEffect, useState } from "react";
-// import Head from "next/head";
-// import { useParams, useSearchParams } from "next/navigation";
-// import { createClient } from "@supabase/supabase-js";
-// import {
-//   Wrapper,
-//   Title,
-//   Info,
-//   List,
-//   Item,
-//   LinkStyled,
-//   Timestamp,
-//   Pagination,
-//   PageButton,
-// } from "../sitemap.styles";
-
-// const supabase = createClient(
-//   process.env.NEXT_PUBLIC_SUPABASE_URL,
-//   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-// );
-
-// const PAGE_SIZE = 20;
-
-// export default function SitemapCategoryPage() {
-//   const { category } = useParams();
-//   const searchParams = useSearchParams();
-//   const page = parseInt(searchParams.get("page") || "1", 10);
-
-//   const [articles, setArticles] = useState([]);
-//   const [totalCount, setTotalCount] = useState(0);
-//   const [loading, setLoading] = useState(true);
-
-//   const baseUrl = "https://curiowire.com";
-//   const formattedCategory =
-//     category.charAt(0).toUpperCase() + category.slice(1);
-
-//   useEffect(() => {
-//     const fetchArticles = async () => {
-//       setLoading(true);
-//       const start = (page - 1) * PAGE_SIZE;
-//       const end = start + PAGE_SIZE - 1;
-
-//       const { data, count, error } = await supabase
-//         .from("articles")
-//         .select("id, title, created_at", { count: "exact" })
-//         .eq("category", category)
-//         .order("created_at", { ascending: false })
-//         .range(start, end);
-
-//       if (error) {
-//         console.error("❌ Error fetching articles:", error.message);
-//         return;
-//       }
-
-//       setArticles(data || []);
-//       setTotalCount(count || 0);
-//       setLoading(false);
-//     };
-
-//     fetchArticles();
-//   }, [category, page]);
-
-//   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-//   const canonicalUrl =
-//     page > 1
-//       ? `${baseUrl}/sitemap/${category}?page=${page}`
-//       : `${baseUrl}/sitemap/${category}`;
-//   const prevUrl =
-//     page > 1 ? `${baseUrl}/sitemap/${category}?page=${page - 1}` : null;
-//   const nextUrl =
-//     page < totalPages
-//       ? `${baseUrl}/sitemap/${category}?page=${page + 1}`
-//       : null;
-
-//   const structuredData = {
-//     "@context": "https://schema.org",
-//     "@type": "CollectionPage",
-//     name: `${formattedCategory} Articles — CurioWire Sitemap`,
-//     description: `All ${formattedCategory.toLowerCase()} stories published on CurioWire — dynamically updated.`,
-//     url: canonicalUrl,
-//     publisher: {
-//       "@type": "Organization",
-//       name: "CurioWire",
-//       url: baseUrl,
-//       logo: {
-//         "@type": "ImageObject",
-//         url: `${baseUrl}/icon.png`,
-//       },
-//     },
-//     hasPart: articles.map((a) => ({
-//       "@type": "NewsArticle",
-//       headline: a.title || "Untitled",
-//       url: `${baseUrl}/article/${a.id}`,
-//       datePublished: a.created_at,
-//     })),
-//   };
-
-//   if (loading)
-//     return (
-//       <Wrapper>
-//         <Info>Loading {formattedCategory} articles...</Info>
-//       </Wrapper>
-//     );
-
-//   return (
-//     <>
-//       <Head>
-//         {/* 🧭 SEO Metadata */}
-//         <title>{`${formattedCategory} Articles — CurioWire Sitemap`}</title>
-//         <meta
-//           name="description"
-//           content={`Browse all ${formattedCategory.toLowerCase()} articles from CurioWire — automatically updated sitemap index.`}
-//         />
-//         <meta
-//           name="keywords"
-//           content={`${formattedCategory}, CurioWire sitemap, AI news archive, category index`}
-//         />
-//         <meta name="author" content="CurioWire" />
-//         <meta httpEquiv="Content-Language" content="en" />
-//         <link rel="canonical" href={canonicalUrl} />
-//         {prevUrl && <link rel="prev" href={prevUrl} />}
-//         {nextUrl && <link rel="next" href={nextUrl} />}
-//         {page > 1 && <meta name="robots" content="noindex,follow" />}
-
-//         {/* 🌍 Open Graph */}
-//         <meta property="og:type" content="website" />
-//         <meta property="og:site_name" content="CurioWire" />
-//         <meta
-//           property="og:title"
-//           content={`${formattedCategory} — CurioWire Sitemap`}
-//         />
-//         <meta
-//           property="og:description"
-//           content={`Explore all ${formattedCategory.toLowerCase()} stories published on CurioWire — dynamically updated sitemap.`}
-//         />
-//         <meta property="og:url" content={canonicalUrl} />
-//         <meta property="og:image" content={`${baseUrl}/icon.png`} />
-
-//         {/* 🐦 Twitter Card */}
-//         <meta name="twitter:card" content="summary_large_image" />
-//         <meta name="twitter:site" content="@curiowire" />
-//         <meta
-//           name="twitter:title"
-//           content={`${formattedCategory} — CurioWire Sitemap`}
-//         />
-//         <meta
-//           name="twitter:description"
-//           content={`Browse all ${formattedCategory.toLowerCase()} articles — automatically updated.`}
-//         />
-//         <meta name="twitter:image" content={`${baseUrl}/icon.png`} />
-
-//         {/* 🧠 Structured Data */}
-//         <script
-//           type="application/ld+json"
-//           dangerouslySetInnerHTML={{
-//             __html: JSON.stringify(structuredData),
-//           }}
-//         />
-//       </Head>
-
-//       <Wrapper>
-//         <Title>{formattedCategory}</Title>
-//         <Info>
-//           Showing {articles.length} of {totalCount} articles
-//         </Info>
-
-//         {articles.length === 0 ? (
-//           <Info>No articles found in this category yet.</Info>
-//         ) : (
-//           <List>
-//             {articles.map((a) => (
-//               <Item key={a.id}>
-//                 <LinkStyled href={`/article/${a.id}`}>
-//                   {a.title || "Untitled"}
-//                 </LinkStyled>
-//                 <Timestamp>
-//                   {new Date(a.created_at).toLocaleDateString()}
-//                 </Timestamp>
-//               </Item>
-//             ))}
-//           </List>
-//         )}
-
-//         {totalPages > 1 && (
-//           <Pagination>
-//             {page > 1 && (
-//               <PageButton href={`/sitemap/${category}?page=${page - 1}`}>
-//                 ← Previous
-//               </PageButton>
-//             )}
-//             <span>
-//               Page {page} of {totalPages}
-//             </span>
-//             {page < totalPages && (
-//               <PageButton href={`/sitemap/${category}?page=${page + 1}`}>
-//                 Next →
-//               </PageButton>
-//             )}
-//           </Pagination>
-//         )}
-//       </Wrapper>
-//     </>
-//   );
-// }
-"use client";
-
-import React, { Suspense } from "react";
+// app/sitemap/[category]/page.jsx
+import { supabase } from "@/lib/supabaseClient";
 import SitemapCategoryContent from "./SitemapCategoryContent";
 
-export default function SitemapCategoryPageWrapper() {
-  return (
-    <Suspense fallback={<div>Loading sitemap...</div>}>
-      <SitemapCategoryContent />
-    </Suspense>
-  );
+/* === 🧠 SERVER-SIDE METADATA FOR EACH CATEGORY === */
+export async function generateMetadata({ params, searchParams }) {
+  const { category } = params;
+  const page = parseInt(searchParams?.page || "1", 10);
+  const baseUrl = "https://curiowire.com";
+
+  const formattedCategory =
+    category.charAt(0).toUpperCase() + category.slice(1);
+  const canonicalUrl =
+    page > 1
+      ? `${baseUrl}/sitemap/${category}?page=${page}`
+      : `${baseUrl}/sitemap/${category}`;
+  const description = `All ${formattedCategory.toLowerCase()} stories published on CurioWire — dynamically updated sitemap.`;
+
+  // Tell antall artikler
+  const { data: articles, count } = await supabase
+    .from("articles")
+    .select("id, title, created_at", { count: "exact" })
+    .eq("category", category)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: `${formattedCategory} Articles — CurioWire Sitemap`,
+    description,
+    url: canonicalUrl,
+    publisher: {
+      "@type": "Organization",
+      name: "CurioWire",
+      url: baseUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: `${baseUrl}/icon.png`,
+      },
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: count || 0,
+      itemListOrder: "Descending",
+      itemListElement: (articles || []).map((a, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${baseUrl}/article/${a.id}`,
+        name: a.title,
+        datePublished: a.created_at,
+      })),
+    },
+  };
+
+  return {
+    title: `${formattedCategory} Sitemap — CurioWire`,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      type: "website",
+      title: `${formattedCategory} Sitemap — CurioWire`,
+      description,
+      url: canonicalUrl,
+      siteName: "CurioWire",
+      images: [`${baseUrl}/icon.png`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${formattedCategory} Sitemap — CurioWire`,
+      description,
+      images: [`${baseUrl}/icon.png`],
+    },
+    other: {
+      robots: page > 1 ? "noindex,follow" : "index,follow",
+      "theme-color": "#95010e",
+    },
+    scripts: [
+      {
+        type: "application/ld+json",
+        innerHTML: JSON.stringify(structuredData),
+      },
+    ],
+  };
+}
+
+export default function SitemapCategoryPage() {
+  return <SitemapCategoryContent />;
 }
