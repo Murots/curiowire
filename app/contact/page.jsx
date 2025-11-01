@@ -1,10 +1,9 @@
-// === app/contact/page.jsx ===
-// ✉️ Contact — CurioWire
+// app/contact/page.jsx
+import ContactContent from "./ContactContent";
+
 export const dynamic = "force-static";
 
-import { Wrapper, Headline, Paragraph, MailLink } from "./contact.styles";
-
-/* === 🧠 SERVER-SIDE METADATA (SEO + JSON-LD) === */
+/* === 🧠 SERVER-SIDE METADATA === */
 export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/contact`;
@@ -24,10 +23,7 @@ export async function generateMetadata() {
       "@type": "Organization",
       name: "CurioWire",
       url: baseUrl,
-      logo: {
-        "@type": "ImageObject",
-        url: image,
-      },
+      logo: { "@type": "ImageObject", url: image },
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "editorial inquiries",
@@ -47,14 +43,7 @@ export async function generateMetadata() {
       title,
       description,
       url: pageUrl,
-      images: [
-        {
-          url: image,
-          width: 512,
-          height: 512,
-          alt: "CurioWire Logo",
-        },
-      ],
+      images: [image],
     },
     twitter: {
       card: "summary_large_image",
@@ -63,10 +52,7 @@ export async function generateMetadata() {
       description,
       images: [image],
     },
-    other: {
-      robots: "index,follow",
-      "theme-color": "#95010e",
-    },
+    other: { robots: "index,follow", "theme-color": "#95010e" },
     scripts: [
       {
         type: "application/ld+json",
@@ -76,32 +62,6 @@ export async function generateMetadata() {
   };
 }
 
-/* === 🧩 PAGE COMPONENT === */
 export default function ContactPage() {
-  return (
-    <Wrapper>
-      <Headline>Contact the Editorial Desk</Headline>
-
-      <Paragraph>
-        <strong>CurioWire</strong> is an independent, AI-assisted editorial
-        experiment — blending automation, design and curiosity. While much of
-        our content is generated autonomously, we still welcome human contact,
-        ideas, and perspectives.
-      </Paragraph>
-
-      <Paragraph>
-        For story suggestions, factual corrections, or general inquiries, please
-        contact us directly at:
-      </Paragraph>
-
-      <MailLink href="mailto:editor@curiowire.com">
-        editor@curiowire.com
-      </MailLink>
-
-      <Paragraph>
-        We aim to respond to relevant inquiries within a few business days.
-        Automated or promotional submissions will be filtered.
-      </Paragraph>
-    </Wrapper>
-  );
+  return <ContactContent />;
 }
