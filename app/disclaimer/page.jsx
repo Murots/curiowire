@@ -2,6 +2,7 @@
 // ⚖️ Editorial Disclaimer — CurioWire
 export const dynamic = "force-static";
 
+import Script from "next/script";
 import {
   Wrapper,
   Headline,
@@ -9,7 +10,7 @@ import {
   SectionTitle,
 } from "./disclaimer.styles";
 
-/* === 🧠 SERVER-SIDE METADATA (SEO + JSON-LD) === */
+/* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/disclaimer`;
@@ -18,28 +19,6 @@ export async function generateMetadata() {
   const description =
     "Editorial disclaimer for CurioWire: automated content, AI-assisted reporting, and responsibility for accuracy, tone and representation.";
   const image = `${baseUrl}/icon.png`;
-
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: title,
-    description,
-    url: pageUrl,
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-      logo: {
-        "@type": "ImageObject",
-        url: image,
-      },
-    },
-    mainEntity: {
-      "@type": "WebPageElement",
-      name: "Editorial Disclaimer",
-      text: "CurioWire is an experimental digital publication built on automated tools, open data, and artificial intelligence. Content is AI-assisted and may include stylistic or interpretive elements.",
-    },
-  };
 
   return {
     title,
@@ -51,14 +30,7 @@ export async function generateMetadata() {
       title,
       description,
       url: pageUrl,
-      images: [
-        {
-          url: image,
-          width: 512,
-          height: 512,
-          alt: "CurioWire Logo",
-        },
-      ],
+      images: [{ url: image, width: 512, height: 512, alt: "CurioWire Logo" }],
     },
     twitter: {
       card: "summary_large_image",
@@ -67,23 +39,49 @@ export async function generateMetadata() {
       description,
       images: [image],
     },
-    other: {
-      robots: "index,follow",
-      "theme-color": "#95010e",
-    },
-    scripts: [
-      {
-        type: "application/ld+json",
-        innerHTML: JSON.stringify(structuredData),
-      },
-    ],
+    other: { robots: "index,follow", "theme-color": "#95010e" },
   };
 }
 
 /* === 🧩 PAGE COMPONENT === */
 export default function DisclaimerPage() {
+  const baseUrl = "https://curiowire.com";
+  const pageUrl = `${baseUrl}/disclaimer`;
+  const image = `${baseUrl}/icon.png`;
+
+  // ✅ Strukturerte data (nå synlige i HTML)
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "Editorial Disclaimer — CurioWire",
+    description:
+      "Editorial disclaimer for CurioWire: automated content, AI-assisted reporting, and responsibility for accuracy, tone and representation.",
+    url: pageUrl,
+    publisher: {
+      "@type": "Organization",
+      name: "CurioWire",
+      url: baseUrl,
+      logo: { "@type": "ImageObject", url: image },
+    },
+    mainEntity: {
+      "@type": "WebPageElement",
+      name: "Editorial Disclaimer",
+      text: "CurioWire is an experimental digital publication built on automated tools, open data, and artificial intelligence. Content is AI-assisted and may include stylistic or interpretive elements.",
+    },
+  };
+
   return (
     <Wrapper>
+      {/* ✅ Structured data visible for Google */}
+      <Script
+        id="structured-data-disclaimer"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
+
       <Headline>Editorial Disclaimer</Headline>
 
       <Paragraph>

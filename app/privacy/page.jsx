@@ -2,6 +2,7 @@
 // 🔒 Privacy Policy — CurioWire
 export const dynamic = "force-static";
 
+import Script from "next/script";
 import {
   Wrapper,
   Headline,
@@ -11,7 +12,7 @@ import {
   ListItem,
 } from "./privacy.styles";
 
-/* === 🧠 SERVER-SIDE METADATA (SEO + JSON-LD) === */
+/* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/privacy`;
@@ -21,11 +22,52 @@ export async function generateMetadata() {
   const description =
     "Learn how CurioWire collects, stores, and uses information across its AI-driven publishing platform. GDPR-compliant privacy and data policy for all visitors.";
 
+  return {
+    title,
+    description,
+    alternates: { canonical: pageUrl },
+    openGraph: {
+      type: "website",
+      siteName: "CurioWire",
+      title,
+      description,
+      url: pageUrl,
+      images: [
+        {
+          url: image,
+          width: 512,
+          height: 512,
+          alt: "CurioWire Logo",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@curiowire",
+      title,
+      description,
+      images: [image],
+    },
+    other: {
+      robots: "index,follow",
+      "theme-color": "#95010e",
+    },
+  };
+}
+
+/* === 🧩 PAGE COMPONENT === */
+export default function PrivacyPage() {
+  const baseUrl = "https://curiowire.com";
+  const pageUrl = `${baseUrl}/privacy`;
+  const image = `${baseUrl}/icon.png`;
+
+  // ✅ Strukturerte data — synlige for Google
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "PrivacyPolicy",
-    name: title,
-    description,
+    name: "Privacy Policy — CurioWire",
+    description:
+      "Learn how CurioWire collects, stores, and uses information across its AI-driven publishing platform. GDPR-compliant privacy and data policy for all visitors.",
     url: pageUrl,
     publisher: {
       "@type": "Organization",
@@ -58,49 +100,18 @@ export async function generateMetadata() {
     ],
   };
 
-  return {
-    title,
-    description,
-    alternates: { canonical: pageUrl },
-    openGraph: {
-      type: "website",
-      siteName: "CurioWire",
-      title,
-      description,
-      url: pageUrl,
-      images: [
-        {
-          url: image,
-          width: 512,
-          height: 512,
-          alt: "CurioWire Logo",
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      site: "@curiowire",
-      title,
-      description,
-      images: [image],
-    },
-    other: {
-      robots: "index,follow",
-      "theme-color": "#95010e",
-    },
-    scripts: [
-      {
-        type: "application/ld+json",
-        innerHTML: JSON.stringify(structuredData),
-      },
-    ],
-  };
-}
-
-/* === 🧩 PAGE COMPONENT === */
-export default function PrivacyPage() {
   return (
     <Wrapper>
+      {/* ✅ Structured data injected for Google */}
+      <Script
+        id="structured-data-privacy"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
+
       <Headline>Privacy Policy</Headline>
 
       <Paragraph>

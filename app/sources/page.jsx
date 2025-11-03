@@ -2,6 +2,7 @@
 // 🧭 Sources & Methodology — CurioWire
 export const dynamic = "force-static";
 
+import Script from "next/script";
 import {
   Wrapper,
   Headline,
@@ -11,7 +12,7 @@ import {
   ListItem,
 } from "./sources.styles";
 
-/* === 🧠 SERVER-SIDE METADATA (SEO + JSON-LD) === */
+/* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/sources`;
@@ -21,11 +22,52 @@ export async function generateMetadata() {
   const description =
     "Learn how CurioWire gathers, writes and illustrates stories using AI, open data and historical archives — full transparency on editorial process, imagery and affiliate model.";
 
+  return {
+    title,
+    description,
+    alternates: { canonical: pageUrl },
+    openGraph: {
+      type: "website",
+      siteName: "CurioWire",
+      title,
+      description,
+      url: pageUrl,
+      images: [
+        {
+          url: image,
+          width: 512,
+          height: 512,
+          alt: "CurioWire Logo",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@curiowire",
+      title,
+      description,
+      images: [image],
+    },
+    other: {
+      robots: "index,follow",
+      "theme-color": "#95010e",
+    },
+  };
+}
+
+/* === 🧩 PAGE COMPONENT === */
+export default function SourcesPage() {
+  const baseUrl = "https://curiowire.com";
+  const pageUrl = `${baseUrl}/sources`;
+  const image = `${baseUrl}/icon.png`;
+
+  // ✅ Strukturerte data (nå synlige i HTML for Google)
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Sources & Methodology",
-    description,
+    name: "Sources & Methodology — CurioWire",
+    description:
+      "Learn how CurioWire gathers, writes and illustrates stories using AI, open data and historical archives — full transparency on editorial process, imagery and affiliate model.",
     url: pageUrl,
     publisher: {
       "@type": "Organization",
@@ -77,49 +119,18 @@ export async function generateMetadata() {
     ],
   };
 
-  return {
-    title,
-    description,
-    alternates: { canonical: pageUrl },
-    openGraph: {
-      type: "website",
-      siteName: "CurioWire",
-      title,
-      description,
-      url: pageUrl,
-      images: [
-        {
-          url: image,
-          width: 512,
-          height: 512,
-          alt: "CurioWire Logo",
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      site: "@curiowire",
-      title,
-      description,
-      images: [image],
-    },
-    other: {
-      robots: "index,follow",
-      "theme-color": "#95010e",
-    },
-    scripts: [
-      {
-        type: "application/ld+json",
-        innerHTML: JSON.stringify(structuredData),
-      },
-    ],
-  };
-}
-
-/* === 🧩 PAGE COMPONENT === */
-export default function SourcesPage() {
   return (
     <Wrapper>
+      {/* ✅ Structured data visible for Google */}
+      <Script
+        id="structured-data-sources"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
+
       <Headline>Sources & Methodology</Headline>
 
       <Paragraph>

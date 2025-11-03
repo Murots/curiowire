@@ -2,9 +2,10 @@
 // 📰 About CurioWire — AI Journalism Meets Vintage Design
 export const dynamic = "force-static";
 
+import Script from "next/script";
 import { Wrapper, Headline, Paragraph, Highlight } from "./about.styles";
 
-/* === 🧠 SERVER-SIDE METADATA (SEO + JSON-LD) === */
+/* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/about`;
@@ -13,31 +14,6 @@ export async function generateMetadata() {
   const description =
     "CurioWire blends AI journalism with timeless editorial craftsmanship — rediscovering the world’s curiosities, one story at a time.";
   const image = `${baseUrl}/icon.png`;
-
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "AboutPage",
-    name: "About CurioWire",
-    description,
-    url: pageUrl,
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-      logo: {
-        "@type": "ImageObject",
-        url: image,
-      },
-    },
-    mainEntity: {
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-      foundingDate: "2025",
-      description:
-        "CurioWire is a digital newspaper built on automation, design and curiosity — merging AI journalism with vintage editorial aesthetics.",
-    },
-  };
 
   return {
     title,
@@ -69,19 +45,54 @@ export async function generateMetadata() {
       robots: "index,follow",
       "theme-color": "#95010e",
     },
-    scripts: [
-      {
-        type: "application/ld+json",
-        innerHTML: JSON.stringify(structuredData),
-      },
-    ],
   };
 }
 
 /* === 🧩 PAGE COMPONENT === */
 export default function AboutPage() {
+  const baseUrl = "https://curiowire.com";
+  const pageUrl = `${baseUrl}/about`;
+  const image = `${baseUrl}/icon.png`;
+
+  // ✅ Strukturerte data (nå faktisk synlige for Google)
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    name: "About CurioWire",
+    description:
+      "CurioWire blends AI journalism with timeless editorial craftsmanship — rediscovering the world’s curiosities, one story at a time.",
+    url: pageUrl,
+    publisher: {
+      "@type": "Organization",
+      name: "CurioWire",
+      url: baseUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: image,
+      },
+    },
+    mainEntity: {
+      "@type": "Organization",
+      name: "CurioWire",
+      url: baseUrl,
+      foundingDate: "2025",
+      description:
+        "CurioWire is a digital newspaper built on automation, design and curiosity — merging AI journalism with vintage editorial aesthetics.",
+    },
+  };
+
   return (
     <Wrapper>
+      {/* ✅ Structured data injected for Google */}
+      <Script
+        id="structured-data-about"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
+
       <Headline>About CurioWire</Headline>
 
       <Paragraph>
