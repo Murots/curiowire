@@ -1,8 +1,9 @@
 // app/article/[id]/page.jsx
 import { supabase } from "@/lib/supabaseClient";
 import ArticlePage from "@/components/ArticlePage/ArticlePage";
+import Script from "next/script";
 
-/* === 🧠 SERVER-SIDE METADATA (full Discover + schema-optimalisering) === */
+/* === 🧠 SERVER-SIDE METADATA (SEO + Discover) === */
 export async function generateMetadata({ params }) {
   const { id } = params;
 
@@ -29,7 +30,6 @@ export async function generateMetadata({ params }) {
   const category = article.category || "General";
   const image = article.image_url || `${baseUrl}/icon.png`;
 
-  // ✍️ Metabeskrivelse
   const rawExcerpt =
     article.excerpt?.replace(/\s+/g, " ").trim() ||
     "Explore unique, AI-generated curiosities on CurioWire.";
@@ -39,7 +39,76 @@ export async function generateMetadata({ params }) {
       : rawExcerpt;
   const description = `${trimmedExcerpt} Discover more →`;
 
-  /* === 🧩 STRUKTURERT DATA === */
+  return {
+    title: cleanTitle,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: cleanTitle,
+      description,
+      url,
+      type: "article",
+      siteName: "CurioWire",
+      locale: "en_US",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: cleanTitle,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: cleanTitle,
+      description,
+      images: [image],
+    },
+    other: {
+      robots: "max-image-preview:large",
+      "article:section": category,
+      "og:image:alt": cleanTitle,
+      "theme-color": "#95010e",
+      "og:locale": "en_US",
+    },
+  };
+}
+
+/* === 📰 SERVER COMPONENT === */
+export default async function Page({ params }) {
+  const { id } = params;
+  const baseUrl = "https://curiowire.com";
+
+  // 📰 Hent artikkel
+  const { data: article, error } = await supabase
+    .from("articles")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !article) {
+    console.error("❌ Error fetching article:", error?.message);
+    return <p style={{ padding: "40px" }}>Article not found.</p>;
+  }
+
+  const url = `${baseUrl}/article/${id}`;
+  const cleanTitle = (article.title || "Untitled — CurioWire")
+    .replace(/\*/g, "")
+    .trim();
+  const category = article.category || "General";
+  const image = article.image_url || `${baseUrl}/icon.png`;
+
+  const rawExcerpt =
+    article.excerpt?.replace(/\s+/g, " ").trim() ||
+    "Explore unique, AI-generated curiosities on CurioWire.";
+  const trimmedExcerpt =
+    rawExcerpt.length > 155
+      ? rawExcerpt.slice(0, 155).replace(/\s+\S*$/, "") + "…"
+      : rawExcerpt;
+  const description = `${trimmedExcerpt} Discover more →`;
+
+  /* === 🧩 STRUKTURERT DATA (nå injisert fysisk via <Script>) === */
 
   // 📰 A. NewsArticle
   const newsArticleData = {
@@ -104,7 +173,7 @@ export async function generateMetadata({ params }) {
     ],
   };
 
-  // 🌐 C. WebSite (for kontekst og konsistens)
+  // 🌐 C. WebSite
   const websiteData = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -122,71 +191,7 @@ export async function generateMetadata({ params }) {
     },
   };
 
-  // Kombiner alt i ett JSON-LD-array
-  const allStructuredData = JSON.stringify([
-    newsArticleData,
-    breadcrumbList,
-    websiteData,
-  ]);
-
-  /* === 🧭 FULL METADATA === */
-  return {
-    title: cleanTitle,
-    description,
-    alternates: { canonical: url },
-    openGraph: {
-      title: cleanTitle,
-      description,
-      url,
-      type: "article",
-      siteName: "CurioWire",
-      locale: "en_US",
-      images: [
-        {
-          url: image,
-          width: 1200,
-          height: 630,
-          alt: cleanTitle,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: cleanTitle,
-      description,
-      images: [image],
-    },
-    other: {
-      robots: "max-image-preview:large",
-      "article:section": category,
-      "og:image:alt": cleanTitle,
-      "theme-color": "#95010e",
-      "og:locale": "en_US",
-    },
-    scripts: [
-      {
-        type: "application/ld+json",
-        innerHTML: allStructuredData,
-      },
-    ],
-  };
-}
-
-/* === 📰 SERVER COMPONENT === */
-export default async function Page({ params }) {
-  const { id } = params;
-
-  // 📰 Hent artikkel
-  const { data: article, error } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error || !article) {
-    console.error("❌ Error fetching article:", error?.message);
-    return <p style={{ padding: "40px" }}>Article not found.</p>;
-  }
+  const allStructuredData = [newsArticleData, breadcrumbList, websiteData];
 
   // ➡️ Finn neste artikkel (sirkulær logikk)
   const { data: nextData } = await supabase
@@ -209,6 +214,21 @@ export default async function Page({ params }) {
     nextArticle = first?.[0] || null;
   }
 
-  // 🧩 Returner artikkelen
-  return <ArticlePage article={article} nextArticle={nextArticle} />;
+  /* === 🧩 RETURNER SIDE === */
+  return (
+    <>
+      {/* ✅ Faktisk structured data (Google leser dette) */}
+      <Script
+        id="structured-data-article"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(allStructuredData),
+        }}
+      />
+
+      {/* 📰 Selve artikkelkomponenten */}
+      <ArticlePage article={article} nextArticle={nextArticle} />
+    </>
+  );
 }
