@@ -1,13 +1,13 @@
 "use client";
 
-export const runtime = "nodejs";
-
 import { Suspense } from "react";
 import Script from "next/script";
 import ThemeRegistry from "./ThemeRegistry";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import AnalyticsTracker from "../components/Analytics/AnalyticsTracker";
+
+export const runtime = "nodejs";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -22,6 +22,29 @@ export default function RootLayout({ children }) {
           title="CurioWire RSS Feed"
           href="https://curiowire.com/api/rss"
         />
+
+        {/* 🧩 EZOIC PRIVACY + HEADER SCRIPTS */}
+        <Script
+          src="https://cmp.gatekeeperconsent.com/min.js"
+          strategy="beforeInteractive"
+          data-cfasync="false"
+        />
+        <Script
+          src="https://the.gatekeeperconsent.com/cmp.min.js"
+          strategy="beforeInteractive"
+          data-cfasync="false"
+        />
+        <Script
+          async
+          src="//www.ezojs.com/ezoic/sa.min.js"
+          strategy="beforeInteractive"
+        />
+        <Script id="ezoic-init" strategy="beforeInteractive">
+          {`
+            window.ezstandalone = window.ezstandalone || {};
+            ezstandalone.cmd = ezstandalone.cmd || [];
+          `}
+        </Script>
 
         {/* ✅ Google Analytics */}
         {GA_ID && (
