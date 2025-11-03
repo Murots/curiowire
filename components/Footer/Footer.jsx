@@ -24,6 +24,16 @@ export default function Footer() {
         <span>·</span>
         <Link href="/sitemap">Sitemap</Link>
         <span>·</span>
+        {/* 📰 Ny RSS-lenke – for abonnenter og aggregatorer */}
+        <a
+          href="/api/rss"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="CurioWire RSS Feed"
+        >
+          RSS
+        </a>
+        <span>·</span>
         <a
           href="https://openai.com"
           target="_blank"

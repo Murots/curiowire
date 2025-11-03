@@ -12,13 +12,11 @@ Allow: /
 
 # Sitemap reference (auto-generated & updated after each /api/generate run)
 Sitemap: https://curiowire.com/api/sitemap
-Feed: https://curiowire.com/api/rss
 
 # Crawl-delay for polite indexing (in seconds)
 Crawl-delay: 1
 
 # Preferred language targeting (EN)
-# (You can change or add alternates later for multi-language SEO)
 Host: curiowire.com
 
 # ===========================================

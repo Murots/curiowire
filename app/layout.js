@@ -15,6 +15,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
+        {/* 📰 RSS Feed for crawlers and readers */}
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title="CurioWire RSS Feed"
+          href="https://curiowire.com/api/rss"
+        />
+
         {/* ✅ Google Analytics */}
         {GA_ID && (
           <>
