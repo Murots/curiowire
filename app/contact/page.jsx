@@ -1,9 +1,11 @@
-// app/contact/page.jsx
-import ContactContent from "./ContactContent";
-
+// === app/contact/page.jsx ===
+// ✉️ Contact — CurioWire
 export const dynamic = "force-static";
 
-/* === 🧠 SERVER-SIDE METADATA === */
+import Script from "next/script";
+import ContactContent from "./ContactContent";
+
+/* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/contact`;
@@ -12,26 +14,6 @@ export async function generateMetadata() {
   const description =
     "Reach out to the CurioWire editorial team. Send story tips, feedback or partnership inquiries — we welcome collaboration and curiosity.";
   const image = `${baseUrl}/icon.png`;
-
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "ContactPage",
-    name: title,
-    description,
-    url: pageUrl,
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-      logo: { "@type": "ImageObject", url: image },
-      contactPoint: {
-        "@type": "ContactPoint",
-        contactType: "editorial inquiries",
-        email: "editor@curiowire.com",
-        availableLanguage: ["English"],
-      },
-    },
-  };
 
   return {
     title,
@@ -53,15 +35,58 @@ export async function generateMetadata() {
       images: [image],
     },
     other: { robots: "index,follow", "theme-color": "#95010e" },
-    scripts: [
-      {
-        type: "application/ld+json",
-        innerHTML: JSON.stringify(structuredData),
-      },
-    ],
   };
 }
 
+/* === 🧩 PAGE COMPONENT === */
 export default function ContactPage() {
-  return <ContactContent />;
+  const baseUrl = "https://curiowire.com";
+  const pageUrl = `${baseUrl}/contact`;
+  const image = `${baseUrl}/icon.png`;
+
+  // ✅ Strukturerte data for ContactPage
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: "Contact — CurioWire",
+    description:
+      "Reach out to the CurioWire editorial team. Send story tips, feedback or partnership inquiries — we welcome collaboration and curiosity.",
+    url: pageUrl,
+    publisher: {
+      "@type": "Organization",
+      name: "CurioWire",
+      url: baseUrl,
+      logo: { "@type": "ImageObject", url: image },
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "editorial inquiries",
+          email: "editor@curiowire.com",
+          availableLanguage: ["English"],
+        },
+        {
+          "@type": "ContactPoint",
+          contactType: "media relations",
+          email: "press@curiowire.com",
+          availableLanguage: ["English"],
+        },
+      ],
+    },
+  };
+
+  return (
+    <>
+      {/* ✅ Structured data injected for Google */}
+      <Script
+        id="structured-data-contact"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData),
+        }}
+      />
+
+      <ContactContent />
+    </>
+  );
 }
