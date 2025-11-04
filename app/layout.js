@@ -24,26 +24,27 @@ export default function RootLayout({ children }) {
           href="https://curiowire.com/api/rss"
         />
 
-        {/* 🧩 EZOIC PRIVACY + HEADER SCRIPTS */}
+        {/* 🧩 EZOIC SCRIPTS – må ligge øverst i head */}
         <EzoicScripts />
 
-        {/* 💨 Font Optimalisering */}
+        {/* 💨 Fontoptimalisering (etter Ezoic for å unngå blokkering) */}
         <link
           rel="preconnect"
           href="https://fonts.googleapis.com"
-          crossOrigin="true"
+          crossOrigin="anonymous"
         />
         <link
           rel="preconnect"
           href="https://fonts.gstatic.com"
-          crossOrigin="true"
+          crossOrigin="anonymous"
         />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:wght@700&display=swap"
           rel="stylesheet"
         />
 
-        {/* ✅ Google Analytics */}
+        {/* ✅ Google Analytics – etter fonts for lavere blocking */}
         {GA_ID && (
           <>
             <Script
@@ -55,7 +56,7 @@ export default function RootLayout({ children }) {
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${GA_ID}');
+                gtag('config', '${GA_ID}', { anonymize_ip: true });
               `}
             </Script>
           </>

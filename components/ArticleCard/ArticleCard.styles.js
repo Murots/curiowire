@@ -70,13 +70,13 @@ export const ImageWrapper = styled.div`
 
   /* Holder proporsjon, men tillater visuell trimming */
   aspect-ratio: 16 / 9;
-  max-height: 220px;
+  max-height: 250px;
 
   @media (max-width: 770px) {
     flex: none;
     width: 100%;
     border-radius: 0;
-    max-height: 200px;
+    max-height: 220px;
   }
 `;
 

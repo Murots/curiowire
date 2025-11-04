@@ -39,20 +39,27 @@ export default function ArticleCard({
             <Image
               src={`${image_url}?width=600&quality=70&format=webp`}
               srcSet={`
-        ${image_url}?width=300&quality=65&format=webp 300w,
-        ${image_url}?width=600&quality=70&format=webp 600w,
-        ${image_url}?width=900&quality=75&format=webp 900w
-      `}
+      ${image_url}?width=300&quality=65&format=webp 300w,
+      ${image_url}?width=600&quality=70&format=webp 600w,
+      ${image_url}?width=900&quality=75&format=webp 900w
+    `}
               sizes="(max-width: 600px) 300px,
-             (max-width: 1200px) 600px,
-             900px"
+           (max-width: 1200px) 600px,
+           900px"
               alt={cleanText(title)}
-              loading={index === 0 ? "eager" : "lazy"} // 👈 første bilde = eager
+              loading={index === 0 ? "eager" : "lazy"}
               decoding="async"
-              fetchPriority={index === 0 ? "high" : "low"} // 👈 første bilde = high priority
+              fetchPriority={index === 0 ? "high" : "low"}
               width={600}
-              height={338} // 👈 eksplisitt høyde/bredde for CLS
-              style={{ backgroundColor: "#eaeaea", display: "block" }}
+              height={338}
+              style={{
+                backgroundColor: "#eaeaea",
+                display: "block",
+                aspectRatio: "16 / 9",
+                objectFit: "cover",
+                objectPosition: "50% 30%",
+                borderRadius: "6px",
+              }}
             />
           )}
         </ImageWrapper>
