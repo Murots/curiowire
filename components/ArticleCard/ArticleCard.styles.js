@@ -67,36 +67,40 @@ export const ImageWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 16 / 9;
-  max-height: 220px; /* redusert litt for jevnere proporsjon */
   border-radius: 6px;
   overflow: hidden;
-  background-color: #eaeaea; /* ✅ gir visuelt placeholder-felt */
+  background-color: #eaeaea;
 
   @media (max-width: 770px) {
     flex: none;
     width: 100%;
-    max-height: none;
     border-radius: 0;
   }
 `;
 
 export const Image = styled.img`
   width: 100%;
-  height: 100%;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
   object-position: 50% 30%;
+  border-radius: 6px;
+  display: block;
   transition: all 0.6s ease;
   filter: grayscale(100%) brightness(0.9);
+  background-color: #eaeaea;
 
   ${Card}:hover & {
     transform: scale(1.05);
     filter: grayscale(0%) brightness(1);
   }
 
-  /* Ekstra beskyttelse for LCP/CLS */
-  max-height: 220px;
-  display: block;
+  /* Responsiv høydebegrensning */
+  max-height: min(40vh, 300px);
+
+  @media (max-width: 770px) {
+    max-height: min(50vh, 250px);
+    border-radius: 0;
+  }
 `;
 
 export const Content = styled.div`

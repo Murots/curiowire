@@ -6,7 +6,7 @@ import ThemeRegistry from "./ThemeRegistry";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import AnalyticsTracker from "../components/Analytics/AnalyticsTracker";
-import EzoicScripts from "../components/EzoicScripts"; // 🧩 Nytt: Ezoic client component
+import EzoicScripts from "../components/EzoicScripts"; // 🧩 Ezoic client component
 
 export const runtime = "nodejs";
 
@@ -26,6 +26,22 @@ export default function RootLayout({ children }) {
 
         {/* 🧩 EZOIC PRIVACY + HEADER SCRIPTS */}
         <EzoicScripts />
+
+        {/* 💨 Font Optimalisering */}
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+          crossOrigin="true"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="true"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:wght@700&display=swap"
+          rel="stylesheet"
+        />
 
         {/* ✅ Google Analytics */}
         {GA_ID && (
