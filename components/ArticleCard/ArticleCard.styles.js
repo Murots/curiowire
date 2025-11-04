@@ -64,28 +64,30 @@ export const Card = styled.div`
 export const ImageWrapper = styled.div`
   flex: 0 0 45%;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 6px;
   overflow: hidden;
   background-color: #eaeaea;
+
+  /* Holder proporsjon, men tillater visuell trimming */
+  aspect-ratio: 16 / 9;
+  max-height: 220px;
 
   @media (max-width: 770px) {
     flex: none;
     width: 100%;
     border-radius: 0;
+    max-height: 200px;
   }
 `;
 
 export const Image = styled.img`
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   object-fit: cover;
   object-position: 50% 30%;
   border-radius: 6px;
   display: block;
-  transition: all 0.6s ease;
+  transition: transform 0.6s ease, filter 0.6s ease;
   filter: grayscale(100%) brightness(0.9);
   background-color: #eaeaea;
 
@@ -94,11 +96,7 @@ export const Image = styled.img`
     filter: grayscale(0%) brightness(1);
   }
 
-  /* Responsiv høydebegrensning */
-  max-height: min(40vh, 300px);
-
   @media (max-width: 770px) {
-    max-height: min(50vh, 250px);
     border-radius: 0;
   }
 `;

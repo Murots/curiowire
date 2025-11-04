@@ -47,10 +47,12 @@ export default function ArticleCard({
              (max-width: 1200px) 600px,
              900px"
               alt={cleanText(title)}
-              loading="lazy"
+              loading={index === 0 ? "eager" : "lazy"} // 👈 første bilde = eager
               decoding="async"
-              fetchPriority="low"
-              style={{ backgroundColor: "#eaeaea" }}
+              fetchPriority={index === 0 ? "high" : "low"} // 👈 første bilde = high priority
+              width={600}
+              height={338} // 👈 eksplisitt høyde/bredde for CLS
+              style={{ backgroundColor: "#eaeaea", display: "block" }}
             />
           )}
         </ImageWrapper>
