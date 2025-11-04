@@ -6,6 +6,7 @@ import ThemeRegistry from "./ThemeRegistry";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import AnalyticsTracker from "../components/Analytics/AnalyticsTracker";
+import EzoicScripts from "../components/EzoicScripts"; // 🧩 Nytt: Ezoic client component
 
 export const runtime = "nodejs";
 
@@ -24,27 +25,7 @@ export default function RootLayout({ children }) {
         />
 
         {/* 🧩 EZOIC PRIVACY + HEADER SCRIPTS */}
-        <Script
-          src="https://cmp.gatekeeperconsent.com/min.js"
-          strategy="beforeInteractive"
-          data-cfasync="false"
-        />
-        <Script
-          src="https://the.gatekeeperconsent.com/cmp.min.js"
-          strategy="beforeInteractive"
-          data-cfasync="false"
-        />
-        <Script
-          async
-          src="//www.ezojs.com/ezoic/sa.min.js"
-          strategy="beforeInteractive"
-        />
-        <Script id="ezoic-init" strategy="beforeInteractive">
-          {`
-            window.ezstandalone = window.ezstandalone || {};
-            ezstandalone.cmd = ezstandalone.cmd || [];
-          `}
-        </Script>
+        <EzoicScripts />
 
         {/* ✅ Google Analytics */}
         {GA_ID && (

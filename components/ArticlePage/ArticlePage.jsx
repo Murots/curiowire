@@ -87,7 +87,15 @@ export default function ArticlePage({
 
       <Title>{cleanText(title)}</Title>
 
-      {image_url && <Image src={image_url} alt={cleanText(title)} />}
+      {image_url && (
+        <Image
+          src={image_url}
+          alt={cleanText(title)}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
+        />
+      )}
 
       {article.image_credit && (
         <p

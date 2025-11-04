@@ -57,6 +57,7 @@ export const Image = styled.img`
   border-radius: 8px;
   margin: 24px 0 0 0;
   display: block;
+  max-height: 80vh;
 `;
 
 export const Excerpt = styled.div`
