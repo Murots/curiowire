@@ -49,6 +49,18 @@ export const Title = styled.h1`
   line-height: 1.3;
 `;
 
+// export const Image = styled.img`
+//   width: 100%;
+//   aspect-ratio: 16 / 9;
+//   object-fit: cover;
+//   object-position: 50% 30%;
+//   border-radius: 8px;
+//   margin: 24px 0 0 0;
+//   display: block;
+//   max-height: 80vh;
+//   background-color: #eaeaea;
+// `;
+
 export const Image = styled.img`
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -57,7 +69,10 @@ export const Image = styled.img`
   border-radius: 8px;
   margin: 24px 0 0 0;
   display: block;
-  max-height: 80vh;
+  background-color: #eaeaea;
+
+  /* Fjern fast min-height, og bruk maksgrense i stedet */
+  max-height: min(80vh, 600px);
 `;
 
 export const Excerpt = styled.div`

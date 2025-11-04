@@ -37,11 +37,20 @@ export default function ArticleCard({
         <ImageWrapper>
           {image_url && (
             <Image
-              src={image_url}
+              src={`${image_url}?width=600&quality=70&format=webp`}
+              srcSet={`
+        ${image_url}?width=300&quality=65&format=webp 300w,
+        ${image_url}?width=600&quality=70&format=webp 600w,
+        ${image_url}?width=900&quality=75&format=webp 900w
+      `}
+              sizes="(max-width: 600px) 300px,
+             (max-width: 1200px) 600px,
+             900px"
               alt={cleanText(title)}
               loading="lazy"
               decoding="async"
               fetchPriority="low"
+              style={{ backgroundColor: "#eaeaea" }}
             />
           )}
         </ImageWrapper>

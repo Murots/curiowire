@@ -89,11 +89,22 @@ export default function ArticlePage({
 
       {image_url && (
         <Image
-          src={image_url}
+          src={`${image_url}?width=1200&quality=80&format=webp`}
+          srcSet={`
+      ${image_url}?width=400&quality=70&format=webp 400w,
+      ${image_url}?width=800&quality=75&format=webp 800w,
+      ${image_url}?width=1200&quality=80&format=webp 1200w,
+      ${image_url}?width=1600&quality=85&format=webp 1600w
+    `}
+          sizes="(max-width: 600px) 400px,
+           (max-width: 1200px) 800px,
+           (max-width: 1600px) 1200px,
+           1600px"
           alt={cleanText(title)}
           loading="eager"
           decoding="async"
           fetchPriority="high"
+          style={{ backgroundColor: "#eaeaea" }}
         />
       )}
 
