@@ -43,7 +43,7 @@ export const GlobalStyle = createGlobalStyle`
 
   h2 {
     font-family: "Playfair Display", "Poppins", serif;
-    font-size: 1.5rem;
+    font-size: 1.1rem;
   }
 
   h3 {

@@ -84,7 +84,7 @@ export const Image = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 30%;
+  object-position: 50% 20%;
   border-radius: 6px;
   display: block;
   transition: transform 0.6s ease, filter 0.6s ease;

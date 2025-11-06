@@ -1,6 +1,196 @@
+// "use client";
+
+// import React, { useEffect, useState } from "react";
+// import { useParams, useRouter } from "next/navigation";
+// import Link from "next/link";
+// import { supabase } from "@/lib/supabaseClient";
+// import {
+//   Wrapper,
+//   Headline,
+//   SubIntro,
+//   Title,
+//   Image,
+//   Excerpt,
+//   SourceLink,
+//   BackButton,
+//   NextLink,
+//   Divider,
+// } from "./ArticlePage.styles";
+// import { cleanText } from "../../app/api/utils/cleanText";
+
+// export default function ArticlePage({
+//   article: initialArticle,
+//   nextArticle: initialNext,
+// }) {
+//   const { id } = useParams();
+//   const router = useRouter();
+//   const [article, setArticle] = useState(initialArticle || null);
+//   const [nextArticle, setNextArticle] = useState(initialNext || null);
+
+//   useEffect(() => {
+//     // Hvis artikkel allerede er sendt fra parent, ikke hent på nytt
+//     if (initialArticle) return;
+
+//     const fetchArticleAndNext = async () => {
+//       // 1️⃣ Hent artikkel
+//       const { data: current, error } = await supabase
+//         .from("articles")
+//         .select("*")
+//         .eq("id", id)
+//         .single();
+
+//       if (error || !current) {
+//         console.error("❌ Error fetching article:", error?.message);
+//         return;
+//       }
+
+//       setArticle(current);
+
+//       // 2️⃣ Logg visning
+//       await supabase.from("article_views").insert([{ article_id: id }]);
+
+//       // 3️⃣ Finn neste artikkel i samme kategori
+//       const { data: nextData } = await supabase
+//         .from("articles")
+//         .select("id, title")
+//         .eq("category", current.category)
+//         .gt("created_at", current.created_at)
+//         .order("created_at", { ascending: true })
+//         .limit(1);
+
+//       if (nextData && nextData.length > 0) {
+//         setNextArticle(nextData[0]);
+//       } else {
+//         // 🔁 Ingen nyere → hent første artikkel i kategorien (sirkulær)
+//         const { data: first } = await supabase
+//           .from("articles")
+//           .select("id, title")
+//           .eq("category", current.category)
+//           .order("created_at", { ascending: true })
+//           .limit(1);
+//         if (first && first.length > 0) setNextArticle(first[0]);
+//       }
+//     };
+
+//     fetchArticleAndNext();
+//   }, [id, initialArticle]);
+
+//   if (!article) return <Wrapper>Loading curiosity...</Wrapper>;
+
+//   const { category, title, excerpt, image_url, source_url } = article;
+
+//   return (
+//     <Wrapper>
+//       <Headline>Extra! Extra!</Headline>
+//       <SubIntro>{getCategoryIntro(category)}</SubIntro>
+//       <Divider />
+
+//       <Title>{cleanText(title)}</Title>
+
+//       {image_url && (
+//         <Image
+//           src={`${image_url}?width=1200&quality=80&format=webp`}
+//           srcSet={`
+//       ${image_url}?width=400&quality=70&format=webp 400w,
+//       ${image_url}?width=800&quality=75&format=webp 800w,
+//       ${image_url}?width=1200&quality=80&format=webp 1200w,
+//       ${image_url}?width=1600&quality=85&format=webp 1600w
+//     `}
+//           sizes="(max-width: 600px) 400px,
+//            (max-width: 1200px) 800px,
+//            (max-width: 1600px) 1200px,
+//            1600px"
+//           alt={cleanText(title)}
+//           loading="eager"
+//           decoding="async"
+//           fetchPriority="high"
+//           style={{ backgroundColor: "#eaeaea" }}
+//         />
+//       )}
+
+//       {article.image_credit && (
+//         <p
+//           style={{
+//             fontSize: "0.8rem",
+//             color: "var(--color-muted)",
+//             fontStyle: "italic",
+//             marginBottom: "16px",
+//           }}
+//         >
+//           {article.image_credit}
+//         </p>
+//       )}
+
+//       <Excerpt>
+//         {cleanText(excerpt)
+//           .split(/\n{2,}/)
+//           .map((p, i) => (
+//             <p key={i}>{p.trim()}</p>
+//           ))}
+//       </Excerpt>
+
+//       {/* 🛍️ Produktlenke */}
+//       {category === "products" && source_url && (
+//         <SourceLink href={source_url} target="_blank" rel="noopener noreferrer">
+//           See featured product →
+//         </SourceLink>
+//       )}
+
+//       {/* 🔁 Navigasjon nederst */}
+//       <div style={{ display: "flex", justifyContent: "space-between" }}>
+//         <BackButton onClick={() => router.push(`/${category}`)}>
+//           ← Back to {category}
+//         </BackButton>
+
+//         {nextArticle ? (
+//           <NextLink href={`/article/${nextArticle.id}`}>
+//             Next curiosity →
+//           </NextLink>
+//         ) : (
+//           <NextLink href={`/${category}`}>Back to category →</NextLink>
+//         )}
+//       </div>
+
+//       {/* Amazon disclaimer */}
+//       {category?.toLowerCase() === "products" && (
+//         <p
+//           style={{
+//             fontSize: "0.7rem",
+//             color: "var(--color-muted)",
+//             textAlign: "center",
+//             marginTop: "30px",
+//             fontStyle: "italic",
+//             lineHeight: "1.4",
+//           }}
+//         >
+//           As an Amazon Associate, CurioWire earns from qualifying purchases.
+//         </p>
+//       )}
+//     </Wrapper>
+//   );
+// }
+
+// /* === Hjelpefunksjon === */
+// function getCategoryIntro(category) {
+//   const intros = {
+//     science: "🧪 Echoes from the lab",
+//     technology: "⚙️ Traces from the dawn of innovation",
+//     space: "🚀 Whispers from the silent cosmos",
+//     nature: "🌿 Stories carved by wind and water",
+//     health: "🫀 Secrets of the human vessel",
+//     history: "🏺 Recovered from the dusty archives",
+//     culture: "🎭 Fragments from the heart of civilization",
+//     sports: "🏆 Legends born in the arena",
+//     products: "🛍️ Artifacts of human ingenuity",
+//     world: "🌍 Records from the halls of power",
+//   };
+//   return intros[category?.toLowerCase()] || "- Hot off the wire";
+// }
+
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Head from "next/head";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -22,53 +212,78 @@ export default function ArticlePage({
   article: initialArticle,
   nextArticle: initialNext,
 }) {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id;
   const router = useRouter();
   const [article, setArticle] = useState(initialArticle || null);
   const [nextArticle, setNextArticle] = useState(initialNext || null);
 
   useEffect(() => {
-    // Hvis artikkel allerede er sendt fra parent, ikke hent på nytt
-    if (initialArticle) return;
+    if (!id) return;
 
     const fetchArticleAndNext = async () => {
-      // 1️⃣ Hent artikkel
-      const { data: current, error } = await supabase
-        .from("articles")
-        .select("*")
-        .eq("id", id)
-        .single();
+      try {
+        let current = initialArticle;
 
-      if (error || !current) {
-        console.error("❌ Error fetching article:", error?.message);
-        return;
-      }
+        // 🔹 Hent artikkel dersom ikke sendt som prop
+        if (!current) {
+          const { data, error } = await supabase
+            .from("articles")
+            .select("*")
+            .eq("id", id)
+            .single();
 
-      setArticle(current);
+          if (error || !data) {
+            console.error("❌ Could not fetch article:", error?.message);
+            return;
+          }
 
-      // 2️⃣ Logg visning
-      await supabase.from("article_views").insert([{ article_id: id }]);
+          current = data;
+          setArticle(data);
+        }
 
-      // 3️⃣ Finn neste artikkel i samme kategori
-      const { data: nextData } = await supabase
-        .from("articles")
-        .select("id, title")
-        .eq("category", current.category)
-        .gt("created_at", current.created_at)
-        .order("created_at", { ascending: true })
-        .limit(1);
+        // 🔹 Logg visning (kun i browser)
+        if (typeof window !== "undefined") {
+          try {
+            const res = await fetch("/api/logView", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ articleId: Number(id) }),
+            });
 
-      if (nextData && nextData.length > 0) {
-        setNextArticle(nextData[0]);
-      } else {
-        // 🔁 Ingen nyere → hent første artikkel i kategorien (sirkulær)
-        const { data: first } = await supabase
+            if (!res.ok) {
+              const json = await res.json();
+              console.warn("⚠️ logView failed:", res.status, json);
+            }
+          } catch (err) {
+            console.error("⚠️ logView request error:", err);
+          }
+        }
+
+        // 🔹 Finn neste artikkel i samme kategori
+        const { data: nextData } = await supabase
           .from("articles")
           .select("id, title")
           .eq("category", current.category)
+          .gt("created_at", current.created_at)
           .order("created_at", { ascending: true })
           .limit(1);
-        if (first && first.length > 0) setNextArticle(first[0]);
+
+        if (nextData?.length) {
+          setNextArticle(nextData[0]);
+        } else {
+          // fallback: første artikkel i kategorien
+          const { data: first } = await supabase
+            .from("articles")
+            .select("id, title")
+            .eq("category", current.category)
+            .order("created_at", { ascending: true })
+            .limit(1);
+
+          if (first?.length) setNextArticle(first[0]);
+        }
+      } catch (err) {
+        console.error("⚠️ fetchArticleAndNext error:", err);
       }
     };
 
@@ -77,7 +292,17 @@ export default function ArticlePage({
 
   if (!article) return <Wrapper>Loading curiosity...</Wrapper>;
 
-  const { category, title, excerpt, image_url, source_url } = article;
+  const {
+    category,
+    title,
+    excerpt,
+    image_url,
+    source_url,
+    seo_title,
+    seo_description,
+    seo_keywords,
+    hashtags,
+  } = article;
 
   return (
     <Wrapper>
@@ -91,15 +316,15 @@ export default function ArticlePage({
         <Image
           src={`${image_url}?width=1200&quality=80&format=webp`}
           srcSet={`
-      ${image_url}?width=400&quality=70&format=webp 400w,
-      ${image_url}?width=800&quality=75&format=webp 800w,
-      ${image_url}?width=1200&quality=80&format=webp 1200w,
-      ${image_url}?width=1600&quality=85&format=webp 1600w
-    `}
+            ${image_url}?width=400&quality=70&format=webp 400w,
+            ${image_url}?width=800&quality=75&format=webp 800w,
+            ${image_url}?width=1200&quality=80&format=webp 1200w,
+            ${image_url}?width=1600&quality=85&format=webp 1600w
+          `}
           sizes="(max-width: 600px) 400px,
-           (max-width: 1200px) 800px,
-           (max-width: 1600px) 1200px,
-           1600px"
+                (max-width: 1200px) 800px,
+                (max-width: 1600px) 1200px,
+                1600px"
           alt={cleanText(title)}
           loading="eager"
           decoding="async"
@@ -121,22 +346,46 @@ export default function ArticlePage({
         </p>
       )}
 
-      <Excerpt>
-        {cleanText(excerpt)
-          .split(/\n{2,}/)
-          .map((p, i) => (
-            <p key={i}>{p.trim()}</p>
-          ))}
-      </Excerpt>
+      <Excerpt
+        dangerouslySetInnerHTML={{
+          __html: excerpt || "",
+        }}
+      />
 
-      {/* 🛍️ Produktlenke */}
       {category === "products" && source_url && (
         <SourceLink href={source_url} target="_blank" rel="noopener noreferrer">
           See featured product →
         </SourceLink>
       )}
 
-      {/* 🔁 Navigasjon nederst */}
+      {hashtags && (
+        <p
+          style={{
+            fontSize: "0.8rem",
+            color: "var(--color-muted)",
+            textAlign: "center",
+            marginTop: "40px",
+          }}
+        >
+          {hashtags}
+        </p>
+      )}
+
+      {category?.toLowerCase() === "products" && (
+        <p
+          style={{
+            fontSize: "0.6rem",
+            color: "var(--color-muted)",
+            textAlign: "center",
+            marginTop: "0px",
+            fontStyle: "italic",
+            lineHeight: "1.4",
+          }}
+        >
+          As an Amazon Associate, CurioWire earns from qualifying purchases.
+        </p>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <BackButton onClick={() => router.push(`/${category}`)}>
           ← Back to {category}
@@ -150,22 +399,6 @@ export default function ArticlePage({
           <NextLink href={`/${category}`}>Back to category →</NextLink>
         )}
       </div>
-
-      {/* Amazon disclaimer */}
-      {category?.toLowerCase() === "products" && (
-        <p
-          style={{
-            fontSize: "0.7rem",
-            color: "var(--color-muted)",
-            textAlign: "center",
-            marginTop: "30px",
-            fontStyle: "italic",
-            lineHeight: "1.4",
-          }}
-        >
-          As an Amazon Associate, CurioWire earns from qualifying purchases.
-        </p>
-      )}
     </Wrapper>
   );
 }

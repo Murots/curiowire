@@ -5,8 +5,9 @@ import Script from "next/script";
 
 /* === 🧠 SERVER-SIDE METADATA (SEO + Discover) === */
 export async function generateMetadata({ params, searchParams }) {
-  const { category } = params;
-  const page = parseInt(searchParams?.page || "1", 10);
+  const { category } = await params; // ✅ må awaites
+  const { page } = await searchParams; // ✅ må awaites
+  const currentPage = parseInt(page || "1", 10);
   const baseUrl = "https://curiowire.com";
 
   const formattedCategory =
@@ -43,8 +44,10 @@ export async function generateMetadata({ params, searchParams }) {
 
 /* === 📰 SERVER COMPONENT === */
 export default async function CategoryPageWrapper({ params, searchParams }) {
-  const { category } = params;
-  const page = parseInt(searchParams?.page || "1", 10);
+  const { category } = await params; // 👈 må awaites
+  const { page } = await searchParams; // 👈 samme her
+
+  const currentPage = parseInt(page || "1", 10); // 👈 bruk egen variabel
   const baseUrl = "https://curiowire.com";
   const formattedCategory =
     category.charAt(0).toUpperCase() + category.slice(1);

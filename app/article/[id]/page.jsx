@@ -5,7 +5,7 @@ import Script from "next/script";
 
 /* === 🧠 SERVER-SIDE METADATA (SEO + Discover) === */
 export async function generateMetadata({ params }) {
-  const { id } = params;
+  const { id } = await params;
 
   // 📰 Hent artikkel fra Supabase
   const { data: article } = await supabase
@@ -77,7 +77,7 @@ export async function generateMetadata({ params }) {
 
 /* === 📰 SERVER COMPONENT === */
 export default async function Page({ params }) {
-  const { id } = params;
+  const { id } = await params; // 👈 viktig endring!
   const baseUrl = "https://curiowire.com";
 
   // 📰 Hent artikkel

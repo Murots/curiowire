@@ -16,7 +16,6 @@ export const Headline = styled.h1`
   text-transform: uppercase;
 
   @media (max-width: 768px) {
-    // font-size: 1.8rem;
     text-align: left;
   }
 `;

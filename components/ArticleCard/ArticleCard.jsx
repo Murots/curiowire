@@ -24,9 +24,10 @@ export default function ArticleCard({
   view_count,
 }) {
   const formattedDate = new Date(created_at).toLocaleDateString("en-GB", {
-    day: "numeric",
+    day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 
   const isEven = index % 2 === 0;
