@@ -53,6 +53,12 @@ export default async function HomePage() {
     articles = fallback || [];
   }
 
+  console.log(
+    `✅ Toplist fetched at ${new Date().toISOString()} — ${
+      articles.length
+    } items`
+  );
+
   // === 💡 Bygg structured data manuelt ===
   const webSiteData = {
     "@context": "https://schema.org",
