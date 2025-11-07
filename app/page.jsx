@@ -3,7 +3,7 @@ import HomeContent from "./HomeContent";
 import { supabase } from "@/lib/supabaseClient";
 import Script from "next/script";
 
-export const dynamic = "force-static";
+export const revalidate = 3600;
 
 /* === 🧠 SERVER-SIDE METADATA (standard meta) === */
 export async function generateMetadata() {
