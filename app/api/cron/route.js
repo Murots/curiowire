@@ -39,11 +39,15 @@ export async function GET(req) {
   // 🧠 Kjør resten i bakgrunnen uten å blokkere respons
   (async () => {
     try {
-      // 🌍 Alltid bruk full URL for å unngå 307 redirect
-      const baseUrl =
+      let baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL || "https://www.curiowire.com";
 
-      log.push(`🌐 Background fetch to: ${baseUrl}/api/generate`);
+      // 🧩 Sikre korrekt domene (unngå 307 redirect)
+      if (baseUrl.includes("curiowire.com") && !baseUrl.includes("www.")) {
+        baseUrl = baseUrl.replace("curiowire.com", "www.curiowire.com");
+      }
+
+      log.push(`🌐 Using baseUrl: ${baseUrl}`);
 
       const res = await fetch(`${baseUrl}/api/generate`);
       log.push(`📡 Response status: ${res.status}`);
