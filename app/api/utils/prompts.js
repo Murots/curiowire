@@ -36,6 +36,7 @@ Topic: "${topic}"
 Category: ${key}  
 Tone: ${tone}  
 Voice: vivid, factual, and curiosity-driven — like *BBC Future*, *Vox*, and *National Geographic* blended with the intrigue of *Atlas Obscura*.  
+Emphasize surprising contrasts, paradoxes, and little-known truths that make readers say “wait, is that true?”.
 
 ---
 
@@ -190,6 +191,7 @@ Category: ${key}
 Tone: ${tone}  
 Voice: poetic yet factual — every image must be rooted in something real (a person, object, or place).  
 Style: reflective, elegant, and timeless — like a rediscovered 1930s editorial rewritten for the digital age.  
+Emphasize surprising contrasts, paradoxes, and little-known truths that make readers say “wait, is that true?”.
 
 ---
 
@@ -341,6 +343,7 @@ Topic: "${topic}"
 Category: ${key}  
 Tone: ${tone}  
 Voice: cinematic, factual, and curiosity-driven — like *National Geographic History* meets *Wired*.  
+Emphasize surprising contrasts, paradoxes, and little-known truths that make readers say “wait, is that true?”.
 
 ---
 

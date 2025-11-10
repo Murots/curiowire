@@ -84,7 +84,7 @@ export async function getRedditAccessToken() {
 export async function replaceSubreddit(sub, category) {
   try {
     const cooldownUntil = new Date(
-      Date.now() + 48 * 60 * 60 * 1000
+      Date.now() + 72 * 60 * 60 * 1000
     ).toISOString();
 
     await supabase
