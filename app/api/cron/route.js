@@ -20,7 +20,7 @@ export async function GET(req) {
 
     const duration = ((Date.now() - start) / 1000).toFixed(1);
 
-    // 🔹 Lagre resultatet i Supabase
+    // 🔹 Lagre resultatet i Supabase for innsikt
     await supabase.from("cron_logs").insert({
       duration_seconds: duration,
       status: "success",
