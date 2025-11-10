@@ -39,28 +39,37 @@ export async function GET(req) {
   // 🧠 Kjør resten i bakgrunnen uten å blokkere respons
   (async () => {
     try {
+      // 🌍 Alltid bruk full URL for å unngå 307 redirect
       const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        (process.env.VERCEL_URL
-          ? `https://${process.env.VERCEL_URL}`
-          : "http://localhost:3000");
+        process.env.NEXT_PUBLIC_BASE_URL || "https://www.curiowire.com";
 
-      log.push(`🌐 Background fetch to ${baseUrl}/api/generate`);
+      log.push(`🌐 Background fetch to: ${baseUrl}/api/generate`);
 
       const res = await fetch(`${baseUrl}/api/generate`);
-      if (!res.ok) throw new Error(`Fetch failed with ${res.status}`);
+      log.push(`📡 Response status: ${res.status}`);
 
-      const data = await res.json();
+      // 📦 Prøv å parse body selv ved feil
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = { note: "No JSON body returned" };
+      }
+
+      if (!res.ok) {
+        throw new Error(`Fetch failed with ${res.status}`);
+      }
 
       log.push("✅ Background generation completed");
 
       const duration = ((Date.now() - start) / 1000).toFixed(1);
 
       await supabase.from("cron_logs").insert({
+        run_at: new Date().toISOString(),
         duration_seconds: duration,
         status: "success",
         message: "Background generation completed successfully",
-        details: data,
+        details: { log, data },
       });
     } catch (err) {
       console.error("❌ CRON BACKGROUND ERROR:", err);
@@ -69,6 +78,7 @@ export async function GET(req) {
       const duration = ((Date.now() - start) / 1000).toFixed(1);
 
       await supabase.from("cron_logs").insert({
+        run_at: new Date().toISOString(),
         duration_seconds: duration,
         status: "error",
         message: err.message,
