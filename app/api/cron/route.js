@@ -7,6 +7,17 @@ export async function GET(req) {
   const start = Date.now();
   const log = [];
 
+  // 🔒 Sikkerhetssjekk – sørg for at bare Vercel Cron eller du med riktig nøkkel får kjøre
+  const authHeader = req.headers.get("authorization");
+  const secret = process.env.CRON_SECRET_KEY;
+
+  if (!authHeader || authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json(
+      { ok: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
   log.push(`🕒 CRON RUN STARTED: ${new Date().toISOString()}`);
 
   try {
@@ -20,12 +31,12 @@ export async function GET(req) {
 
     const duration = ((Date.now() - start) / 1000).toFixed(1);
 
-    // 🔹 Lagre resultatet i Supabase for innsikt
+    // 🔹 Logg resultatet i Supabase
     await supabase.from("cron_logs").insert({
       duration_seconds: duration,
       status: "success",
       message: "Generation completed",
-      details: data, // lagres som JSON
+      details: data,
     });
 
     return NextResponse.json({
@@ -38,7 +49,6 @@ export async function GET(req) {
     console.error("❌ CRON ERROR:", err);
     log.push(`❌ ${err.message}`);
 
-    // 🔹 Logg feil også
     const duration = ((Date.now() - start) / 1000).toFixed(1);
     await supabase.from("cron_logs").insert({
       duration_seconds: duration,

@@ -29,10 +29,7 @@
   "crons": [
     {
       "path": "/api/cron",
-      "schedule": "0 */8 * * *",
-      "headers": {
-        "Authorization": "Bearer Qx7U1mN4p9z6ZkT2rX8f"
-      }
+      "schedule": "0 */8 * * *"
     }
   ]
 }
