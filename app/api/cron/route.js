@@ -20,7 +20,11 @@ export async function GET(req) {
   log.push(`🕒 CRON RUN STARTED: ${new Date().toISOString()}`);
 
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://curiowire.com";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
+
     log.push(`🌐 Fetching from ${baseUrl}/api/generate`);
 
     const res = await fetch(`${baseUrl}/api/generate`);
@@ -45,6 +49,13 @@ export async function GET(req) {
     const duration = ((Date.now() - start) / 1000).toFixed(1);
     await supabase.from("cron_logs").insert({
       duration_seconds: duration,
+      status: "error",
+      message: err.message,
+      details: { log },
+    });
+
+    await supabase.from("cron_logs").insert({
+      duration_seconds: ((Date.now() - start) / 1000).toFixed(1),
       status: "error",
       message: err.message,
       details: { log },
