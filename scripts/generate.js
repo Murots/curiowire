@@ -1,6 +1,7 @@
 // === scripts/generate.js ===
 // Full CurioWire generator for GitHub Actions
 // Kjører helt uavhengig av Vercel – direkte fra Node.js-miljøet i GitHub
+// Logger resultatet til cron_logs og beholder kun de 3 siste loggene
 
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
@@ -75,7 +76,6 @@ function isPersonalRedditPost(title) {
 export async function main() {
   const start = Date.now();
   console.log("🕒 Starting CurioWire generation run...");
-  const log = [];
   const results = [];
 
   try {
@@ -84,7 +84,6 @@ export async function main() {
     // 🔁 tilfeldig hovedkilde
     const primarySource = Math.random() < 0.5 ? "google" : "reddit";
     const fallbackSource = primarySource === "google" ? "reddit" : "google";
-    log.push(`Primary source: ${primarySource.toUpperCase()}`);
     console.log(`🌀 Primary source: ${primarySource.toUpperCase()}`);
 
     // === LOOP GJENNOM KATEGORIER ===
@@ -134,10 +133,7 @@ export async function main() {
         // === Analyse ===
         const topicSummary = await analyzeTopic(topic, key);
         const linkedStory = await linkHistoricalStory(topicSummary);
-        const { shortTheme, shortStory } = await summarizeTheme(
-          topicSummary,
-          linkedStory
-        );
+        await summarizeTheme(topicSummary, linkedStory);
 
         // === Bygg prompt ===
         let prompt;
@@ -267,24 +263,42 @@ export async function main() {
         results.push({ category: key, topic, success: true });
       } catch (err) {
         console.warn(`⚠️ Generation failed for ${key}:`, err.message);
-        results.push({ category: key, topic, success: false });
+        results.push({
+          category: key,
+          topic,
+          success: false,
+          error: err.message,
+        });
       }
     }
 
     await updateAndPingSearchEngines();
-    console.log("🎉 Done!");
+    console.log("🎉 Generation completed successfully.");
 
     // === Logging til cron_logs ===
     const duration = ((Date.now() - start) / 1000).toFixed(1);
-    await supabase.from("cron_logs").insert({
+    const { error: logError } = await supabase.from("cron_logs").insert({
       run_at: new Date().toISOString(),
       duration_seconds: duration,
       status: "success",
       message: "GitHub Action generation completed",
       details: { results },
     });
+    if (logError) console.error("⚠️ Failed to insert cron log:", logError);
 
     console.log(`🕓 Logged run in cron_logs (${duration}s)`);
+
+    // === Behold kun de 3 siste loggene ===
+    const { data: logs } = await supabase
+      .from("cron_logs")
+      .select("id")
+      .order("run_at", { ascending: false });
+
+    if (logs && logs.length > 3) {
+      const oldIds = logs.slice(3).map((l) => l.id);
+      await supabase.from("cron_logs").delete().in("id", oldIds);
+      console.log(`🧹 Deleted ${oldIds.length} old cron log(s)`);
+    }
   } catch (err) {
     console.error("❌ Fatal error:", err);
     await supabase.from("cron_logs").insert({
