@@ -6,7 +6,6 @@ import { NextResponse } from "next/server";
 // === Utils ===
 import { fetchGoogleTrends, cleanTrends } from "../utils/trendsUtils.js";
 import { loadDynamicSubs, fetchRedditTrends } from "../utils/redditUtils.js";
-import { generateFallbackTopic } from "../utils/topicUtils.js";
 
 // === STANDARD SUBREDDITS ===
 let redditSubs = {
@@ -42,12 +41,15 @@ let redditSubs = {
 
 // === GET ===
 export async function GET() {
+  // 🔁 Hent eventuelle dynamiske subreddit-oppdateringer
   redditSubs = await loadDynamicSubs(redditSubs);
+
   const results = {};
 
   for (const category of Object.keys(redditSubs)) {
     console.log(`🧠 Fetching trends for ${category}...`);
 
+    // Hent Google + Reddit-trender parallelt
     const [google, reddit] = await Promise.all([
       fetchGoogleTrends(category),
       fetchRedditTrends(category, redditSubs[category]),
@@ -56,6 +58,7 @@ export async function GET() {
     const googleClean = cleanTrends(google);
     const redditClean = cleanTrends(reddit);
 
+    // Velg et tilfeldig emne fra hver kilde
     const redditPick =
       redditClean[Math.floor(Math.random() * redditClean.length)];
     const redditTopic = redditPick?.title || redditPick || null;
@@ -63,6 +66,7 @@ export async function GET() {
     const googleTopic =
       googleClean[Math.floor(Math.random() * googleClean.length)];
 
+    // Bygg resultatobjekt
     results[category] = {
       google: googleClean,
       reddit: redditClean,
@@ -73,10 +77,9 @@ export async function GET() {
       },
     };
 
-    if (!results[category].google.length && !results[category].reddit.length) {
-      const fallback = await generateFallbackTopic(category);
-      results[category].selected.fallback = fallback || null;
-    }
+    // 🧩 Fallback fjernet — ikke nødvendig lenger
+    // Tidligere brukte vi generateFallbackTopic(category)
+    // Nå håndteres tomme kategorier senere i generatoren
   }
 
   console.log("✅ Trend scan complete.");
