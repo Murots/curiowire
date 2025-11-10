@@ -1,14 +1,6 @@
 // === app/api/utils/seoTools.js ===
 // 🔍 CurioWire SEO-verktøy – ping Google/Bing etter ny publisering
 
-import { createClient } from "@supabase/supabase-js";
-
-// Klargjør Supabase (beholdt for fremtidig logging, men ikke i bruk nå)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-
 // Bruk riktig base-URL (fra env, ellers produksjonsdomenet)
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
   ? process.env.NEXT_PUBLIC_BASE_URL

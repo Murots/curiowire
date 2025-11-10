@@ -79,7 +79,18 @@ export async function main() {
   const results = [];
 
   try {
-    const topicsByCategory = await fetchTrendingTopics();
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
+      ? process.env.NEXT_PUBLIC_BASE_URL
+      : "https://www.curiowire.com";
+
+    let topicsByCategory;
+    try {
+      const res = await fetch(`${baseUrl}/api/trends`);
+      topicsByCategory = (await res.json())?.results || {};
+    } catch (err) {
+      console.warn("⚠️ Failed to fetch trending topics:", err.message);
+      topicsByCategory = {};
+    }
 
     // 🔁 tilfeldig hovedkilde
     const primarySource = Math.random() < 0.5 ? "google" : "reddit";
