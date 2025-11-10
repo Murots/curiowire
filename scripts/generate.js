@@ -1,0 +1,300 @@
+// === scripts/generate.js ===
+// Full CurioWire generator for GitHub Actions
+// Kjører helt uavhengig av Vercel – direkte fra Node.js-miljøet i GitHub
+
+import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+
+// === Lokale utils ===
+import { updateAndPingSearchEngines } from "../app/api/utils/seoTools.js";
+import { categories } from "../app/api/utils/categories.js";
+import { trimHeadline } from "../app/api/utils/textTools.js";
+import { fetchTrendingTopics } from "../app/api/utils/fetchTopics.js";
+import {
+  buildArticlePrompt,
+  buildCulturePrompt,
+  buildProductArticlePrompt,
+  affiliateAppendix,
+  naturalEnding,
+} from "../app/api/utils/prompts.js";
+import {
+  checkDuplicateTopic,
+  checkSimilarTitles,
+} from "../app/api/utils/duplicateUtils.js";
+import {
+  analyzeTopic,
+  linkHistoricalStory,
+  summarizeTheme,
+} from "../app/api/utils/articleUtils.js";
+import {
+  resolveProductCategory,
+  findAffiliateProduct,
+} from "../app/api/utils/productUtils.js";
+import { selectBestImage } from "../app/api/utils/imageSelector.js";
+import { cleanText } from "../app/api/utils/cleanText.js";
+import { refineArticle } from "../app/api/utils/refineTools.js";
+
+// === INIT ===
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  organization: process.env.OPENAI_ORG_ID,
+});
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// === Helper for embeddings ===
+async function generateEmbedding(text) {
+  try {
+    const emb = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
+    });
+    return emb.data[0].embedding;
+  } catch (err) {
+    console.warn("⚠️ Failed to generate embedding:", err.message);
+    return null;
+  }
+}
+
+// === Filter mot personlige Reddit-poster ===
+function isPersonalRedditPost(title) {
+  const lower = title.toLowerCase();
+  const bannedPatterns = [
+    /\b(i|my|me|our|us|mine|ours)\b/,
+    /\b(dad|mom|father|mother|boyfriend|girlfriend|wife|husband)\b/,
+    /\b(confession|story|journey|feeling|struggle|rant|proud|lost my|thank you)\b/,
+    /askreddit|relationships|aita|offmychest|trueoffmychest|tifu|confession/,
+  ];
+  return bannedPatterns.some((re) => re.test(lower));
+}
+
+// === Hovedfunksjon ===
+export async function main() {
+  const start = Date.now();
+  console.log("🕒 Starting CurioWire generation run...");
+  const log = [];
+  const results = [];
+
+  try {
+    const topicsByCategory = await fetchTrendingTopics();
+
+    // 🔁 tilfeldig hovedkilde
+    const primarySource = Math.random() < 0.5 ? "google" : "reddit";
+    const fallbackSource = primarySource === "google" ? "reddit" : "google";
+    log.push(`Primary source: ${primarySource.toUpperCase()}`);
+    console.log(`🌀 Primary source: ${primarySource.toUpperCase()}`);
+
+    // === LOOP GJENNOM KATEGORIER ===
+    for (const [key, { tone, image }] of Object.entries(categories)) {
+      console.log(`\n📰 Category: ${key.toUpperCase()}`);
+      const topicData = topicsByCategory[key];
+      const primaryList = topicData?.[primarySource] || [];
+      const fallbackList = topicData?.[fallbackSource] || [];
+
+      const allTopics = [...primaryList, ...fallbackList]
+        .filter((t) => {
+          const title = typeof t === "object" ? t.title : t;
+          return !isPersonalRedditPost(title);
+        })
+        .slice(0, 5);
+
+      if (!allTopics.length) {
+        console.log(`⚠️ No valid topics found for ${key}`);
+        continue;
+      }
+
+      // === Finn unikt tema ===
+      let topic = null;
+      for (const candidate of allTopics) {
+        const candidateTitle =
+          typeof candidate === "object" ? candidate.title : candidate;
+        console.log(`🔎 Checking candidate: "${candidateTitle}"`);
+        const { existing, alreadyExists } = await checkDuplicateTopic(
+          key,
+          candidateTitle
+        );
+        if (alreadyExists) continue;
+        const isSimilar = await checkSimilarTitles(
+          existing,
+          candidateTitle,
+          key
+        );
+        if (isSimilar) continue;
+        topic = candidateTitle;
+        break;
+      }
+      if (!topic) continue;
+
+      try {
+        console.log(`✅ Selected topic: ${topic}`);
+
+        // === Analyse ===
+        const topicSummary = await analyzeTopic(topic, key);
+        const linkedStory = await linkHistoricalStory(topicSummary);
+        const { shortTheme, shortStory } = await summarizeTheme(
+          topicSummary,
+          linkedStory
+        );
+
+        // === Bygg prompt ===
+        let prompt;
+        if (key === "products") {
+          const productCategory = await resolveProductCategory(
+            topic,
+            topicSummary,
+            linkedStory
+          );
+          prompt =
+            (await buildProductArticlePrompt(
+              `${topic} (${productCategory})`,
+              key,
+              tone
+            )) + affiliateAppendix;
+        } else if (key === "culture") {
+          prompt = buildCulturePrompt(topic) + naturalEnding;
+        } else {
+          prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
+        }
+        prompt += `\nFocus the story around this factual event or curiosity:\n"${linkedStory}"`;
+
+        // === Generer tekst ===
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+        });
+
+        const text = completion.choices[0]?.message?.content?.trim() || "";
+        const titleMatch = text.match(/Headline:\s*(.+)/i);
+        const bodyMatch = text.match(/Article:\s*([\s\S]+)/i);
+        const rawTitle = titleMatch ? titleMatch[1].trim() : topic;
+        const title = trimHeadline(rawTitle);
+        const article = bodyMatch ? bodyMatch[1].trim() : text;
+
+        // === Refine ===
+        const beforeWords = article.split(/\s+/).length;
+        const refinedArticle = await refineArticle(article, title);
+        const afterWords = refinedArticle.split(/\s+/).length;
+        console.log(`🧾 Refined ${beforeWords} → ${afterWords} words`);
+
+        // === SEO ===
+        const seoTitleMatch = text.match(/<title>\s*([^<]+)\s*/i);
+        const seoDescMatch = text.match(/<description>\s*([^<]+)\s*/i);
+        const seoKeywordsMatch = text.match(/<keywords>\s*([^<]+)\s*/i);
+        const hashtagsMatch = text.match(/Hashtags:\s*([#\w\s]+)/i);
+
+        const seo_title = seoTitleMatch ? seoTitleMatch[1].trim() : title;
+        const seo_description = seoDescMatch
+          ? seoDescMatch[1].trim()
+          : cleanText(refinedArticle.slice(0, 155));
+        const seo_keywords = seoKeywordsMatch
+          ? seoKeywordsMatch[1].trim()
+          : [key, "curiosity", "history", "CurioWire"].join(", ");
+
+        let hashtags = "";
+        if (hashtagsMatch) {
+          const rawTags = hashtagsMatch[1]
+            .trim()
+            .split(/\s+/)
+            .filter((tag) => tag.startsWith("#"));
+          hashtags = [...new Set(rawTags)].join(" ");
+        }
+
+        // === Produktlogikk ===
+        let source_url = null;
+        if (key === "products") {
+          const nameMatch = text.match(/\[Product Name\]:\s*(.+)/i);
+          const productName = nameMatch ? nameMatch[1].trim() : null;
+          const productResult = await findAffiliateProduct(
+            title,
+            topic,
+            refinedArticle,
+            productName
+          );
+          source_url = productResult.source_url;
+        }
+
+        // === Rydd opp tekst ===
+        const cleanedArticle = refinedArticle
+          .replace(/```html|```/gi, "")
+          .replace(/\[Product Name\]:\s*.+/i, "")
+          .replace(/SEO:[\s\S]*$/i, "")
+          .trim();
+
+        // === Embedding + bilde ===
+        const embedding = await generateEmbedding(
+          `${title}\n${cleanedArticle}`
+        );
+        const imagePref = image === "photo" ? "photo" : "dalle";
+        const { imageUrl, source } = await selectBestImage(
+          title,
+          cleanedArticle,
+          key,
+          imagePref
+        );
+
+        const imageCredit =
+          source === "Wikimedia"
+            ? "Image via Wikimedia Commons"
+            : source === "Pexels"
+            ? "Image courtesy of Pexels"
+            : source === "Unsplash"
+            ? "Image courtesy of Unsplash"
+            : source === "DALL·E"
+            ? "Illustration by DALL·E 3"
+            : "Image source unknown";
+
+        // === Lagre ===
+        const { error } = await supabase.from("articles").insert([
+          {
+            category: key,
+            title,
+            excerpt: cleanedArticle,
+            image_url: imageUrl,
+            source_url,
+            image_credit: imageCredit,
+            seo_title,
+            seo_description,
+            seo_keywords,
+            hashtags,
+            embedding,
+          },
+        ]);
+        if (error) throw error;
+        console.log(`✅ Saved: ${key} → ${title}`);
+        results.push({ category: key, topic, success: true });
+      } catch (err) {
+        console.warn(`⚠️ Generation failed for ${key}:`, err.message);
+        results.push({ category: key, topic, success: false });
+      }
+    }
+
+    await updateAndPingSearchEngines();
+    console.log("🎉 Done!");
+
+    // === Logging til cron_logs ===
+    const duration = ((Date.now() - start) / 1000).toFixed(1);
+    await supabase.from("cron_logs").insert({
+      run_at: new Date().toISOString(),
+      duration_seconds: duration,
+      status: "success",
+      message: "GitHub Action generation completed",
+      details: { results },
+    });
+
+    console.log(`🕓 Logged run in cron_logs (${duration}s)`);
+  } catch (err) {
+    console.error("❌ Fatal error:", err);
+    await supabase.from("cron_logs").insert({
+      run_at: new Date().toISOString(),
+      status: "error",
+      message: err.message,
+    });
+    process.exit(1);
+  }
+}
+
+// === Kjør hovedfunksjon ===
+main().then(() => process.exit(0));
