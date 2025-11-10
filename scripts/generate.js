@@ -41,10 +41,45 @@ const openai = new OpenAI({
   organization: process.env.OPENAI_ORG_ID,
 });
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+// === Supabase init + diagnostikk ===
+const supabaseUrl =
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+console.log("🧩 Supabase URL:", supabaseUrl ? "✅ Loaded" : "❌ MISSING");
+console.log(
+  "🔑 Supabase Key:",
+  supabaseKey ? `✅ Loaded (${supabaseKey.slice(0, 6)}...)` : "❌ MISSING"
 );
+console.log(
+  "🌐 Environment:",
+  process.env.GITHUB_ACTIONS ? "GitHub Actions" : "Local/Vercel"
+);
+
+console.log("🧱 Supabase environment snapshot:", {
+  SUPABASE_URL: !!process.env.SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+});
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// === Safe wrapper for Supabase calls ===
+async function safeQuery(label, query) {
+  try {
+    const result = await query;
+    if (result?.error) {
+      console.error(`🚨 Supabase error (${label}):`, result.error.message);
+    }
+    return result;
+  } catch (err) {
+    console.error(`💥 Supabase fetch failed (${label}):`, err.message);
+    return { error: err };
+  }
+}
 
 // === Helper for embeddings ===
 async function generateEmbedding(text) {
@@ -254,21 +289,24 @@ export async function main() {
             : "Image source unknown";
 
         // === Lagre ===
-        const { error } = await supabase.from("articles").insert([
-          {
-            category: key,
-            title,
-            excerpt: cleanedArticle,
-            image_url: imageUrl,
-            source_url,
-            image_credit: imageCredit,
-            seo_title,
-            seo_description,
-            seo_keywords,
-            hashtags,
-            embedding,
-          },
-        ]);
+        const { error } = await safeQuery(
+          `insert article for ${key}`,
+          supabase.from("articles").insert([
+            {
+              category: key,
+              title,
+              excerpt: cleanedArticle,
+              image_url: imageUrl,
+              source_url,
+              image_credit: imageCredit,
+              seo_title,
+              seo_description,
+              seo_keywords,
+              hashtags,
+              embedding,
+            },
+          ])
+        );
         if (error) throw error;
         console.log(`✅ Saved: ${key} → ${title}`);
         results.push({ category: key, topic, success: true });
@@ -288,35 +326,46 @@ export async function main() {
 
     // === Logging til cron_logs ===
     const duration = ((Date.now() - start) / 1000).toFixed(1);
-    const { error: logError } = await supabase.from("cron_logs").insert({
-      run_at: new Date().toISOString(),
-      duration_seconds: duration,
-      status: "success",
-      message: "GitHub Action generation completed",
-      details: { results },
-    });
-    if (logError) console.error("⚠️ Failed to insert cron log:", logError);
+    const { error: logError } = await safeQuery(
+      "insert cron_log",
+      supabase.from("cron_logs").insert({
+        run_at: new Date().toISOString(),
+        duration_seconds: duration,
+        status: "success",
+        message: "GitHub Action generation completed",
+        details: { results },
+      })
+    );
 
     console.log(`🕓 Logged run in cron_logs (${duration}s)`);
 
     // === Behold kun de 3 siste loggene ===
-    const { data: logs } = await supabase
-      .from("cron_logs")
-      .select("id")
-      .order("run_at", { ascending: false });
+    const { data: logs } = await safeQuery(
+      "fetch cron_logs",
+      supabase
+        .from("cron_logs")
+        .select("id")
+        .order("run_at", { ascending: false })
+    );
 
     if (logs && logs.length > 3) {
       const oldIds = logs.slice(3).map((l) => l.id);
-      await supabase.from("cron_logs").delete().in("id", oldIds);
+      await safeQuery(
+        "delete old cron_logs",
+        supabase.from("cron_logs").delete().in("id", oldIds)
+      );
       console.log(`🧹 Deleted ${oldIds.length} old cron log(s)`);
     }
   } catch (err) {
     console.error("❌ Fatal error:", err);
-    await supabase.from("cron_logs").insert({
-      run_at: new Date().toISOString(),
-      status: "error",
-      message: err.message,
-    });
+    await safeQuery(
+      "fatal log insert",
+      supabase.from("cron_logs").insert({
+        run_at: new Date().toISOString(),
+        status: "error",
+        message: err.message,
+      })
+    );
     process.exit(1);
   }
 }
