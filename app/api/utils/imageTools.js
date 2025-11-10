@@ -1,15 +1,22 @@
+// === app/api/utils/imageTools.js ===
+// 🖼️ CurioWire intelligent image generation & caching
+// Fungerer i både GitHub Actions og Vercel
+
 import sharp from "sharp";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
+// === OpenAI-klient ===
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   organization: process.env.OPENAI_ORG_ID,
 });
 
+// === Supabase-klient (trygg for alle miljøer) ===
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 // === 🔹 Backup: hent bilde fra Unsplash hvis alt annet feiler ===
@@ -42,6 +49,7 @@ export async function generateDalleImage(title, topic, tone, category) {
         size: "1024x1024",
         response_format: "b64_json",
       });
+
       const b64 = result?.data?.[0]?.b64_json;
       if (!b64) throw new Error("DALL·E returned no base64 data");
 
