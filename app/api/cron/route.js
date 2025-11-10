@@ -39,12 +39,14 @@ export async function GET(req) {
   // 🧠 Kjør resten i bakgrunnen uten å blokkere respons
   (async () => {
     try {
-      let baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL || "https://www.curiowire.com";
+      let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
-      // 🧩 Sikre korrekt domene (unngå 307 redirect)
-      if (baseUrl.includes("curiowire.com") && !baseUrl.includes("www.")) {
-        baseUrl = baseUrl.replace("curiowire.com", "www.curiowire.com");
+      // 🧩 Tving alltid "www."
+      if (
+        !baseUrl ||
+        (baseUrl.includes("curiowire.com") && !baseUrl.includes("www."))
+      ) {
+        baseUrl = "https://www.curiowire.com";
       }
 
       log.push(`🌐 Using baseUrl: ${baseUrl}`);
