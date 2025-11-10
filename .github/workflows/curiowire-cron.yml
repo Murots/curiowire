@@ -25,6 +25,7 @@ on:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - name: 📦 Checkout repo
         uses: actions/checkout@v4
@@ -44,8 +45,8 @@ jobs:
           OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
 
           # === 🔐 Supabase (skrivetilgang) ===
-          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ vars.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
           # === 🖼️ Image APIs ===
           NEXT_PUBLIC_UNSPLASH_ACCESS_KEY: ${{ secrets.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY }}
