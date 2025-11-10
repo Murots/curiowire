@@ -1,0 +1,16 @@
+name: CurioWire Auto Article Generator
+
+on:
+  schedule:
+    - cron: "0 */8 * * *" # Hver 8. time
+  workflow_dispatch: # Mulig å kjøre manuelt fra GitHub UI
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔑 Trigger CurioWire Cron Endpoint
+        run: |
+          echo "Triggering https://curiowire.com/api/cron"
+          curl -X GET "https://curiowire.com/api/cron" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET_KEY }}"
