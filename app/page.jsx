@@ -3,7 +3,7 @@ import HomeContent from "./HomeContent";
 import { supabase } from "@/lib/supabaseClient";
 import Script from "next/script";
 
-export const revalidate = 3600;
+export const revalidate = 900; // 15 minutes
 
 /* === 🧠 SERVER-SIDE METADATA (standard meta) === */
 export async function generateMetadata() {

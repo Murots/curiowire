@@ -1,6 +1,8 @@
-// === REDDIT UTILS ===
-// Inneholder loadDynamicSubs, getRedditAccessToken, fetchRedditTrends, replaceSubreddit
-// Fullstendig kopi av logikken fra trends/route.js
+// === REDDIT UTILS (CurioWire v3.6) ===
+// Fullstendig, selvreparerende Reddit-håndtering for CurioWire
+// • Automatisk utskifting og cooldown
+// • Permanent ekskludering av døde subreddits
+// • Fail-teller og logikk for gjentatte duplikater
 
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
@@ -11,8 +13,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
+
 let redditSubs = {};
 
+// === 🔹 Last inn dynamiske subreddits fra Supabase ===
 export async function loadDynamicSubs(baseSubs) {
   redditSubs = baseSubs;
   const now = new Date().toISOString();
@@ -21,6 +25,7 @@ export async function loadDynamicSubs(baseSubs) {
     .from("subreddits")
     .select("category, name, cooldown_until")
     .eq("active", true)
+    .eq("dead", false) // 🚫 filtrer ut døde subreddits
     .or(`cooldown_until.is.null,cooldown_until.lt.${now}`);
 
   if (error) {
@@ -28,7 +33,7 @@ export async function loadDynamicSubs(baseSubs) {
     return redditSubs;
   }
 
-  if (data && data.length > 0) {
+  if (data?.length > 0) {
     console.log(`📥 Loaded ${data.length} active subreddits from Supabase.`);
     const dynamic = {};
     for (const row of data) {
@@ -43,16 +48,17 @@ export async function loadDynamicSubs(baseSubs) {
   } else {
     console.log("⚠️ No eligible subreddits found (all may be in cooldown).");
   }
+
   return redditSubs;
 }
 
+// === 🔑 Reddit OAuth-token med caching ===
 let redditTokenCache = { token: null, expires: 0 };
 
 export async function getRedditAccessToken() {
   const now = Date.now();
-  if (redditTokenCache.token && now < redditTokenCache.expires) {
+  if (redditTokenCache.token && now < redditTokenCache.expires)
     return redditTokenCache.token;
-  }
 
   const auth = Buffer.from(
     `${process.env.REDDIT_CLIENT_ID}:${process.env.REDDIT_CLIENT_SECRET}`
@@ -67,8 +73,10 @@ export async function getRedditAccessToken() {
       },
       body: "grant_type=client_credentials",
     });
+
     const data = await res.json();
     if (!data.access_token) return null;
+
     redditTokenCache = {
       token: data.access_token,
       expires: now + (data.expires_in - 60) * 1000,
@@ -81,12 +89,15 @@ export async function getRedditAccessToken() {
   }
 }
 
-export async function replaceSubreddit(sub, category) {
+// === ♻️ Erstatt eller marker subreddit som inaktiv/død ===
+export async function replaceSubreddit(sub, category, reason = "default") {
   try {
+    const cooldownHours = reason === "duplicate" ? 150 : 72;
     const cooldownUntil = new Date(
-      Date.now() + 72 * 60 * 60 * 1000
+      Date.now() + cooldownHours * 60 * 60 * 1000
     ).toISOString();
 
+    // 🧊 Sett eksisterende på pause
     await supabase
       .from("subreddits")
       .update({
@@ -97,57 +108,100 @@ export async function replaceSubreddit(sub, category) {
       .eq("category", category)
       .eq("name", sub);
 
+    // 📈 Øk fail_count
+    const { data: existing } = await supabase
+      .from("subreddits")
+      .select("fail_count")
+      .eq("category", category)
+      .eq("name", sub)
+      .single();
+
+    const failCount = (existing?.fail_count || 0) + 1;
+    await supabase
+      .from("subreddits")
+      .update({ fail_count })
+      .eq("category", category)
+      .eq("name", sub);
+
+    // 💀 Marker som død ved gjentatte duplikater
+    if (reason === "duplicate" && failCount >= 2) {
+      console.warn(`💀 r/${sub} marked as DEAD after repeated duplicates`);
+      await supabase
+        .from("subreddits")
+        .update({ active: false, dead: true })
+        .eq("category", category)
+        .eq("name", sub);
+    }
+
+    // 🧠 GPT foreslår ny subreddit
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "user",
-          content: `Suggest one active, safe, and popular subreddit about ${category}. Return only its name (no r/). Avoid any recently deactivated subreddit.`,
+          content: `Suggest one active, safe, and popular subreddit about ${category}.
+Avoid ${sub} or any subreddit that has been deactivated or marked as dead.`,
         },
       ],
       max_tokens: 15,
-      temperature: 0.4,
+      temperature: 0.5,
     });
 
     const newSub = completion.choices[0]?.message?.content
-      ?.replace("r/", "")
+      ?.replace(/^r\//, "")
       .trim();
 
-    if (!newSub) {
-      console.warn(`⚠️ GPT did not suggest a valid subreddit for ${category}.`);
+    if (!newSub || newSub.toLowerCase() === sub.toLowerCase()) {
+      console.warn(
+        `⚠️ GPT did not suggest a valid replacement for ${category}.`
+      );
       return;
     }
 
-    if (newSub.toLowerCase() === sub.toLowerCase()) {
-      console.warn(`♻️ GPT suggested same subreddit (${sub}) — skipping.`);
+    // 🚫 Ikke bruk døde subreddits selv om GPT foreslår dem
+    const { data: existingDead } = await supabase
+      .from("subreddits")
+      .select("dead")
+      .eq("category", category)
+      .eq("name", newSub)
+      .single();
+
+    if (existingDead?.dead) {
+      console.warn(`💀 GPT suggested dead subreddit (${newSub}) — skipping.`);
       return;
     }
 
     console.log(`✅ Replaced r/${sub} → r/${newSub}`);
 
+    // 🔄 Lagre ny i Supabase
     await supabase.from("subreddits").upsert(
       {
         category,
         name: newSub,
         active: true,
+        dead: false,
         last_topic: null,
+        last_used: null,
+        fail_count: 0,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "category,name" }
     );
 
-    const i = redditSubs[category].indexOf(sub);
-    if (i >= 0) redditSubs[category][i] = newSub;
-    else redditSubs[category].push(newSub);
+    // 🔁 Oppdater i runtime
+    redditSubs[category] = redditSubs[category]?.filter((s) => s !== sub) || [];
+    redditSubs[category].push(newSub);
   } catch (err) {
     console.warn("⚠️ Replacement failed:", err.message);
   }
 }
 
+// === 🔎 Hent Reddit-trender for en gitt kategori ===
 export async function fetchRedditTrends(category, subs) {
   const topics = [];
   const baseUrl = "https://oauth.reddit.com";
   const token = await getRedditAccessToken();
+
   if (!token) {
     console.warn(`⚠️ Missing Reddit token — skipping ${category}`);
     return topics;
@@ -164,9 +218,10 @@ export async function fetchRedditTrends(category, subs) {
         },
       });
 
+      // 💀 Døde eller stengte subreddits
       if (res.status === 403 || res.status === 404) {
         console.warn(`⚠️ r/${sub} is dead — replacing...`);
-        await replaceSubreddit(sub, category);
+        await replaceSubreddit(sub, category, "dead");
         continue;
       }
 
@@ -193,17 +248,20 @@ export async function fetchRedditTrends(category, subs) {
         .eq("name", sub)
         .single();
 
+      // 🚫 Gjentatt tema → lang cooldown og ev. dødsmerking
       if (prev?.last_topic === topicHash && prev?.last_used) {
-        console.warn(`♻️ r/${sub} repeats old USED topic — replacing...`);
-        await replaceSubreddit(sub, category);
+        console.warn(`♻️ r/${sub} repeats old USED topic — duplicate detected`);
+        await replaceSubreddit(sub, category, "duplicate");
         continue;
       }
 
+      // ✅ Oppdater metadata
       await supabase.from("subreddits").upsert(
         {
           category,
           name: sub,
           active: true,
+          dead: false,
           last_topic: topicHash,
           last_used: false,
           updated_at: new Date().toISOString(),
