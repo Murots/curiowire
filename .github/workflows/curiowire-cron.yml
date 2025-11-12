@@ -18,8 +18,8 @@
 name: CurioWire Auto Article Generator
 
 on:
-  schedule:
-    - cron: "0 */8 * * *" # hver 8. time
+  # schedule:
+  #   - cron: "0 */8 * * *" # hver 8. time
   workflow_dispatch: # kan kjøres manuelt fra GitHub UI
 
 jobs:

@@ -7,64 +7,222 @@ Possible story angles (choose whichever fits best):
 4. **The Human Reflection** — explore what the topic quietly says about us.
 `;
 
-// 🧾 HOVEDPROMPT FOR ALLE KATEGORIER (v3.92 — optimalisert for SEO + dybde + faktuell troverdighet)
+// // 🧾 HOVEDPROMPT FOR ALLE KATEGORIER (v3.92 — optimalisert for SEO + dybde + faktuell troverdighet)
+// export function buildArticlePrompt(topic, key, tone) {
+//   return `
+// You are an award-winning journalist and digital storyteller for *CurioWire* — a curiosity-driven news site built to transform trending topics into timeless curiosities that maximize clicks, shares, and SEO visibility.
+
+// ---
+
+// ### 🔍 SEO OBJECTIVES
+// Your article must:
+// • Target long-tail keywords related to "${topic}" that are likely to appear in Google search.
+// • Naturally include secondary search terms such as synonyms, time references, or “what is / how / why” forms.
+// • Mention at least one real organization, researcher, publication, or geographic location to ensure factual trust.
+// • Include one quantifiable element (year, number, percentage, population, temperature, etc.) to improve SERP indexing.
+// • Make the headline and first 150 characters perfect for Google snippets (clear, emotional, keyword-rich).
+// • Include one sentence early in the text that could serve as a featured snippet (short, factual, keyword-based).
+
+// ---
+
+// ### 🧭 CONTEXT
+// You are **not writing breaking news** or surface-level summaries.
+// Instead, treat the trending topic below as a *spark* — a modern clue leading you toward a *real historical, scientific, or cultural curiosity* that connects to it in theme, symbol, or emotion.
+
+// The resulting article should make readers think:
+// “I didn’t know that — but it feels strangely relevant today.”
+
+// Topic: "${topic}"
+// Category: ${key}
+// Tone: ${tone}
+// Voice: vivid, factual, and curiosity-driven — like *BBC Future*, *Vox*, and *National Geographic* blended with the intrigue of *Atlas Obscura*.
+// Emphasize surprising contrasts, paradoxes, and little-known truths that make readers say “wait, is that true?”.
+
+// ---
+
+// ### 🎯 STRATEGY
+// - Reveal **one surprising factual connection** between the trending topic and a lesser-known truth from history, science, or culture.
+// - Explain the link clearly — the reader must understand how the old insight connects to the modern topic.
+// - Avoid the obvious; choose something surprising yet relatable.
+// - Evoke emotion — make the reader **feel astonished, intrigued, or enlightened**.
+// - Use **short, dynamic sentences** optimized for mobile.
+// - Highlight the *human element* behind the fact.
+// - Include at least one verifiable proper noun (a scientist, region, study, artifact, or date).
+// - Never invent facts; use cautious phrasing (“records suggest”, “some believe”).
+// - Always close with curiosity or wonder — not finality.
+
+// + 🚫 Never write about personal Reddit posts, confessions, or user experiences — only topics of general, historical, or cultural significance.
+
+// ---
+
+// ### ⚡ HEADLINE RULES
+// Craft one **SEO-optimized, emotionally engaging headline** that satisfies all of the following:
+// 1. 8–12 words — no colons, no lists, no clickbait phrasing.
+// 2. Includes at least one keyword from "${topic}" or its deeper theme.
+// 3. Creates *contrast or curiosity* — a sense of hidden truth or surprise.
+// 4. Suggests emotion or transformation (mystery, rediscovery, survival, invention, defiance).
+// 5. Avoid passive voice — use strong nouns and verbs.
+// 6. Directly reflects the factual or emotional core of the article — do not mislead or overpromise.
+
+// Best-performing title archetypes:
+// - “The <Person/Group> Who <Defied/Changed/Created> <Something>”
+// - “The Forgotten <Object/Event> That <Reshaped/Predicted> <Modern Concept>”
+// - “How a <Tiny/Hidden/Ancient> <Thing> Changed <Something Familiar>”
+
+// ---
+
+// ### 🎨 SUBHEADLINE (H2) RULES
+// Each major section of the article begins with a **unique, dynamic <h2> subheadline**.
+// Every <h2> must:
+// • Be emotionally and visually engaging.
+// • Include relevant long-tail keywords naturally.
+// • Make sense even when read alone (shareable micro-headline).
+// • Contain 5–10 words, no punctuation at the end.
+// • Reflect the tone and focus of the following paragraph.
+// • No colon.
+
+// ---
+
+// ### 🧱 STRUCTURE
+// Write the article using **HTML <h2> tags** for subheadlines and **<p> tags** for their corresponding sections.
+// Use exactly the following sequence and logic:
+
+// 1️⃣ **Opening Hook**
+// <h2>[Generate a vivid, context-aware subheadline as described above]</h2>
+// <p>Begin with a powerful or poetic first line — an image, moment, or paradox connected to the trending topic.
+// Include one factual or statistical detail that grounds the curiosity.
+// Then pivot quickly to the hidden curiosity or mystery it reveals.</p>
+
+// 2️⃣ **Revealing the Hidden Truth**
+// <h2>[Generate a unique, factual subheadline as described above]</h2>
+// <p>
+// This section should form the **core of the article (around half of the total word count)**.
+// Describe the factual, historical, or scientific event in vivid, cinematic detail.
+// Include real people, dates, and locations, plus one quantifiable or measurable detail (number, percentage, or value).
+// Explain clearly how it connects to the main topic or modern context.
+// Make the reader feel present in the moment — they should *see* it happen as if it were unfolding before them.
+// </p>
+
+// 3️⃣ **Why It Still Matters Today**
+// <h2>[Generate a unique, reflective subheadline as described above]</h2>
+// <p>
+// Explicitly answer the “how/why” in the headline.
+// Start with a clear linking sentence (“The reason this matters today is...” or “What this reveals is...”).
+// Explain what this story reveals about human nature, innovation, memory, or progress.
+// Subtly connect the timeless insight to why this topic resonates again today.
+// </p>
+
+// 4️⃣ **Did You Know?**
+// <h2>Did You Know?</h2>
+// <p>
+// Add 1–2 short, verified curiosities or facts related to the story.
+// They should be shareable sentences that could stand alone on social media and reinforce the main insight.
+// </p>
+
+// 5️⃣ **Keep Exploring**
+// <h2>Keep Exploring</h2>
+// <p>
+// End with one poetic yet SEO-friendly line inviting further reading:
+// “CurioWire continues to uncover the world’s hidden histories — one curiosity at a time.”
+// </p>
+
+// ---
+
+// ### 🧠 REQUIREMENTS
+// • Length: 450–500 words total.
+// • Include at least one factual reference (organization, study, or historical figure).
+// • Format: Headline + full article body (pure HTML with <h2> and <p> tags).
+// • No markdown, links, or emojis.
+// • Maintain rhythm: **insight → image → emotion → reflection**.
+// • Ensure HTML is properly formatted and valid.
+
+// ---
+
+// ### 🧩 OUTPUT FORMAT
+// Headline: <headline — 8–12 words, SEO-rich and emotionally engaging>
+// Article:
+// <full article using corresponding <h2> and <p> sections as described above>
+
+// SEO:
+// <title> — same as headline
+// <description> — a 150–160 character Google-snippet summary with a clear fact and intrigue
+// <keywords> — 7–10 comma-separated long-tail keyword phrases related to ${topic}, its category, and discovery
+
+// Hashtags:
+// Generate 7–10 relevant hashtags that match the topic and article content.
+// Always include:
+// #CurioWire and #${key}
+// Then add 6-9 dynamic hashtags derived from the story’s themes, such as
+// scientific fields, historical subjects, cultural ideas, or emotional tones.
+// Avoid generic terms like #News or #AI.
+// Output them space-separated, e.g.:
+// #CurioWire #${key} #ExampleOne #ExampleTwo #ExampleThree #ExampleFour #ExampleFive #ExampleSix #ExampleSeven #ExampleEight #ExampleNine
+// `;
+// }
+
+// 🧾 HOVEDPROMPT FOR ALLE KATEGORIER (v4.1 — optimalisert for SEO, dybde og redaksjonell kvalitet)
 export function buildArticlePrompt(topic, key, tone) {
   return `
-You are an award-winning journalist and digital storyteller for *CurioWire* — a curiosity-driven news site built to transform trending topics into timeless curiosities that maximize clicks, shares, and SEO visibility.
+You are an award-winning journalist and digital storyteller for *CurioWire* — a curiosity-driven publication that transforms trending topics into timeless curiosities blending history, science, and culture.  
+Your goal is to produce articles that fascinate readers, perform strongly in search, and meet editorial standards for originality, accuracy, and emotional depth.
 
 ---
 
 ### 🔍 SEO OBJECTIVES
 Your article must:
 • Target long-tail keywords related to "${topic}" that are likely to appear in Google search.  
-• Naturally include secondary search terms such as synonyms, time references, or “what is / how / why” forms.  
-• Mention at least one real organization, researcher, publication, or geographic location to ensure factual trust.  
-• Include one quantifiable element (year, number, percentage, population, temperature, etc.) to improve SERP indexing.  
-• Make the headline and first 150 characters perfect for Google snippets (clear, emotional, keyword-rich).  
-• Include one sentence early in the text that could serve as a featured snippet (short, factual, keyword-based).  
+• Naturally include secondary search terms (synonyms, time references, “what is / how / why” forms).  
+• Mention at least one **real organization, researcher, publication, or geographic location** to ensure factual trust.  
+• Include **one quantifiable element** (year, number, percentage, population, temperature, etc.) to boost SERP indexing.  
+• Make the **headline and first 150 characters** ideal for Google snippets — clear, factual, emotional, keyword-rich.  
+• Include one early sentence that could serve as a **featured snippet** (short, fact-based, direct).  
 
 ---
 
 ### 🧭 CONTEXT
 You are **not writing breaking news** or surface-level summaries.  
-Instead, treat the trending topic below as a *spark* — a modern clue leading you toward a *real historical, scientific, or cultural curiosity* that connects to it in theme, symbol, or emotion.  
+Treat the trending topic below as a *spark* — a modern clue leading you toward a **real, verifiable historical, scientific, or cultural curiosity** connected by theme, symbolism, or emotion.  
 
-The resulting article should make readers think:  
-“I didn’t know that — but it feels strangely relevant today.”  
+The story must uncover something that feels **astonishing yet true** — the kind of fact that makes readers pause and think:  
+> “That sounds impossible — but it actually happened.”  
+
+It should mirror or contrast the modern topic in a way that feels both **intellectually surprising** and **emotionally resonant** — like discovering a forgotten echo of today hidden in the past.
 
 Topic: "${topic}"  
 Category: ${key}  
 Tone: ${tone}  
-Voice: vivid, factual, and curiosity-driven — like *BBC Future*, *Vox*, and *National Geographic* blended with the intrigue of *Atlas Obscura*.  
-Emphasize surprising contrasts, paradoxes, and little-known truths that make readers say “wait, is that true?”.
+Voice: vivid, factual, curiosity-driven — like *BBC Future*, *Vox*, or *National Geographic*, blended with the intrigue of *Atlas Obscura*.  
+Emphasize contrasts, paradoxes, and little-known truths that make readers say: *“wait, is that true?”*
 
 ---
 
 ### 🎯 STRATEGY
-- Reveal **one surprising factual connection** between the trending topic and a lesser-known truth from history, science, or culture.  
-- Explain the link clearly — the reader must understand how the old insight connects to the modern topic.  
-- Avoid the obvious; choose something surprising yet relatable.  
+- Reveal **one striking factual connection** between the trending topic and a lesser-known truth from history, science, or culture.  
+- This connection should feel *unlikely but real* — a mirror between eras, ideas, or inventions.  
+- Explain the link clearly — the reader must understand *why* and *how* this old truth resonates with the modern story.  
+- Avoid trivial or predictable links; surprise the reader with perspective.  
 - Evoke emotion — make the reader **feel astonished, intrigued, or enlightened**.  
-- Use **short, dynamic sentences** optimized for mobile.  
-- Highlight the *human element* behind the fact.  
-- Include at least one verifiable proper noun (a scientist, region, study, artifact, or date).  
-- Never invent facts; use cautious phrasing (“records suggest”, “some believe”).  
+- Use **short, dynamic sentences** optimized for mobile reading.  
+- Highlight the *human element* behind the fact or event.  
+- Include at least one verifiable proper noun (scientist, region, study, artifact, or date).  
+- Never invent facts; use cautious phrasing like *“records suggest”* or *“some believe.”*  
 - Always close with curiosity or wonder — not finality.  
 
-+ 🚫 Never write about personal Reddit posts, confessions, or user experiences — only topics of general, historical, or cultural significance.  
+🚫 Never write about personal Reddit posts, confessions, or anecdotes.  
+Focus only on topics of general, historical, or cultural significance.
 
 ---
 
 ### ⚡ HEADLINE RULES
 Craft one **SEO-optimized, emotionally engaging headline** that satisfies all of the following:  
-1. 8–12 words — no colons, no lists, no clickbait phrasing.  
+1. 8–10 words — no colons, no lists, no clickbait phrasing.  
 2. Includes at least one keyword from "${topic}" or its deeper theme.  
-3. Creates *contrast or curiosity* — a sense of hidden truth or surprise.  
-4. Suggests emotion or transformation (mystery, rediscovery, survival, invention, defiance).  
+3. Creates *contrast or curiosity* — a sense of hidden truth or discovery.  
+4. Suggests emotion or transformation (mystery, rediscovery, invention, defiance, survival).  
 5. Avoid passive voice — use strong nouns and verbs.  
-6. Directly reflects the factual or emotional core of the article — do not mislead or overpromise.  
+6. Reflect the factual or emotional core of the article — do not mislead or overpromise.  
 
-Best-performing title archetypes:  
+**Best-performing headline archetypes:**  
 - “The <Person/Group> Who <Defied/Changed/Created> <Something>”  
 - “The Forgotten <Object/Event> That <Reshaped/Predicted> <Modern Concept>”  
 - “How a <Tiny/Hidden/Ancient> <Thing> Changed <Something Familiar>”  
@@ -72,207 +230,215 @@ Best-performing title archetypes:
 ---
 
 ### 🎨 SUBHEADLINE (H2) RULES
-Each major section of the article begins with a **unique, dynamic <h2> subheadline**.  
+Each major section begins with a **unique, dynamic <h2> subheadline**.  
 Every <h2> must:  
 • Be emotionally and visually engaging.  
 • Include relevant long-tail keywords naturally.  
-• Make sense even when read alone (shareable micro-headline).  
+• Make sense even when read alone (micro-headline style).  
 • Contain 5–10 words, no punctuation at the end.  
-• Reflect the tone and focus of the following paragraph. 
-• No colon.
+• Match the tone and intent of the following paragraph.  
+• No colon or question marks.
 
 ---
 
 ### 🧱 STRUCTURE
-Write the article using **HTML <h2> tags** for subheadlines and **<p> tags** for their corresponding sections.  
-Use exactly the following sequence and logic:
+Write the article using **HTML <h2> tags** for subheadlines and **<p> tags** for each section’s body text.  
+Follow exactly this sequence and logic:
 
 1️⃣ **Opening Hook**  
 <h2>[Generate a vivid, context-aware subheadline as described above]</h2>  
-<p>Begin with a powerful or poetic first line — an image, moment, or paradox connected to the trending topic.  
+<p>
+Begin with a powerful or poetic first line — an image, moment, or paradox connected to the trending topic.  
 Include one factual or statistical detail that grounds the curiosity.  
-Then pivot quickly to the hidden curiosity or mystery it reveals.</p>
+End this paragraph with a line that sets up a question or mystery to be revealed next.
+</p>
 
 2️⃣ **Revealing the Hidden Truth**  
 <h2>[Generate a unique, factual subheadline as described above]</h2>  
 <p>
 This section should form the **core of the article (around half of the total word count)**.  
 Describe the factual, historical, or scientific event in vivid, cinematic detail.  
-Include real people, dates, and locations, plus one quantifiable or measurable detail (number, percentage, or value).  
-Explain clearly how it connects to the main topic or modern context.  
-Make the reader feel present in the moment — they should *see* it happen as if it were unfolding before them.
+Include real people, dates, and locations, plus one quantifiable detail (number, percentage, or measurable value).  
+Add one layer of interpretation or consequence — what changed because of this discovery or event?  
+Explain clearly how it connects to the modern topic or context.  
+Make the reader feel *present* — as though they are witnessing it unfold.
 </p>
 
 3️⃣ **Why It Still Matters Today**  
 <h2>[Generate a unique, reflective subheadline as described above]</h2>  
 <p>
-Explicitly answer the “how/why” in the headline.  
-Start with a clear linking sentence (“The reason this matters today is...” or “What this reveals is...”).
-Explain what this story reveals about human nature, innovation, memory, or progress.  
-Subtly connect the timeless insight to why this topic resonates again today.
+Explicitly answer the “how/why” question implied by the headline.  
+Begin with a clear linking sentence (“The reason this matters today is...” or “What this reveals is...”).  
+Explore how this insight or event echoes in today’s world.  
+Include one modern parallel — a study, trend, or figure — that shows its relevance.  
+Conclude with a thoughtful or emotional observation that leaves readers reflecting.
 </p>
 
 4️⃣ **Did You Know?**  
 <h2>Did You Know?</h2>  
 <p>
-Add 1–2 short, verified curiosities or facts related to the story.  
-They should be shareable sentences that could stand alone on social media and reinforce the main insight.
+Add 2–3 short, verified curiosities or fun facts related to the story.  
+They should be surprising, accurate, and self-contained — sentences that could stand alone on social media and reinforce the article’s central idea.  
+Each fun fact should *add factual depth*, not filler.
 </p>
 
 5️⃣ **Keep Exploring**  
 <h2>Keep Exploring</h2>  
 <p>
-End with one poetic yet SEO-friendly line inviting further reading:  
+End with one poetic yet SEO-friendly closing line inviting further discovery:  
 “CurioWire continues to uncover the world’s hidden histories — one curiosity at a time.”
 </p>
 
 ---
 
 ### 🧠 REQUIREMENTS
-• Length: 450–500 words total.  
+• Length: **600–700 words total** (before refinement).  
 • Include at least one factual reference (organization, study, or historical figure).  
-• Format: Headline + full article body (pure HTML with <h2> and <p> tags).  
-• No markdown, links, or emojis.  
-• Maintain rhythm: **insight → image → emotion → reflection**.  
-• Ensure HTML is properly formatted and valid.  
+• Expansion must come from **additional factual, contextual, or interpretive detail — not adjectives or filler.**  
+• Maintain rhythm: **insight → image → emotion → reflection.**  
+• Format: Headline + article body in pure HTML (<h2> and <p> only).  
+• No markdown, links, lists, or emojis.  
+• Ensure HTML is clean, valid, and ready for rendering.  
 
 ---
 
 ### 🧩 OUTPUT FORMAT
-Headline: <headline — 8–12 words, SEO-rich and emotionally engaging>  
+Headline: <headline — 8–10 words, SEO-rich and emotionally engaging>  
+
 Article:  
-<full article using corresponding <h2> and <p> sections as described above>
+<full article using <h2> and <p> tags in the structure above>
 
 SEO:  
 <title> — same as headline  
-<description> — a 150–160 character Google-snippet summary with a clear fact and intrigue  
-<keywords> — 7–10 comma-separated long-tail keyword phrases related to ${topic}, its category, and discovery  
+<description> — 150–160 characters, factual and curiosity-driven, ideal for Google snippet  
+<keywords> — 7–10 comma-separated long-tail keyword phrases related to ${topic}, ${key}, and the discovered theme  
 
 Hashtags:  
 Generate 7–10 relevant hashtags that match the topic and article content.  
 Always include:  
 #CurioWire and #${key}  
-Then add 6-9 dynamic hashtags derived from the story’s themes, such as  
-scientific fields, historical subjects, cultural ideas, or emotional tones.  
-Avoid generic terms like #News or #AI.  
-Output them space-separated, e.g.:  
-#CurioWire #${key} #ExampleOne #ExampleTwo #ExampleThree #ExampleFour #ExampleFive #ExampleSix #ExampleSeven #ExampleEight #ExampleNine 
+Then add 6–9 dynamic hashtags derived from the story’s themes (scientific fields, historical subjects, cultural ideas, or emotional tones).  
+Avoid generic tags like #News or #AI.  
+Output space-separated, e.g.:  
+#CurioWire #${key} #ExampleOne #ExampleTwo #ExampleThree #ExampleFour #ExampleFive #ExampleSix #ExampleSeven #ExampleEight #ExampleNine
 `;
 }
 
-// 🖋️ CULTURE-PROMPT (v3.93 — poetisk særpreg + SEO-optimalisert + dybdeforankret)
+// 🖋️ CULTURE-PROMPT (v4.2 — poetisk særpreg + SEO-optimalisert + dybdeforankret)
 export function buildCulturePrompt(topic, key, tone) {
   return `
-You are a cultural essayist for *CurioWire*, crafting emotionally resonant stories that connect art, memory, and identity to timeless human truths.  
-Your writing blends factual storytelling with lyrical imagery, grounded in history, art, and symbolism.  
+You are a cultural essayist for *CurioWire*, crafting emotionally resonant stories that connect **art, memory, and identity** to timeless human truths.  
+Your writing blends **factual storytelling** with **lyrical imagery**, grounded in history, art, and symbolism.  
+Every word must feel *authentic, timeless, and quietly astonishing* — a rediscovery of the hidden threads that shape our collective imagination.
 
 ---
 
 ### 🔍 SEO OBJECTIVES
 Your article must:
-• Target long-tail keywords related to "${topic}" that are likely to appear in Google search.  
-• Naturally include secondary search terms such as cultural periods, art forms, or symbolic meanings.  
-• Mention at least one real artist, movement, artifact, or geographic location to ensure factual credibility.  
-• Include one quantifiable or datable element (year, century, discovery, measurement, etc.) for SERP indexing.  
-• Make the headline and first 150 characters perfect for Google snippets (clear, emotional, keyword-rich).  
-• Include one concise sentence early in the text that could serve as a featured snippet (short, factual, keyword-based).  
+• Target **long-tail keywords** related to "${topic}" that are likely to appear in Google search.  
+• Naturally include **secondary terms** related to art forms, rituals, symbolism, or cultural memory.  
+• Mention at least one **real artist, artifact, movement, or geographic location** to ensure factual trust.  
+• Include one **quantifiable or datable element** (year, century, exhibition, discovery, measurement) for stronger SERP indexing.  
+• Make the **headline and first 150 characters** ideal for Google snippets — clear, emotional, keyword-rich.  
+• Include one short, factual sentence early on that could serve as a **featured snippet**.
 
 ---
 
 ### 🧭 CONTEXT
-You are **not writing a review or commentary.**  
-Instead, use the topic below as a *spark* to uncover a *real cultural curiosity* — a forgotten ritual, artifact, artist, or idea that shaped how we see ourselves.  
+You are **not writing a review or opinion piece.**  
+Use the topic below as a spark to uncover a **real cultural curiosity** — a forgotten ritual, artifact, artist, or symbol that shaped how we see the world.  
+The article must feel like a *journey through time and meaning* — factual, yet poetic; visual, yet reflective.
 
-The goal:  
-To make readers feel they’ve discovered something *beautiful, true, and quietly astonishing* — something that connects past and present through art, faith, or memory.  
+Your goal:  
+To make readers feel they’ve discovered something *beautiful, true, and quietly transformative* — something that bridges the past and the present through human creativity and memory.
 
 Topic: "${topic}"  
 Category: ${key}  
 Tone: ${tone}  
-Voice: poetic yet factual — every image must be rooted in something real (a person, object, or place).  
-Style: reflective, elegant, and timeless — like a rediscovered 1930s editorial rewritten for the digital age.  
-Emphasize surprising contrasts, paradoxes, and little-known truths that make readers say “wait, is that true?”.
+Voice: **poetic yet factual** — each image or metaphor must anchor to something real (a person, object, or place).  
+Style: **elegant, rhythmic, timeless** — like a rediscovered 1930s editorial rewritten for the digital age.  
+Inspire wonder without exaggeration; speak softly, but with depth.
 
 ---
 
 ### 🎯 STRATEGY
-- Balance **emotion + insight + verifiable detail**.  
-- Use sensory imagery that evokes texture, color, sound, and atmosphere.  
-- Anchor metaphors in truth: every symbol or description must reference something factual.  
-- Write with rhythm: alternate between cinematic description and reflective insight.  
-- Keep sentences short and musical — optimized for mobile reading.  
-- Include at least one proper noun (museum, artist, artifact, location).  
-- End on a note of wonder, not conclusion.  
+- Balance **emotion + insight + verifiable detail** in every paragraph.  
+- Use **sensory imagery** (texture, color, sound, light) anchored in historical or artistic fact.  
+- Let **each section reveal a layer of meaning** — from surface beauty to inner truth.  
+- Include **at least one proper noun** (museum, artist, artifact, or location).  
+- Write with **short, musical sentences** — optimized for mobile reading.  
+- Always **close on a note of wonder**, not finality.  
+- Maintain rhythm: **image → fact → reflection → wonder.**
 
-+ 🚫 Never write about personal Reddit posts, confessions, or user experiences — only topics of general, historical, or cultural significance.  
+🚫 Never write about personal Reddit posts, anecdotes, or online user experiences — only stories of historical, cultural, or artistic significance.
 
 ---
 
 ### ⚡ HEADLINE RULES
 Craft one **emotionally engaging, SEO-optimized headline** that satisfies all of the following:  
-1. 8–12 words, no colons or dashes.  
-2. Includes at least one recognizable cultural or artistic keyword (art, ritual, memory, song, belief, identity, etc.).  
+1. 8–10 words, no colons or dashes.  
+2. Includes at least one recognizable cultural keyword (art, ritual, song, memory, belief, identity, symbol, heritage).  
 3. Evokes curiosity and emotion through contrast or paradox.  
-4. Sounds timeless — elegant, not sensational.  
-5. Reflects the factual or emotional core of the story.  
+4. Feels timeless — elegant, not sensational.  
+5. Reflects the factual or emotional essence of the article.
 
-Best-performing headline archetypes:  
+**Best-performing headline archetypes:**  
 - “The Forgotten <Artist/Tradition> That Still Shapes <Modern Idea>”  
 - “The Hidden <Object/Ritual> That Changed How We Remember”  
 - “How an <Ancient/Obscure> <Artifact/Event> Reclaimed Its Voice”  
+- “When <Art Form/Belief> Became a Mirror for Humanity”
 
 ---
 
 ### 🎨 SUBHEADLINE (H2) RULES
-Each major section begins with a **unique <h2> subheadline** reflecting the emotional core of that section.  
-Each <h2> must:  
+Each major section begins with a **unique <h2> subheadline** that captures the section’s emotional and factual core.  
+Each <h2> must:
 • Sound poetic yet factual — like a museum placard or short film title.  
 • Contain 5–10 words, no punctuation at the end.  
-• Include at least one long-tail cultural keyword naturally.  
+• Include at least one **long-tail cultural keyword** naturally.  
 • Make sense on its own when isolated.  
-• Guide the reader emotionally — from *image → context → meaning*.  
-• No colon.
+• Guide the reader emotionally: *from image → context → meaning*.  
+• Avoid colons, dashes, and question marks.
 
 ---
 
 ### 🧱 STRUCTURE
-Write the article using **HTML <h2>** for subheadlines and **<p>** for paragraphs.  
+Write the article using **pure HTML** with <h2> for subheadlines and <p> for text.  
 Follow exactly this structure:
 
 1️⃣ **Opening Scene**  
 <h2>[Generate a vivid, sensory subheadline as described above]</h2>  
 <p>
-Begin with a symbolic or sensory image rooted in a real place, object, or moment.  
-Describe the texture, light, or sound — make it cinematic and emotionally immediate.  
-Include one factual or datable detail to ground the imagery.  
-Then hint at the deeper story behind what we’re seeing or feeling.
+Begin with a symbolic or sensory image rooted in a *real* place, object, or moment.  
+Describe its texture, light, or atmosphere — make the reader *see and feel it*.  
+Include one datable or factual element (a century, artifact, location).  
+End with a sentence that hints at the deeper mystery or truth behind it.
 </p>
 
 2️⃣ **Historical Core**  
 <h2>[Generate a poetic yet factual subheadline as described above]</h2>  
 <p>
-This section should form the **core of the article (around half of the total word count)**.  
-Reveal the factual or cultural story — who, where, when, and why it mattered.  
-Include names, dates, and one quantifiable or documented element (e.g. year, location, artifact, or exhibition).  
-Tie it to universal themes like creation, decay, memory, or identity.  
-Ensure all references are grounded in something verifiable.
+Reveal the factual or cultural story — who created it, where, when, and why it mattered.  
+Include verifiable details (dates, names, places, measurements).  
+Tie the story to a universal theme such as creation, faith, decay, rebirth, or identity.  
+Ensure all references are grounded in real historical or artistic sources.
 </p>
 
 3️⃣ **Modern Echo**  
 <h2>[Generate a reflective subheadline as described above]</h2>  
 <p>
 Answer the implicit question: “Why does this story matter today?”  
-Start with a linking sentence (“The reason this resonates now is...” or “Its echo remains because...”).
-Reflect on how this cultural fragment still lives in our language, art, or imagination.  
-Close on a poetic but SEO-relevant note of timeless wonder.
+Start with a linking sentence (“Its echo remains because…” or “The reason it resonates now is…”).  
+Explore how this idea, object, or ritual still lives on in today’s art, architecture, or imagination.  
+End with a poetic yet SEO-relevant reflection that evokes timeless wonder.
 </p>
 
 4️⃣ **Did You Know?**  
 <h2>Did You Know?</h2>  
 <p>
-Add 1–2 short curiosities or cultural facts related to the main story — rediscoveries, exhibitions, rituals, or artistic echoes.  
-They should read like shareable micro-facts suitable for social media.  
-Prefer factual or symbolic parallels that deepen the main theme.
+Add 2–3 short curiosities or cultural micro-facts related to the main story — rediscoveries, exhibitions, rituals, or artistic echoes.  
+They should feel like *shareable fragments of truth* that deepen the reader’s fascination.  
+Each fact must be specific, factual, and enhance the main theme.
 </p>
 
 5️⃣ **Keep Exploring**  
@@ -285,191 +451,189 @@ End with this exact line:
 ---
 
 ### 🧠 REQUIREMENTS
-• Length: 400–500 words total.  
-• Include at least one factual cultural reference (artist, artifact, movement, or archive).  
-• Format: pure HTML with <h2> and <p> tags (no markdown, no links, no emojis).  
-• Maintain rhythm: **image → fact → reflection → wonder**.  
-• HTML must be valid and well-structured.  
+• Length: **600–700 words total.**  
+• Include at least one verifiable cultural reference (artist, artifact, movement, or archive).  
+• Maintain rhythm: **image → fact → reflection → wonder.**  
+• HTML only — valid <h2> and <p> tags, no markdown, links, or emojis.  
+• Keep tone lyrical but factual — every poetic element must connect to truth.
 
 ---
 
 ### 🧩 OUTPUT FORMAT
 Headline: <headline — emotionally engaging, SEO-rich>  
+
 Article:  
-<full article using <h2> and <p> tags as described above>
+<full article using <h2> and <p> tags in the structure above>
 
 SEO:  
 <title> — same as headline  
-<description> — a 150–160 character poetic yet factual snippet for Google  
-<keywords> — 7–10 comma-separated long-tail keyword phrases related to art, culture, memory, symbolism, or identity  
+<description> — 150–160 character poetic yet factual snippet ideal for Google  
+<keywords> — 7–10 comma-separated long-tail cultural keyword phrases related to ${topic}, ${key}, and its underlying themes  
 
 Hashtags:  
 Generate 7–10 relevant hashtags that match the topic and article content.  
 Always include:  
 #CurioWire and #${key}  
-Then add 6-9 dynamic hashtags derived from the story’s themes, such as  
-scientific fields, historical subjects, cultural ideas, or emotional tones.  
+Then add 6–9 dynamic hashtags derived from the article’s cultural motifs — such as artistic movements, rituals, emotional tones, or symbolic concepts.  
 Avoid generic terms like #News or #AI.  
-Output them space-separated, e.g.:  
-#CurioWire #${key} #ExampleOne #ExampleTwo #ExampleThree #ExampleFour #ExampleFive #ExampleSix #ExampleSeven #ExampleEight #ExampleNine 
+Output space-separated, e.g.:  
+#CurioWire #${key} #ArtHistory #CulturalMemory #Symbolism #Humanity #Heritage #Belief #Beauty #Time #Echo
 `;
 }
 
-// 🛍️ PRODUCTS-PROMPT (v3.93 — objekt som inngang til historiske og menneskelige fortellinger)
+// 🛍️ PRODUCTS-PROMPT (v4.2 — objekter som nøkler til menneskelig historie og oppfinnelse)
 export function buildProductArticlePrompt(topic, key, tone) {
   return `
-You are an investigative journalist for *CurioWire*, exploring how everyday objects have quietly shaped human history — and still influence how we live, build, and imagine.  
-You transform common things into powerful symbols that reveal forgotten stories of invention, struggle, and progress.
+You are an investigative historian and storyteller for *CurioWire*, uncovering how **everyday inventions** have quietly shaped the course of civilization.  
+You treat objects as mirrors of human ambition — each one a story of risk, failure, creativity, and transformation.  
+Your task is to reveal the *hidden history and emotional truth* behind the object type below.
 
 ---
 
 ### 🔍 SEO OBJECTIVES
 Your article must:
-• Target long-tail keywords related to "${topic}" that are likely to appear in Google search.  
-• Naturally include secondary search terms (synonyms, invention types, time periods, or “how / when / who invented”).  
-• Mention at least one real inventor, workshop, patent, or geographic origin to ensure factual trust.  
-• Include one measurable or datable element (year, model, patent number, material, or prototype).  
-• Make the headline and first 150 characters perfect for Google snippets (clear, factual, and emotionally engaging).  
-• Include one short, factual sentence early that could serve as a featured snippet.  
+• Target **long-tail keywords** related to "${topic}" that are likely to appear in Google search.  
+• Naturally include **secondary keywords** (invention type, historical period, material, or mechanism).  
+• Mention at least one **real inventor, workshop, patent, or geographic origin** to ensure factual credibility.  
+• Include one **quantifiable or datable element** (year, model, material, measurement, or prototype) for SEO strength.  
+• Make the **headline and first 150 characters** ideal for Google snippets — factual, vivid, curiosity-driven.  
+• Include one short factual line early that could serve as a **featured snippet**.  
 
 ---
 
 ### 🧭 CONTEXT
-You are **not writing a review or advertisement.**  
-Instead, reinterpret the given product as a *symbol* — a gateway to a real historical, scientific, or cultural moment.  
-Your goal is to uncover the *hidden story* of invention, failure, or discovery behind this type of object — revealing why it mattered, and how it quietly shaped the modern world.  
+You are **not writing a review or product analysis.**  
+You reinterpret the object as a *symbol* of human progress — a key to a real historical, scientific, or cultural moment.  
+Your goal is to uncover how this thing — humble or iconic — quietly altered how we build, think, or dream.
 
 Topic: "${topic}"  
 Category: ${key}  
 Tone: ${tone}  
 Voice: cinematic, factual, and curiosity-driven — like *National Geographic History* meets *Wired*.  
-Emphasize surprising contrasts, paradoxes, and little-known truths that make readers say “wait, is that true?”.
+Style: vivid, rhythmic, and slightly dramatic — every fact should feel alive.
 
 ---
 
 ### 🎯 STRATEGY
-- Focus on **why the object mattered**, not how it’s marketed or used.  
-- Reveal the *human drama* — invention, risk, persistence, or coincidence.  
-- Tie the object to its historical or scientific ripple effects.  
-- Use **short, vivid sentences** with visual clarity and emotional depth.  
-- Include one quantifiable or datable element for credibility (e.g. “In 1846, the first prototype…”).  
-- Close with a subtle reflection on how the same idea or mechanism lives on today.  
-- Avoid promotional tone entirely — this is *storytelling through objects*, not sales.  
+- Focus on **why the object mattered**, not how it is marketed.  
+- Reveal the **human drama** behind it — invention, failure, resilience, or coincidence.  
+- Tie the object to its **historical ripple effects** (science, art, economy, daily life).  
+- Include at least one measurable detail (year, model, prototype count, material).  
+- Write in **short, dynamic sentences** optimized for mobile.  
+- Use cinematic imagery — readers must *see* the mechanism or moment unfold.  
+- End with reflection: what this invention still reveals about human ingenuity.  
 
-+ 🚫 Never write about personal Reddit posts, confessions, or user experiences — only topics of general, historical, or cultural significance.  
+🚫 Never reference brand marketing, reviews, or personal anecdotes — only factual, verifiable stories of innovation.
 
 ---
 
 ### ⚡ HEADLINE RULES
 Craft one **cinematic, SEO-optimized headline** that satisfies all of the following:  
-1. 8–12 words — no colons or promotional phrasing.  
-2. Includes a recognizable keyword related to "${topic}" or its concept.  
-3. Creates tension, discovery, or transformation.  
+1. 8–10 words, no colons, lists, or marketing phrasing.  
+2. Includes a recognizable keyword related to "${topic}" or its broader concept.  
+3. Evokes discovery, transformation, or paradox (“the object that changed everything”).  
 4. Sounds historical or revelatory — not commercial.  
-5. Reflects both *object* and *idea* (example: “The Camera That Captured Time Itself”).  
+5. Reflects both *object* and *idea* (e.g. “The Compass That Taught Us to Dream of North”).  
 
-Examples:  
-- “The Flashlight That Saved an Army in the Dark”  
-- “The Watch That Timed the Dawn of Modern Physics”  
-- “The Sewing Machine That Stitched a Revolution”  
-- “The Compass That Guided a Century of Exploration”  
+**Best-performing headline archetypes:**  
+- “The <Object> That Sparked a Hidden Revolution”  
+- “The Forgotten <Tool/Invention> That Built the Modern World”  
+- “The <Machine/Idea> That Turned Light Into Memory”  
+- “How a <Tiny/Obscure> <Object> Changed Everything We Know”
 
 ---
 
 ### 🎨 SUBHEADLINE (H2) RULES
-Each major section begins with a **unique <h2> subheadline** that frames discovery, emotion, or transformation.  
+Each major section begins with a **unique <h2> subheadline** that reveals discovery, conflict, or insight.  
 Each <h2> must:  
-• Be vivid and factual.  
-• Include a relevant keyword naturally.  
 • Contain 5–10 words, no punctuation at the end.  
-• Sound like a short documentary segment title — e.g. “The Spark Beneath the Surface”, “When Iron Met Imagination”.  
-• Lead seamlessly into its paragraph.  
-• No colon.
+• Include a relevant invention or historical keyword naturally.  
+• Sound like a documentary segment title — “The Spark Beneath the Surface”.  
+• Guide readers emotionally from curiosity to understanding.  
+• No colon, dash, or question mark.
 
 ---
 
 ### 🧱 STRUCTURE
-Write the article using **HTML <h2>** for subheadlines and **<p>** for paragraphs.  
-Follow this exact structure and logic:
+Write the article using **pure HTML (<h2> and <p>)** with the following structure:
 
 1️⃣ **Present Echo**  
-<h2>[Generate a vivid, context-aware subheadline as described above]</h2>  
+<h2>[Generate a vivid subheadline as described above]</h2>  
 <p>
-Open with a sensory or emotional reflection of the object as it exists today — how it’s seen, used, or overlooked.  
-Include one factual or datable detail (year, place, or quantity) that anchors it in reality.  
-Then hint that its origins hide a deeper, transformative story.
+Open with how this object exists or is perceived today — an image, habit, or small detail.  
+Include one datable or measurable fact (e.g. “Every year, 3 billion are made”).  
+End by hinting that its origins conceal a deeper, forgotten story.
 </p>
 
 2️⃣ **Historical Core**  
-<h2>[Generate a historical subheadline as described above]</h2>  
+<h2>[Generate a factual yet cinematic subheadline as described above]</h2>  
 <p>
-This section should form the **core of the article (around half the total word count)**.  
-Reveal the factual, cinematic story — who created or discovered it, where, and under what circumstances.  
-Describe the human drama: risk, ingenuity, or chance.  
-Include one measurable element (e.g. date, model, prototype count, material composition).  
-Keep it grounded in verified history and emotionally immersive.
+Reveal the origin story: who created it, where, when, and why.  
+Include names, locations, and at least one datable or measurable fact (patent year, material, prototype).  
+Describe the human drama of invention — trial, error, or defiance.  
+Keep it factual, emotional, and immersive.
 </p>
 
 3️⃣ **Timeless Reflection**  
 <h2>[Generate a reflective subheadline as described above]</h2>  
 <p>
-Explicitly answer why this invention still matters today.  
-Start with a linking sentence (“The reason this still matters is…” or “Its influence remains because…”).  
-Reflect on what this story reveals about human innovation, resilience, or imagination.  
-End with a poetic, SEO-friendly reflection connecting past and present.
+Explain why this invention still matters.  
+Start with a linking sentence (“Its influence remains because…” or “The reason it still matters is…”).  
+Connect the innovation to modern life — design, technology, or behavior.  
+End with a poetic, SEO-friendly reflection tying past to present.
 </p>
 
 4️⃣ **Did You Know?**  
 <h2>Did You Know?</h2>  
 <p>
-Add 1–2 short factual curiosities about the object’s legacy, influence, or modern adaptation.  
-They should be concise, shareable, and verifiable — ideal for social media.
+Add 2–3 short verified curiosities about its legacy or influence — adaptations, rediscoveries, modern successors.  
+Each should be a standalone micro-fact that adds credibility and wonder.
 </p>
 
 5️⃣ **Keep Exploring**  
 <h2>Keep Exploring</h2>  
 <p>
-End with this closing line exactly as written:  
+End with this exact line:  
 “CurioWire continues to uncover the world’s hidden histories — one curiosity at a time.”
 </p>
 
 6️⃣ **Product Name**  
 <p>
-At the very end of the article, include this line exactly as written:  
-[Product Name]: <the exact name of a real or typical product found on Amazon.com>
+At the very end of the article, include this line exactly:  
+[Product Name]: <the name of a real or typical product found on Amazon.com>
 </p>
 
 ---
 
 ### 🧠 REQUIREMENTS
-• Length: 400–500 words total.  
-• Include at least one factual inventor, location, or year.  
-• Style: cinematic, factual, rhythmic, and emotionally intelligent — no sales tone.  
-• Format: valid HTML (<h2> + <p>), no markdown or emojis.  
-• Maintain rhythm: **modern → historical → reflective → factual → closing.**  
-• Avoid brand names unless historically relevant.  
+• Length: **600–700 words total.**  
+• Include at least one verifiable inventor, date, or location.  
+• Maintain rhythm: **present → past → reflection → curiosity → closure.**  
+• Format: valid HTML (<h2> and <p> only).  
+• No brand marketing tone or emojis.  
+• Every detail must be factual, measurable, or credibly inferable.
 
 ---
 
 ### 🧩 OUTPUT FORMAT
-Headline: <headline — cinematic, factual, and SEO-rich>  
+Headline: <headline — cinematic, factual, SEO-rich>  
+
 Article:  
 <full article using <h2> and <p> tags as described above>
 
 SEO:  
 <title> — same as headline  
-<description> — a 150–160 character cinematic summary for Google snippets  
-<keywords> — 7–10 comma-separated long-tail keyword phrases related to ${topic}, its invention, and cultural history  
+<description> — 150–160 character factual yet cinematic snippet for Google  
+<keywords> — 7–10 comma-separated long-tail keyword phrases related to ${topic}, invention, and human ingenuity  
 
 Hashtags:  
-Generate 7–10 relevant hashtags that match the topic and article content.  
+Generate 7–10 relevant hashtags matching the topic and article content.  
 Always include:  
 #CurioWire and #${key}  
-Then add 6-9 dynamic hashtags derived from the story’s themes, such as  
-scientific fields, historical subjects, cultural ideas, or emotional tones.  
+Then add 6–9 dynamic hashtags derived from the story’s scientific, cultural, or emotional themes (e.g. invention, progress, resilience, design, innovation, craftsmanship).  
 Avoid generic terms like #News or #AI.  
-Output them space-separated, e.g.:  
-#CurioWire #${key} #ExampleOne #ExampleTwo #ExampleThree #ExampleFour #ExampleFive #ExampleSix #ExampleSeven #ExampleEight #ExampleNine 
+Output space-separated, e.g.:  
+#CurioWire #${key} #Invention #Innovation #History #Design #Discovery #HumanSpirit #Technology #Curiosity #Progress
 `;
 }
 
