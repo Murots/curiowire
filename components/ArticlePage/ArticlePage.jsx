@@ -14,6 +14,7 @@ import {
   BackButton,
   NextLink,
   Divider,
+  Published,
 } from "./ArticlePage.styles";
 import { cleanText } from "../../app/api/utils/cleanText";
 
@@ -106,12 +107,20 @@ export default function ArticlePage({
     title,
     excerpt,
     image_url,
+    created_at,
     source_url,
     seo_title,
     seo_description,
     seo_keywords,
     hashtags,
   } = article;
+
+  const formattedDate = new Date(created_at).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
   return (
     <Wrapper>
@@ -120,6 +129,9 @@ export default function ArticlePage({
       <Divider />
 
       <Title>{cleanText(title)}</Title>
+      <Published>
+        Published {formattedDate} - {category.toUpperCase()}
+      </Published>
 
       {image_url && (
         <Image

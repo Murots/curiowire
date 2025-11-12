@@ -292,7 +292,7 @@ End with one poetic yet SEO-friendly closing line inviting further discovery:
 ---
 
 ### 🧠 REQUIREMENTS
-• Length: **600–700 words total** (before refinement).  
+• Length: **600–700 words total (aim for 800 if naturally fitting and factual).**
 • Include at least one factual reference (organization, study, or historical figure).  
 • Expansion must come from **additional factual, contextual, or interpretive detail — not adjectives or filler.**  
 • Maintain rhythm: **insight → image → emotion → reflection.**  
@@ -451,7 +451,7 @@ End with this exact line:
 ---
 
 ### 🧠 REQUIREMENTS
-• Length: **600–700 words total.**  
+• Length: **600–700 words total (aim for 800 if naturally fitting and factual).**
 • Include at least one verifiable cultural reference (artist, artifact, movement, or archive).  
 • Maintain rhythm: **image → fact → reflection → wonder.**  
 • HTML only — valid <h2> and <p> tags, no markdown, links, or emojis.  
@@ -606,7 +606,7 @@ At the very end of the article, include this line exactly:
 ---
 
 ### 🧠 REQUIREMENTS
-• Length: **600–700 words total.**  
+• Length: **600–700 words total (aim for 800 if naturally fitting and factual).**
 • Include at least one verifiable inventor, date, or location.  
 • Maintain rhythm: **present → past → reflection → curiosity → closure.**  
 • Format: valid HTML (<h2> and <p> only).  
@@ -652,20 +652,24 @@ export const naturalEnding = `
 End your article naturally — never include links, calls to action, or explicit modern commentary.
 `;
 
-// 🛒 FALLBACK — produktnavn eller søkeord
+// 🛒 FALLBACK — identifiser relevant produkt for Amazon-søk (v4.2)
 export function buildProductPrompt(title, topic, article) {
   return `
-Analyze the following CurioWire article and identify the single most relevant product name or keyword that could be searched for on Amazon.
+Analyze the following CurioWire article and extract the single most relevant physical object or product that a reader might search for on Amazon.
 
 Title: "${title}"
 Topic: "${topic}"
-Excerpt: """${article}"""
+Excerpt:
+"""${article}"""
 
-Return ONLY the most relevant product search term that a reader might look up on Amazon,
-based on the article’s theme or central object.
-Avoid abstract or cultural concepts — choose a physical item that could plausibly exist for sale.
+Guidelines:
+- Choose one clear, **searchable product name or type** (e.g. "antique compass", "typewriter", "film camera", "porcelain teacup").
+- It must be something **tangible** that could plausibly be sold or collected.
+- Avoid abstract ideas (like "freedom", "architecture", or "science") — pick an item.
+- Avoid brands unless they are historical and widely known (e.g. Kodak, Singer, Leica).
+- Output only the product name — no description, no punctuation.
+
 Example output:
 Swing-A-Way Can Opener
-
 `;
 }

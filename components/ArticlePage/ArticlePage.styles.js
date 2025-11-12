@@ -48,7 +48,7 @@ export const SubIntro = styled.p`
 export const Title = styled.h1`
   font-family: "Playfair Display", serif;
   font-size: 2.2rem;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   color: ${({ theme }) => theme.colors.text};
   line-height: 1.3;
 `;
@@ -75,6 +75,40 @@ export const Excerpt = styled.div`
   p {
     margin-bottom: 1.5rem;
   }
+
+  .article-summary-box {
+   background-color: ${({ theme }) => theme.colors.bgAlt};
+   border-left: 4px solid ${({ theme }) => theme.colors.accent || "#d46f4d"};
+   border-radius: 6px;
+   padding: 18px 22px;
+   margin: 32px 0 40px;
+   font-size: 0.85rem;
+   line-height: 1.6;   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+   strong {
+     display: block;
+     font-family: "Playfair Display", serif;
+     font-size: 1rem;
+     margin-bottom: 12px;
+     color: ${({ theme }) => theme.colors.text};+   }
+
+   ul {
+     list-style: none;
+     margin: 0;
+     padding: 0;
+   }
+
+   li {
+     margin-bottom: 6px;
+     color: var(--color-text);
+   }
+
+   li b {
+     color: ${({ theme }) => theme.colors.accent};
+     font-weight: 600;
+     margin-right: 4px;
+   }
+ }
 `;
 
 export const SourceLink = styled.a`
@@ -83,6 +117,7 @@ export const SourceLink = styled.a`
   font-weight: 600;
   text-decoration: none;
   // margin-bottom: 60px;
+  margin-top: 30px;
 
   &:hover {
     text-decoration: underline;
@@ -113,4 +148,10 @@ export const NextLink = styled.a`
   }
 
   margin-top: 60px;
+`;
+
+export const Published = styled.p`
+  font-size: 0.9rem;
+  color: ${({ theme }) => theme.colors.muted};
+  margin-bottom: 20px;
 `;
