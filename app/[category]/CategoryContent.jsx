@@ -72,6 +72,7 @@ export default function CategoryContent() {
             image_url={a.image_url}
             created_at={a.created_at}
             index={i}
+            excerpt={a.excerpt}
           />
         ))}
       </Grid>

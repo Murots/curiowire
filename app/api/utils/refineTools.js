@@ -1,67 +1,3 @@
-// // === app/api/utils/refineTools.js ===
-// // ✍️ CurioWire Editorial Refiner v1.0
-// // Lett redaksjonell manussjekk for klarhet, rytme og SEO-flyt
-
-// import OpenAI from "openai";
-
-// const openai = new OpenAI({
-//   apiKey: process.env.OPENAI_API_KEY,
-//   organization: process.env.OPENAI_ORG_ID,
-// });
-
-// /**
-//  * Kjør en lett manussjekk/redigering på ferdig generert artikkel.
-//  * Beholder all HTML-struktur, men forbedrer språk og rytme.
-//  *
-//  * @param {string} articleText Full HTML-artikkeltekst
-//  * @param {string} title Artikkeltittel for kontekst
-//  * @returns {Promise<string>} Refined artikkeltekst (samme format)
-//  */
-// export async function refineArticle(articleText, title) {
-//   if (!articleText || articleText.length < 200) return articleText;
-
-//   const refinePrompt = `
-// You are a senior editor for *CurioWire*.
-// Your task is to review and lightly edit the following article for clarity, rhythm, tone consistency, and SEO alignment — **without changing structure, tags, or factual content.**
-
-// ### RULES
-// 1. Do NOT add or remove <h2> or <p> tags.
-// 2. Only improve wording inside existing tags.
-// 3. Remove redundancy, filler, or vague phrases.
-// 4. Strengthen flow between sections.
-// 5. Ensure vivid yet factual tone — poetic but precise.
-// 6. Keep proper nouns, facts, and years unchanged.
-// 7. Verify that the headline's implied promise is fulfilled.
-// 8. Keep overall length within ±10% of the original.
-
-// Title: "${title}"
-
-// ARTICLE TO REFINE:
-// ${articleText}
-
-// Return ONLY the improved HTML. Do not add any commentary or explanation.
-// `;
-
-//   try {
-//     const completion = await openai.chat.completions.create({
-//       model: "gpt-4o-mini",
-//       messages: [{ role: "user", content: refinePrompt }],
-//       temperature: 0.4,
-//     });
-
-//     const refined = completion.choices[0]?.message?.content?.trim() || "";
-//     console.log("🧹 Refine-pass complete ✅");
-//     return refined;
-//   } catch (err) {
-//     console.warn("⚠️ Refine-pass failed:", err.message);
-//     return articleText; // fallback til original
-//   }
-// }
-
-// === app/api/utils/refineTools.js ===
-// ✍️ CurioWire Editorial Refiner v2.0
-// Utfører redaksjonell språkforbedring, legger til oppsummeringsboks og kildehenvisninger
-
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -114,7 +50,7 @@ Format it like this:
 <div class="article-summary-box">
   <strong>Quick Summary</strong>
   <ul>
-    <li><b>What:</b> [1–2 sentences summarizing the main curiosity or discovery]</li>
+    <li><b>What:</b> <span data-summary-what>[SUMMARY_WHAT_START]1–2 sentences summarizing the main curiosity or discovery[SUMMARY_WHAT_END]</span></li>
     <li><b>Where:</b> [Geographic or contextual setting, if relevant]</li>
     <li><b>When:</b> [Time period or historical moment]</li>
     <li><b>How:</b> [Key mechanism, cause, or scientific principle]</li>
@@ -142,11 +78,15 @@ Do **not invent** absurd or fake-sounding sources — keep them credible and the
 ---
 
 ### 🔹 STYLE NOTES
-• Tone: factual, reflective, and engaging — like BBC Future or National Geographic.  
-• Flow: insight → image → emotion → reflection.  
-• Avoid jargon and repetitive phrasing.  
-• Avoid any mention of AI or article generation.  
+• Tone: factual, reflective, and engaging — like BBC Future or National Geographic.
+• Flow: insight → image → emotion → reflection.
+• Avoid jargon and repetitive phrasing.
+• Avoid any mention of AI or article generation.
 • The finished text should be fully ready for SEO indexing and human reading.
+• Write 1–2 sentences between [SUMMARY_WHAT_START] and [SUMMARY_WHAT_END].
+• Do NOT remove the markers.
+• Replace ONLY the placeholder text between the markers.
+• Do NOT reformat, rename or remove the <span data-summary-what> wrapper.
 
 ---
 

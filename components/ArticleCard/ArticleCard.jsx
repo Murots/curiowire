@@ -22,6 +22,7 @@ export default function ArticleCard({
   created_at,
   index,
   view_count,
+  excerpt,
 }) {
   const formattedDate = new Date(created_at).toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -31,6 +32,16 @@ export default function ArticleCard({
   });
 
   const isEven = index % 2 === 0;
+
+  // Extract WHAT summary from excerpt
+  let summaryWhat = null;
+
+  if (excerpt) {
+    const match = excerpt.match(
+      /\[SUMMARY_WHAT_START\](.*?)\[SUMMARY_WHAT_END\]/s
+    );
+    if (match) summaryWhat = match[1].trim();
+  }
 
   return (
     <Link href={`/article/${id}`}>
@@ -71,6 +82,18 @@ export default function ArticleCard({
           </Meta>
 
           <Title>{cleanText(title)}</Title>
+
+          {summaryWhat && (
+            <p
+              style={{
+                fontSize: "0.9rem",
+                color: "var(--color-muted)",
+                margin: "8px 0 0",
+              }}
+            >
+              {summaryWhat}
+            </p>
+          )}
 
           <ReadMore>Read more →</ReadMore>
         </Content>
