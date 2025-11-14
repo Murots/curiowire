@@ -28,39 +28,6 @@ export const Card = styled.div`
   }
 `;
 
-// export const ImageWrapper = styled.div`
-//   flex: 0 0 45%;
-//   position: relative;
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   aspect-ratio: 16 / 9;
-//   max-height: 250px;
-//   border-radius: 6px;
-//   overflow: hidden;
-
-//   @media (max-width: 770px) {
-//     flex: none;
-//     width: 100%;
-//     max-height: none;
-//     border-radius: 0;
-//   }
-// `;
-
-// export const Image = styled.img`
-//   width: 100%;
-//   height: 100%;
-//   object-fit: cover;
-//   object-position: 50% 30%;
-//   transition: all 0.6s ease;
-//   filter: grayscale(100%) brightness(0.9);
-
-//   ${Card}:hover & {
-//     transform: scale(1.05);
-//     filter: grayscale(0%) brightness(1);
-//   }
-// `;
-
 export const ImageWrapper = styled.div`
   flex: 0 0 45%;
   position: relative;
@@ -128,7 +95,7 @@ export const Meta = styled.div`
 
 export const Title = styled.h2`
   color: var(--color-text);
-  // margin-bottom: 10px;
+  margin: 0px;
   line-height: 1.35;
   transition: color 0.3s ease, transform 0.2s ease;
   font-size: 1.2rem;
@@ -137,6 +104,12 @@ export const Title = styled.h2`
     font-size: 1.1rem;
     line-height: 1.4;
   }
+`;
+
+export const SummaryWhat = styled.p`
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin: 10px 0;
 `;
 
 export const ReadMore = styled.span`
@@ -155,10 +128,4 @@ export const ReadMore = styled.span`
     color: var(--color-accent);
     font-weight: 600;
   }
-`;
-
-export const SummaryWhat = styled.p`
-  font-size: 0.7rem;
-  color: var(--color-muted);
-  margin: 8px 0 0;
 `;
