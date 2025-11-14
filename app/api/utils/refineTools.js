@@ -50,13 +50,28 @@ Format it like this:
 <div class="article-summary-box">
   <strong>Quick Summary</strong>
   <ul>
-    <li><b>What:</b> <span data-summary-what>[SUMMARY_WHAT_START]1–2 sentences summarizing the main curiosity or discovery[SUMMARY_WHAT_END]</span></li>
+    <li><b>What:</b> <span data-summary-what>1 sentences summarizing the central curiosity, event or phenomenon.</span></li>
     <li><b>Where:</b> [Geographic or contextual setting, if relevant]</li>
     <li><b>When:</b> [Time period or historical moment]</li>
     <li><b>How:</b> [Key mechanism, cause, or scientific principle]</li>
     <li><b>Why:</b> [Why it matters today — social, cultural, or scientific relevance]</li>
   </ul>
 </div>
+
+Requirements for WHAT:
+• Write **1 clear, neutral, factual sentences** summarizing the central curiosity, discovery, or event.
+• You MUST replace the placeholder text completely.
+• The <span data-summary-what>...</span> must contain ONLY the final WHAT sentences.
+• Do NOT include any part of the placeholder like:
+  "1–2 sentences summarizing the main curiosity…" or variations of it.
+• BEGIN the sentence directly with the subject of the curiosity.
+  Examples: 
+    “In ancient Mesopotamia…”
+    “Horace-Bénédict de Saussure’s 1767 invention…”
+    “Population III stars represent…”
+• Do NOT begin with meta phrases such as:
+  “The article…”, “This article…”, “This story…”, “The piece…”
+• The WHAT text must read like real journalism, not commentary on the article.
 
 The summary must be concise, factual, and written in the same tone as the article.
 
@@ -78,15 +93,14 @@ Do **not invent** absurd or fake-sounding sources — keep them credible and the
 ---
 
 ### 🔹 STYLE NOTES
-• Tone: factual, reflective, and engaging — like BBC Future or National Geographic.
+• Tone: factual, reflective, and engaging — like *BBC Future*, *Vox*, or *National Geographic*, blended with the intrigue of *Atlas Obscura*.
 • Flow: insight → image → emotion → reflection.
+• Smooth transitions.  
 • Avoid jargon and repetitive phrasing.
 • Avoid any mention of AI or article generation.
 • The finished text should be fully ready for SEO indexing and human reading.
-• Write 1–2 sentences between [SUMMARY_WHAT_START] and [SUMMARY_WHAT_END].
-• Do NOT remove the markers.
-• Replace ONLY the placeholder text between the markers.
-• Do NOT reformat, rename or remove the <span data-summary-what> wrapper.
+• Do NOT alter the <span data-summary-what> wrapper.
+• Do NOT wrap the Quick Summary or its elements in additional containers.
 
 ---
 

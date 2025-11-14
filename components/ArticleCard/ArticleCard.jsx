@@ -10,6 +10,7 @@ import {
   Meta,
   Title,
   ReadMore,
+  SummaryWhat,
 } from "./ArticleCard.styles";
 
 import { cleanText } from "@/app/api/utils/cleanText";
@@ -38,9 +39,9 @@ export default function ArticleCard({
 
   if (excerpt) {
     const match = excerpt.match(
-      /\[SUMMARY_WHAT_START\](.*?)\[SUMMARY_WHAT_END\]/s
+      /<span\s+data-summary-what[^>]*>(.*?)<\/span>/s
     );
-    if (match) summaryWhat = match[1].trim();
+    if (match) summaryWhat = cleanText(match[1].trim());
   }
 
   return (
@@ -83,17 +84,7 @@ export default function ArticleCard({
 
           <Title>{cleanText(title)}</Title>
 
-          {summaryWhat && (
-            <p
-              style={{
-                fontSize: "0.9rem",
-                color: "var(--color-muted)",
-                margin: "8px 0 0",
-              }}
-            >
-              {summaryWhat}
-            </p>
-          )}
+          {summaryWhat && <SummaryWhat>{summaryWhat}</SummaryWhat>}
 
           <ReadMore>Read more →</ReadMore>
         </Content>

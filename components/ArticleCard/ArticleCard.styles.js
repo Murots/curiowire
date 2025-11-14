@@ -119,7 +119,7 @@ export const Content = styled.div`
 
 export const Meta = styled.div`
   font-family: "Inter", sans-serif;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--color-muted);
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -128,7 +128,7 @@ export const Meta = styled.div`
 
 export const Title = styled.h2`
   color: var(--color-text);
-  margin-bottom: 10px;
+  // margin-bottom: 10px;
   line-height: 1.35;
   transition: color 0.3s ease, transform 0.2s ease;
   font-size: 1.2rem;
@@ -155,4 +155,10 @@ export const ReadMore = styled.span`
     color: var(--color-accent);
     font-weight: 600;
   }
+`;
+
+export const SummaryWhat = styled.p`
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  margin: 8px 0 0;
 `;
