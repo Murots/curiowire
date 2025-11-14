@@ -21,6 +21,7 @@ import {
 import {
   checkDuplicateTopic,
   checkSimilarTitles,
+  normalize, // <— viktig!
 } from "../app/api/utils/duplicateUtils.js";
 import {
   analyzeTopic,
@@ -159,8 +160,11 @@ export async function main() {
         console.log(`🔎 Checking candidate: "${candidateTitle}"`);
         const { existing, alreadyExists } = await checkDuplicateTopic(
           key,
-          candidateTitle
+          candidateTitle, // topic
+          candidateTitle, // title (bruk topic som tittel før den er generert)
+          "" // summaryWhat (ingen WHAT-summary ennå)
         );
+
         if (alreadyExists) continue;
         const isSimilar = await checkSimilarTitles(
           existing,
@@ -265,10 +269,25 @@ export async function main() {
           .replace(/SEO:[\s\S]*$/i, "")
           .trim();
 
-        // === Embedding + bilde ===
+        // === Extract summaryWhat for signature ===
+        const summaryMatch = cleanedArticle.match(
+          /<span\s+data-summary-what[^>]*>(.*?)<\/span>/s
+        );
+        const summaryWhat = summaryMatch
+          ? cleanText(summaryMatch[1].trim())
+          : "";
+
+        // === Embedding ===
         const embedding = await generateEmbedding(
           `${title}\n${cleanedArticle}`
         );
+
+        // === semantic signature ===
+        const semanticSignature = normalize(
+          `${topic} ${title} ${seo_description} ${summaryWhat}`
+        );
+
+        // === bildevalg ===
         const imagePref = image === "photo" ? "photo" : "dalle";
         const { imageUrl, source } = await selectBestImage(
           title,
@@ -288,7 +307,7 @@ export async function main() {
             ? "Illustration by DALL·E 3"
             : "Image source unknown";
 
-        // === Lagre ===
+        // === Lagre i Supabase ===
         const { error } = await safeQuery(
           `insert article for ${key}`,
           supabase.from("articles").insert([
@@ -304,9 +323,11 @@ export async function main() {
               seo_keywords,
               hashtags,
               embedding,
+              semantic_signature: semanticSignature, // <— NYTT
             },
           ])
         );
+
         if (error) throw error;
         console.log(`✅ Saved: ${key} → ${title}`);
         results.push({ category: key, topic, success: true });
