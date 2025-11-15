@@ -5,15 +5,6 @@ import { NextResponse } from "next/server";
 
 import { fetchGoogleTrends, cleanTrends } from "../utils/trendsUtils.js";
 import { loadDynamicSubs, fetchRedditTrends } from "../utils/redditUtils.js";
-import { normalize } from "../utils/duplicateUtils.js";
-
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 // === STANDARD SUBREDDITS ===
 let redditSubs = {
@@ -48,40 +39,12 @@ let redditSubs = {
 };
 
 // =====================================================
-// 🔍 Google Prefilter Function — NEW
-// Sjekker google-trender mot articles.semantic_signature
-// =====================================================
-async function filterGoogleTrends(titles) {
-  if (!titles?.length) return [];
-
-  const filtered = [];
-
-  for (const item of titles) {
-    const rawTitle = item?.title || item;
-    const signature = normalize(rawTitle);
-
-    // 🔎 sjekk semantic_signature i articles
-    const { data } = await supabase
-      .from("articles")
-      .select("id")
-      .ilike("semantic_signature", `%${signature}%`)
-      .limit(1);
-
-    if (data?.length > 0) {
-      console.log(`♻️ Google trend dupe filtered out: "${rawTitle}"`);
-      continue;
-    }
-
-    filtered.push(item);
-  }
-
-  return filtered;
-}
-
-// =====================================================
 // === GET ===
+// Henter Google + Reddit + loader dynamiske subreddits
+// Ingen duplikatkontroll her – det skjer i generate.js
 // =====================================================
 export async function GET() {
+  // Oppdater subreddits basert på Supabase-databasen
   redditSubs = await loadDynamicSubs(redditSubs);
 
   const results = {};
@@ -89,38 +52,29 @@ export async function GET() {
   for (const category of Object.keys(redditSubs)) {
     console.log(`🧠 Fetching trends for ${category}...`);
 
-    // === Hent Google og Reddit parallelt
-    const [google, reddit] = await Promise.all([
+    // Hent begge kilder parallelt
+    const [googleRaw, redditRaw] = await Promise.all([
       fetchGoogleTrends(category),
       fetchRedditTrends(category, redditSubs[category]),
     ]);
 
-    const googleClean = cleanTrends(google);
-    const redditClean = cleanTrends(reddit);
+    // Rens
+    const googleClean = cleanTrends(googleRaw);
+    const redditClean = cleanTrends(redditRaw);
 
-    // === NEW: Filtrer Google-trender mot semantic_signature
-    const googleFiltered = await filterGoogleTrends(googleClean);
-
-    // === Velg et tilfeldig emne fra hver
+    // Velg ett tilfeldig fra hver
     const googlePick =
-      googleFiltered[Math.floor(Math.random() * googleFiltered.length)];
-
+      googleClean[Math.floor(Math.random() * googleClean.length)];
     const redditPick =
       redditClean[Math.floor(Math.random() * redditClean.length)];
 
-    const googleTopic = googlePick?.title || googlePick || null;
-    const redditTopic = redditPick?.title || redditPick || null;
-
-    const redditSubreddit = redditPick?.subreddit || null;
-
-    // === Returner begge kildene, + valgt trend
     results[category] = {
-      google: googleFiltered,
+      google: googleClean,
       reddit: redditClean,
       selected: {
-        google: googleTopic || null,
-        reddit: redditTopic || null,
-        subreddit: redditSubreddit || null,
+        google: googlePick?.title || googlePick || null,
+        reddit: redditPick?.title || redditPick || null,
+        subreddit: redditPick?.subreddit || null,
       },
     };
   }
