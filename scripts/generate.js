@@ -414,10 +414,7 @@ import {
   naturalEnding,
 } from "../app/api/utils/prompts.js";
 
-import {
-  checkDuplicateStory, // <— NYTT, eneste duplikatsjekk
-  normalize,
-} from "../app/api/utils/duplicateUtils.js";
+import { normalize } from "../app/api/utils/duplicateUtils.js";
 
 import {
   analyzeTopic,
@@ -433,6 +430,9 @@ import {
 import { selectBestImage } from "../app/api/utils/imageSelector.js";
 import { cleanText } from "../app/api/utils/cleanText.js";
 import { refineArticle } from "../app/api/utils/refineTools.js";
+
+// ✅ Ny modul for kuriositets-signaturer (pre-dupe-check)
+import { buildCurioSignature, checkCurioDuplicate } from "./curioSignature.js";
 
 // === INIT OpenAI ===
 const openai = new OpenAI({
@@ -543,51 +543,74 @@ export async function main() {
       }
 
       // ===================================================
-      // === VELG ET TEMA (topic) SOM ER UNIKT NOK ===
+      // === VELG TEMA + KURIOSITET SOM IKKE ER DUPE ===
       // ===================================================
+
       let topic = null;
+      let topicSummary = null; // analyse for valgt topic
+      let linkedStory = null; // valgt kuriositet
+      let curioSignature = null; // gjenbrukes senere ved lagring
 
       for (const candidateTitle of allTopics) {
         console.log(`🔎 Trying topic candidate: "${candidateTitle}"`);
 
-        // 1) Først må vi hente linkedStory for kandidaten
+        // 1) Analyse kandidatens tema & finn historisk link/kuriositet
         const analysis = await analyzeTopic(candidateTitle, key);
-        const linkedStory = await linkHistoricalStory(analysis);
+        const candidateLinkedStory = await linkHistoricalStory(analysis);
 
-        if (!linkedStory) {
-          console.log("→ Candidate rejected (no linkedStory)");
+        if (!candidateLinkedStory) {
+          console.log("→ Candidate rejected (no linkedStory / curiosity)");
           continue;
         }
 
-        // 2) Sjekk om akkurat denne kuriositeten er skrevet før
-        const dupeCheck = await checkDuplicateStory(linkedStory);
+        // 2) Bygg en lettvekts CurioSignature for denne kuriositeten
+        const candidateCurioSignature = await buildCurioSignature({
+          category: key,
+          topic: candidateTitle,
+          curiosity: candidateLinkedStory,
+        });
 
-        if (dupeCheck.alreadyExists) {
-          console.log(`🚫 Duplicate curiosity → skip "${candidateTitle}"`);
-          continue; // prøv neste kandidat
+        // 3) Sjekk om denne kuriositeten finnes fra før
+        const dupeInfo = await checkCurioDuplicate(candidateCurioSignature);
+
+        if (dupeInfo?.isDuplicate) {
+          console.log(
+            `🚫 Curiosity duplicate detected for "${candidateTitle}" – skipping candidate`
+          );
+          if (dupeInfo.closestTitle) {
+            console.log(`   ↳ Similar to existing: "${dupeInfo.closestTitle}"`);
+          }
+          continue; // prøv neste kandidat innen samme kategori
         }
 
-        // 3) Hvis unik kuriositet → bruk som topic
+        // 4) Kandidaten er unik nok → bruk den
         topic = candidateTitle;
+        topicSummary = analysis;
+        linkedStory = candidateLinkedStory;
+        curioSignature = candidateCurioSignature;
+
+        console.log(
+          `✅ Selected topic: ${topic}\n   Curiosity: "${linkedStory}"`
+        );
         break;
       }
 
       if (!topic) {
-        console.log(`⚠️ No unique curiosity found for category ${key}`);
+        console.log(
+          `⚠️ No unique curiosity found for category ${key} (all candidates were dupes)`
+        );
         continue;
       }
 
-      console.log(`✅ Selected topic: ${topic}`);
+      // Vi har nå: topic, topicSummary, linkedStory, curioSignature
 
-      // ===================================================
-      // === ANALYSE & PROMPT-GENERERING ===
-      // ===================================================
-
-      const topicSummary = await analyzeTopic(topic, key);
-      const linkedStory = await linkHistoricalStory(topicSummary);
+      // Utvid og forankre temaet (for konsistent stil / kontekst)
       await summarizeTheme(topicSummary, linkedStory);
 
-      // PROMPT
+      // ===================================================
+      // === PROMPT-GENERERING ===
+      // ===================================================
+
       let prompt;
 
       if (key === "products") {
@@ -609,10 +632,12 @@ export async function main() {
         prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
       }
 
-      // Sett kuriositeten inn
+      // Sett kuriositeten eksplisitt inn
       prompt += `\nFocus the story around this factual curiosity:\n"${linkedStory}"`;
 
+      // ===================================================
       // === GENERERING AV ARTIKKEL ===
+      // ===================================================
       console.log("✍️ Generating article…");
 
       const completion = await openai.chat.completions.create({
@@ -706,10 +731,12 @@ export async function main() {
 
       const embedding = await generateEmbedding(`${title}\n${cleanedArticle}`);
 
-      // Unik nøkkel: topic + title + seo_description + summaryWhat
-      const semanticSignature = normalize(
-        `${topic} ${title} ${seo_description} ${summaryWhat} ${linkedStory}`
-      );
+      // semanticSignature skal henge sammen med pre-dupe CurioSignature
+      const semanticSignature =
+        curioSignature?.signature ||
+        normalize(
+          `${topic} ${title} ${seo_description} ${summaryWhat} ${linkedStory}`
+        );
 
       // ===================================================
       // === BILDEVALG ===
@@ -721,7 +748,7 @@ export async function main() {
         title,
         cleanedArticle,
         key,
-        imagePref
+        imagePref // ekstra arg ignoreres hvis selectBestImage ikke bruker den
       );
 
       const imageCredit =
@@ -831,4 +858,3 @@ export async function main() {
 
 // === Kjør hovedfunksjon ===
 main().then(() => process.exit(0));
-// (… resten av filen kommer i DEL 2 …)
