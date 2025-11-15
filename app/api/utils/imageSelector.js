@@ -271,39 +271,76 @@ Article: "${article.slice(0, 600)}"
 /* ============================================================================================
    🔹 2. Bildesøkere
    ============================================================================================ */
-export async function searchWikimediaImages(query) {
-  try {
-    const res = await fetch(
-      `https://api.wikimedia.org/core/v1/commons/search/page?q=${encodeURIComponent(
-        query
-      )}&limit=10`,
-      { headers: { "User-Agent": "CurioWire/1.0 (curiowire.app@gmail.com)" } }
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    const pages = data?.pages || [];
-    const urls = [];
+// export async function searchWikimediaImages(query) {
+//   try {
+//     const res = await fetch(
+//       `https://api.wikimedia.org/core/v1/commons/search/page?q=${encodeURIComponent(
+//         query
+//       )}&limit=10`,
+//       { headers: { "User-Agent": "CurioWire/1.0 (curiowire.app@gmail.com)" } }
+//     );
+//     if (!res.ok) return [];
+//     const data = await res.json();
+//     const pages = data?.pages || [];
+//     const urls = [];
 
-    for (const p of pages) {
-      const file = p.key || p.title;
-      if (!file) continue;
-      const f = await fetch(
-        `https://api.wikimedia.org/core/v1/commons/file/${encodeURIComponent(
-          file.replace(/^File:/i, "File:")
-        )}`,
-        { headers: { "User-Agent": "CurioWire/1.0" } }
-      );
-      if (!f.ok) continue;
-      const info = await f.json();
-      const url =
-        info?.original?.url ||
-        info?.preferred?.url ||
-        (p.thumbnail?.url ? "https:" + p.thumbnail.url : null);
-      if (url && /\.(jpg|jpeg|png|webp)$/i.test(url)) urls.push(url);
-      if (urls.length >= 10) break;
-    }
-    return urls;
-  } catch {
+//     for (const p of pages) {
+//       const file = p.key || p.title;
+//       if (!file) continue;
+//       const f = await fetch(
+//         `https://api.wikimedia.org/core/v1/commons/file/${encodeURIComponent(
+//           file.replace(/^File:/i, "File:")
+//         )}`,
+//         { headers: { "User-Agent": "CurioWire/1.0" } }
+//       );
+//       if (!f.ok) continue;
+//       const info = await f.json();
+//       const url =
+//         info?.original?.url ||
+//         info?.preferred?.url ||
+//         (p.thumbnail?.url ? "https:" + p.thumbnail.url : null);
+//       if (url && /\.(jpg|jpeg|png|webp)$/i.test(url)) urls.push(url);
+//       if (urls.length >= 10) break;
+//     }
+//     return urls;
+//   } catch {
+//     return [];
+//   }
+// }
+
+export async function searchWikimediaImages(query) {
+  const endpoint =
+    "https://commons.wikimedia.org/w/api.php" +
+    `?action=query` +
+    `&format=json` +
+    `&prop=imageinfo` +
+    `&generator=search` +
+    `&gsrnamespace=6` + // ONLY FILE PAGES
+    `&gsrsearch=${encodeURIComponent(query)}` +
+    `&gsrlimit=20` +
+    `&iiprop=url|size|mime` +
+    `&origin=*`;
+
+  try {
+    const res = await fetch(endpoint);
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (!data.query?.pages) return [];
+
+    const pages = Object.values(data.query.pages);
+
+    return pages
+      .map((p) => p.imageinfo?.[0])
+      .filter(
+        (info) =>
+          info?.url &&
+          /\.(jpg|jpeg|png|webp)$/i.test(info.url) && // only real images
+          info.width >= 600 // prevent tiny thumbnails
+      )
+      .map((info) => info.url);
+  } catch (err) {
+    console.error("Wikimedia error:", err);
     return [];
   }
 }
