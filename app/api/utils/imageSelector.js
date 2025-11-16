@@ -1,11 +1,11 @@
 // === app/api/utils/imageSelector.js ===
-// CurioWire Smart Image Selector v4.0 (2025)
-// - Billig & presist
+// CurioWire Smart Image Selector v5.0 (2025)
+// - Billig & presist, *uten* Vision
 // - 6 bilder per provider (18 totalt maks)
 // - 1–2 nøkkelord (med disambiguering, f.eks. "kennedy president")
-// - Vision: én kort beskrivelse per bilde (gpt-4o-mini + image_url)
-// - Scoring: én bitteliten prompt per bilde (tall 0–100)
-// - Filtrerer vekk feil betydning (seahorse skip vs dyr, kennedy president vs flyplass)
+// - Ren tekst/metadata-basert scoring (alt-text, title, tags, URL)
+// - Filtrerer vekk åpenbare feil (kart, flagg, logoer, ikoner, for små bilder)
+// - Streng disambiguering: 2-ords core må matche begge ord i metadata
 // - DALL·E-fallback + Supabase caching via imageTools.js
 
 import OpenAI from "openai";
@@ -21,9 +21,9 @@ const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
 export const MIN_ACCEPTABLE_SCORE = 75;
 
-/* ============================================================================================
-   🔹 1. Finn visuelt kjerne-substantiv (1–2 ord, med disambiguering)
-   ============================================================================================ */
+// ============================================================================================
+// 🔹 1. Finn visuelt kjerne-substantiv (1–2 ord, med disambiguering)
+// ============================================================================================
 export async function getCoreNoun(title, article) {
   const prompt = `
 You are selecting the BEST visual search keyword for a news article image.
@@ -70,9 +70,110 @@ Article: "${article.slice(0, 800)}"
   }
 }
 
-/* ============================================================================================
-   🔹 2. Bildesøk (6 per provider)
-   ============================================================================================ */
+// ============================================================================================
+// 🔹 2. Hjelpere for tekst / keywords (lokalt, billig)
+// ============================================================================================
+
+function tokenize(text = "") {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+const STOPWORDS = new Set([
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "of",
+  "in",
+  "on",
+  "for",
+  "to",
+  "from",
+  "by",
+  "with",
+  "at",
+  "is",
+  "are",
+  "was",
+  "were",
+  "this",
+  "that",
+  "these",
+  "those",
+  "it",
+  "its",
+  "as",
+  "be",
+  "about",
+  "into",
+  "over",
+  "under",
+  "up",
+  "down",
+  "out",
+  "off",
+  "through",
+  "across",
+  "their",
+  "his",
+  "her",
+  "they",
+  "them",
+  "you",
+  "your",
+  "we",
+  "our",
+  "but",
+  "not",
+]);
+
+function extractKeywords(text, max = 12) {
+  const freq = new Map();
+  for (const t of tokenize(text)) {
+    if (STOPWORDS.has(t)) continue;
+    if (t.length < 3) continue;
+    freq.set(t, (freq.get(t) || 0) + 1);
+  }
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([w]) => w);
+}
+
+function buildMetadataText(candidate) {
+  const parts = [
+    candidate.title,
+    candidate.description,
+    candidate.alt,
+    candidate.tags?.join(" "),
+    candidate.url,
+  ];
+  return parts.filter(Boolean).join(" ").toLowerCase();
+}
+
+// ============================================================================================
+// 🔹 3. Bildesøk (6 per provider) → returnerer *kandidater* med metadata
+// ============================================================================================
+
+/**
+ * Felles kandidat-format:
+ * {
+ *   url: string,
+ *   provider: "Wikimedia" | "Pexels" | "Unsplash",
+ *   width?: number,
+ *   height?: number,
+ *   title?: string,
+ *   description?: string,
+ *   alt?: string,
+ *   tags?: string[]
+ * }
+ */
 
 export async function searchWikimediaImages(query) {
   const endpoint =
@@ -81,7 +182,7 @@ export async function searchWikimediaImages(query) {
     `&generator=search&gsrnamespace=6` +
     `&gsrsearch=${encodeURIComponent(query)}` +
     `&gsrlimit=6` +
-    `&iiprop=url|size|mime&origin=*`;
+    `&iiprop=url|size|mime|extmetadata&origin=*`;
 
   try {
     const res = await fetch(endpoint);
@@ -90,25 +191,42 @@ export async function searchWikimediaImages(query) {
     const data = await res.json();
     const pages = data.query?.pages ? Object.values(data.query.pages) : [];
 
-    return pages
-      .map((p) => p.imageinfo?.[0])
-      .filter((info) => {
-        if (!info?.url || !info.width) return false;
+    const candidates = [];
 
-        const url = info.url.toLowerCase();
+    for (const p of pages) {
+      const info = p.imageinfo?.[0];
+      if (!info?.url || !info.width) continue;
 
-        // Grovfilter: dropp SVG, ikoner, flagg, kart, logoer etc. før vi bruker Vision
-        if (url.endsWith(".svg")) return false;
-        if (url.includes("icon")) return false;
-        if (url.includes("flag_of")) return false;
-        if (url.includes("coat_of_arms")) return false;
-        if (url.includes("locator_map")) return false;
-        if (url.includes("logo")) return false;
-        if (url.includes("map_")) return false;
+      const url = info.url.toLowerCase();
 
-        return info.width >= 800;
-      })
-      .map((info) => info.url);
+      // Grovfilter: dropp SVG, ikoner, flagg, kart, logoer etc.
+      if (url.endsWith(".svg")) continue;
+      if (url.includes("icon")) continue;
+      if (url.includes("flag_of")) continue;
+      if (url.includes("coat_of_arms")) continue;
+      if (url.includes("locator_map")) continue;
+      if (url.includes("logo")) continue;
+      if (url.includes("map_")) continue;
+
+      if (info.width < 800) continue;
+
+      const ext = info.extmetadata || {};
+      const desc =
+        ext.ImageDescription?.value || ext.ObjectName?.value || p.title || "";
+
+      candidates.push({
+        url: info.url,
+        provider: "Wikimedia",
+        width: info.width,
+        height: info.height,
+        title: p.title || "",
+        description: String(desc || ""),
+        alt: "",
+        tags: [],
+      });
+    }
+
+    return candidates;
   } catch (err) {
     console.warn("Wikimedia error:", err.message);
     return [];
@@ -117,6 +235,7 @@ export async function searchWikimediaImages(query) {
 
 export async function searchPexelsImages(query) {
   if (!PEXELS_KEY) return [];
+
   try {
     const res = await fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(
@@ -125,8 +244,22 @@ export async function searchPexelsImages(query) {
       { headers: { Authorization: PEXELS_KEY } }
     );
     if (!res.ok) return [];
+
     const data = await res.json();
-    return data.photos?.map((p) => p.src?.large)?.filter(Boolean) || [];
+    const photos = data.photos || [];
+
+    return photos
+      .filter((p) => p.src?.large)
+      .map((p) => ({
+        url: p.src.large,
+        provider: "Pexels",
+        width: p.width,
+        height: p.height,
+        title: "",
+        description: "",
+        alt: p.alt || "",
+        tags: [],
+      }));
   } catch (err) {
     console.warn("Pexels error:", err.message);
     return [];
@@ -135,6 +268,7 @@ export async function searchPexelsImages(query) {
 
 export async function searchUnsplashImages(query) {
   if (!UNSPLASH_KEY) return [];
+
   try {
     const res = await fetch(
       `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
@@ -142,100 +276,100 @@ export async function searchUnsplashImages(query) {
       )}&per_page=6&orientation=landscape&client_id=${UNSPLASH_KEY}`
     );
     if (!res.ok) return [];
+
     const data = await res.json();
-    return data.results?.map((r) => r.urls?.regular)?.filter(Boolean) || [];
+    const results = data.results || [];
+
+    return results
+      .filter((r) => r.urls?.regular)
+      .map((r) => ({
+        url: r.urls.regular,
+        provider: "Unsplash",
+        width: r.width,
+        height: r.height,
+        title: r.description || "",
+        description: r.description || "",
+        alt: r.alt_description || "",
+        tags: (r.tags || []).map((t) => t.title).filter(Boolean),
+      }));
   } catch (err) {
     console.warn("Unsplash error:", err.message);
     return [];
   }
 }
 
-/* ============================================================================================
-   🔹 3. Vision-beskrivelse (ÉN kort setning per bilde)
-   ============================================================================================ */
-async function describeImage(imageUrl) {
-  try {
-    const res = await fetch(imageUrl);
-    if (!res.ok) {
-      console.warn(`describeImage: fetch failed for ${imageUrl}`);
-      return "";
+// ============================================================================================
+// 🔹 4. Streng, tekstbasert scoring (0–100) + disambiguering
+//     → ingen GPT-kall per bilde, kun lokal tekstanalyse
+// ============================================================================================
+
+function scoreCandidate(core, articleTitle, articleText, candidate) {
+  const meta = buildMetadataText(candidate);
+  if (!meta) return 0;
+
+  const parts = core.split(/\s+/).filter(Boolean);
+  if (!parts.length) return 0;
+
+  const primary = parts[0];
+  const secondary = parts[1] || null;
+  const ambiguous = !!secondary; // 2-ords core = bevisst disambiguering
+
+  const hasPrimary = meta.includes(primary.toLowerCase());
+  const hasSecondary = secondary
+    ? meta.includes(secondary.toLowerCase())
+    : false;
+
+  // === Streng disambiguering ===
+  if (ambiguous) {
+    // Vi krever at *begge* ordene i core faktisk finnes i metadata
+    if (!hasPrimary || !hasSecondary) return 0;
+  } else {
+    // Enkelt core-ord:
+    // • Primært krever vi treff på hovedordet
+    // • Hvis ikke, må det i det minste være god tematisk match mot artikkel
+    if (!hasPrimary) {
+      const articleKeywords = extractKeywords(
+        `${articleTitle}\n${articleText}`,
+        10
+      );
+      const hits = articleKeywords.filter((kw) => meta.includes(kw)).length;
+      if (hits < 2) return 0; // ikke godt nok knyttet til artikkelen
     }
-
-    const arrayBuffer = await res.arrayBuffer();
-    const b64 = Buffer.from(arrayBuffer).toString("base64");
-    const ct = res.headers.get("content-type") || "image/jpeg";
-    const dataUrl = `data:${ct};base64,${b64}`;
-
-    const r = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // har innebygd vision-støtte via image_url
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "In one short sentence, clearly describe what this photo mainly shows.",
-            },
-            { type: "image_url", image_url: { url: dataUrl } },
-          ],
-        },
-      ],
-      max_tokens: 32,
-      temperature: 0.1,
-    });
-
-    const desc = r.choices[0]?.message?.content?.trim() || "";
-    return desc;
-  } catch (err) {
-    console.warn("describeImage failed:", err.message);
-    return "";
   }
+
+  // Basisscore hvis den kommer gjennom nåløyet
+  let score = 80;
+
+  // Bonus for strong match (hele ord)
+  const metaTokens = new Set(tokenize(meta));
+  if (metaTokens.has(primary.toLowerCase())) score += 5;
+  if (secondary && metaTokens.has(secondary.toLowerCase())) score += 5;
+
+  // Tematisk bonus: overlap med artikkel-keywords
+  const articleKeywords = extractKeywords(
+    `${articleTitle}\n${articleText}`,
+    12
+  );
+  let keywordHits = 0;
+  for (const kw of articleKeywords) {
+    if (meta.includes(kw)) keywordHits++;
+  }
+  score += Math.min(keywordHits * 3, 15);
+
+  // Liten oppløsningsbonus
+  if (candidate.width && candidate.width >= 2000) {
+    score += 5;
+  }
+
+  // Streng cutoff
+  if (score < MIN_ACCEPTABLE_SCORE) return 0;
+
+  return Math.max(0, Math.min(score, 100));
 }
 
-/* ============================================================================================
-   🔹 4. Enkel scoring (0–100) + sense-disambiguering
-   ============================================================================================ */
-async function scoreImage(description, core, title, article) {
-  if (!description) return 0;
-
-  const prompt = `
-You are filtering editorial news images.
-
-Intended subject: "${core}"
-Article title: "${title}"
-Article context (excerpt): "${article.slice(0, 400)}"
-
-Image description: "${description}"
-
-Task:
-- Return a single integer from 0 to 100.
-- 0–10  = wrong subject or clearly wrong meaning (e.g. "seahorse" ship vs animal, "kennedy" airport vs president).
-- 20–60 = vague or loosely related image.
-- 70–100 = clearly shows the correct subject in the correct sense for this article.
-
-Return ONLY the number, no words.
-`;
-
-  try {
-    const r = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 4,
-      temperature: 0,
-    });
-
-    const raw = r.choices[0]?.message?.content?.trim() || "0";
-    const num = parseFloat(raw);
-    return isNaN(num) ? 0 : num;
-  } catch (err) {
-    console.warn("scoreImage failed:", err.message);
-    return 0;
-  }
-}
-
-/* ============================================================================================
-   🔹 5. HOVEDFUNKSJON: Velg beste bilde
-   ============================================================================================ */
+// ============================================================================================
+// 🔹 5. HOVEDFUNKSJON: Velg beste bilde
+// ============================================================================================
 export async function selectBestImage(
   title,
   article,
@@ -251,9 +385,9 @@ export async function selectBestImage(
 
   const mode = preferredMode || categoryPref;
 
-  const candidates = [];
-
-  /* === A: AI-FIRST (DALL·E) for enkelte kategorier === */
+  // =====================================================================
+  // === A: AI-FIRST (DALL·E) for enkelte kategorier (uendret logikk) ===
+  // =====================================================================
   if (mode === "dalle") {
     const dalle = await generateDalleImage(title, core, "cinematic", category);
     if (dalle) {
@@ -266,46 +400,42 @@ export async function selectBestImage(
     }
   }
 
-  /* === B: PHOTO-FIRST (Wikimedia → Pexels → Unsplash) === */
+  // =====================================================================
+  // === B: PHOTO-FIRST (Wikimedia → Pexels → Unsplash)               ===
+  //       → 6 bilder per provider, metadata-basert scoring            ===
+  // =====================================================================
   const sources = [
     { name: "Wikimedia", fn: searchWikimediaImages },
     { name: "Pexels", fn: searchPexelsImages },
     { name: "Unsplash", fn: searchUnsplashImages },
   ];
 
+  const candidates = [];
+
   for (const src of sources) {
-    let urls = [];
+    let found = [];
     try {
-      urls = await src.fn(core);
+      found = await src.fn(core);
     } catch (err) {
       console.warn(`${src.name} search failed:`, err.message);
       continue;
     }
 
-    if (!urls?.length) continue;
+    if (!found?.length) continue;
 
-    for (const url of urls) {
+    for (const cand of found) {
       try {
-        const desc = await describeImage(url);
-        if (!desc) continue;
-
-        const score = await scoreImage(desc, core, title, article);
-
-        // Kun ta vare på bilder som faktisk passer godt
+        const score = scoreCandidate(core, title, article, cand);
         if (score >= MIN_ACCEPTABLE_SCORE) {
-          candidates.push({ url, score, source: src.name, desc });
+          candidates.push({ ...cand, score });
+          const shortMeta = buildMetadataText(cand).slice(0, 80);
           console.log(
-            `✅ ${src.name} candidate accepted (${score}) → ${desc.slice(
-              0,
-              80
-            )}...`
+            `✅ ${src.name} candidate accepted (${score}) → ${shortMeta}...`
           );
         } else {
+          const shortMeta = buildMetadataText(cand).slice(0, 80);
           console.log(
-            `❌ ${src.name} candidate rejected (${score}) → ${desc.slice(
-              0,
-              80
-            )}...`
+            `❌ ${src.name} candidate rejected (${score}) → ${shortMeta}...`
           );
         }
       } catch (err) {
@@ -314,7 +444,9 @@ export async function selectBestImage(
     }
   }
 
-  /* === Best stock result === */
+  // =====================================================================
+  // === C: Beste stock-resultat (lagres i Supabase)                  ===
+  // =====================================================================
   if (candidates.length) {
     candidates.sort((a, b) => b.score - a.score);
     const best = candidates[0];
@@ -326,13 +458,17 @@ export async function selectBestImage(
     );
 
     console.log(
-      `🏆 Selected ${best.source} (${best.score}) for ${category}: ${best.desc}`
+      `🏆 Selected ${best.provider} (${
+        best.score
+      }) for ${category}: ${buildMetadataText(best).slice(0, 120)}`
     );
 
-    return { imageUrl: cached, source: best.source, score: best.score };
+    return { imageUrl: cached, source: best.provider, score: best.score };
   }
 
-  /* === C: FALLBACK TO DALL·E === */
+  // =====================================================================
+  // === D: FALLBACK TIL DALL·E                                    ===
+  // =====================================================================
   const dalle = await generateDalleImage(title, core, "cinematic", category);
   if (dalle) {
     const cached = await cacheImageToSupabase(
@@ -344,7 +480,9 @@ export async function selectBestImage(
     return { imageUrl: cached, source: "DALL·E", score: 100 };
   }
 
-  /* === D: Hvis alt feiler → enkel placeholder === */
+  // =====================================================================
+  // === E: Absolutt siste utvei → placeholder                      ===
+  // =====================================================================
   console.warn(
     `⚠️ All image sources failed for ${category}, using placeholder.`
   );
