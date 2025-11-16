@@ -414,7 +414,8 @@ import {
   naturalEnding,
 } from "../app/api/utils/prompts.js";
 
-import { normalize } from "../app/api/utils/duplicateUtils.js";
+// import { normalize } from "../app/api/utils/duplicateUtils.js";
+import { normalizeSignature } from "./curioSignature.js";
 
 import {
   analyzeTopic,
@@ -734,7 +735,7 @@ export async function main() {
       // semanticSignature skal henge sammen med pre-dupe CurioSignature
       const semanticSignature =
         curioSignature?.signature ||
-        normalize(
+        normalizeSignature(
           `${topic} ${title} ${seo_description} ${summaryWhat} ${linkedStory}`
         );
 
