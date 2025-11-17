@@ -21,28 +21,83 @@ const UNSPLASH_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
 
 export const MIN_ACCEPTABLE_SCORE = 75;
 
+// // ============================================================================================
+// // 🔹 1. Finn visuelt kjerne-substantiv (1–2 ord, med disambiguering)
+// // ============================================================================================
+// export async function getCoreNoun(title, article) {
+//   const prompt = `
+// You are selecting the BEST visual search keyword for a news article image.
+
+// Choose ONE or TWO words that describe the most visually specific subject
+// that should appear in the photo.
+
+// Rules:
+// - Prefer specific animals, people types, objects, buildings, places.
+// - Avoid generic words ("man", "woman", "person", "world", "city").
+// - If the main noun is ambiguous (like "kennedy" or "seahorse"),
+//   add a second word that clarifies the intended meaning, e.g.:
+//   - "kennedy president" vs "kennedy airport"
+//   - "seahorse animal" vs "seahorse submarine"
+//   - "mercury planet" vs "mercury metal"
+// - If the article is abstract, pick a visual symbol (e.g. "server room", "data center").
+
+// Return ONLY the keyword(s), lowercase, 1–2 words.
+// No explanation.
+
+// Title: "${title}"
+// Article: "${article.slice(0, 800)}"
+// `;
+
+//   try {
+//     const r = await openai.chat.completions.create({
+//       model: "gpt-4o-mini",
+//       messages: [{ role: "user", content: prompt }],
+//       max_tokens: 10,
+//       temperature: 0.2,
+//     });
+
+//     const noun = (r.choices[0]?.message?.content || "")
+//       .trim()
+//       .toLowerCase()
+//       .replace(/["'.]/g, "");
+
+//     const cleaned = noun || "concept";
+//     console.log(`🧩 Core noun detected → "${cleaned}"`);
+//     return cleaned;
+//   } catch (err) {
+//     console.warn("⚠️ getCoreNoun failed:", err.message);
+//     return "concept";
+//   }
+// }
+
 // ============================================================================================
-// 🔹 1. Finn visuelt kjerne-substantiv (1–2 ord, med disambiguering)
+// 🔹 1. Finn visuelt kjerne-substantiv (ALLTID fotograferbart, 1–2 ord, med disambiguering)
 // ============================================================================================
 export async function getCoreNoun(title, article) {
   const prompt = `
 You are selecting the BEST visual search keyword for a news article image.
 
-Choose ONE or TWO words that describe the most visually specific subject
-that should appear in the photo.
+Your output MUST follow these rules:
 
-Rules:
-- Prefer specific animals, people types, objects, buildings, places.
-- Avoid generic words ("man", "woman", "person", "world", "city").
-- If the main noun is ambiguous (like "kennedy" or "seahorse"),
-  add a second word that clarifies the intended meaning, e.g.:
-  - "kennedy president" vs "kennedy airport"
-  - "seahorse animal" vs "seahorse submarine"
-  - "mercury planet" vs "mercury metal"
-- If the article is abstract, pick a visual symbol (e.g. "server room", "data center").
+🎯 VISUAL-ONLY RULES
+- Choose ONLY subjects that can clearly appear in a photograph.
+- Allowed: animals, people types, objects, vehicles, buildings, landmarks, tools, technology devices, natural scenes.
+- NOT allowed: abstract concepts (intelligence, behavior, culture, ethics, memory, inflation, politics, climate impact, privacy, evolution, consciousness).
 
-Return ONLY the keyword(s), lowercase, 1–2 words.
-No explanation.
+🎯 DISAMBIGUATION
+If the word is ambiguous, add one clarifying word:
+- "kennedy president" vs "kennedy airport"
+- "seahorse animal" vs "seahorse submarine"
+- "mercury planet" vs "mercury metal"
+
+🎯 ABSTRACT ARTICLE LOGIC
+If the article topic is abstract:
+- Output a symbolic but visual object (e.g. "money", "solar panels", "robot hand", "server room", "data center", "globe", "crowd", "airplane").
+
+🎯 STRICT FORMAT
+- Return ONLY 1–2 words.
+- Must be lowercase.
+- No explanation, no punctuation.
 
 Title: "${title}"
 Article: "${article.slice(0, 800)}"
@@ -53,20 +108,80 @@ Article: "${article.slice(0, 800)}"
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 10,
-      temperature: 0.2,
+      temperature: 0.1,
     });
 
-    const noun = (r.choices[0]?.message?.content || "")
+    let noun = (r.choices[0]?.message?.content || "")
       .trim()
       .toLowerCase()
       .replace(/["'.]/g, "");
 
-    const cleaned = noun || "concept";
-    console.log(`🧩 Core noun detected → "${cleaned}"`);
-    return cleaned;
+    // ========================================================================================
+    // 🔹 Extra JavaScript-level sanitization (just in case GPT slips)
+    // ========================================================================================
+    const abstractBans = [
+      "intelligence",
+      "behavior",
+      "impact",
+      "trend",
+      "culture",
+      "ethics",
+      "growth",
+      "inflation",
+      "memory",
+      "performance",
+      "economy",
+      "technology",
+      "climate",
+      "evolution",
+      "privacy",
+      "politics",
+      "society",
+      "warfare",
+      "analysis",
+      "history",
+      "future",
+      "design",
+    ];
+
+    // Hvis GPT returnerer et abstrakt ord → prøv å hente siste ord (som ofte er konkret)
+    const parts = noun.split(" ");
+    if (parts.length > 1 && abstractBans.includes(parts[1])) {
+      noun = parts[0];
+    }
+    if (parts.length > 1 && abstractBans.includes(parts[0])) {
+      noun = parts.slice(1).join(" ");
+    }
+
+    // Ekstra: hvis GPT returnerer "octopus intelligence" → behold dyr, dropp abstrakt ord
+    let parts2 = noun.split(" ");
+    if (parts2.length > 1) {
+      const last = parts2[parts2.length - 1];
+      const first = parts2[0];
+
+      // Fjern abstrakt ord i 2-ordskombinasjon
+      if (abstractBans.includes(last)) {
+        noun = first; // "octopus intelligence" → "octopus"
+      }
+    }
+
+    // Hvis hele uttrykket fortsatt abstrakt → velg symboler
+    if (abstractBans.includes(noun)) {
+      noun = "symbol";
+    }
+
+    // Plural → singular normalisering
+    const pluralFix = noun.replace(/s$/, "");
+    if (pluralFix.length >= 3) noun = pluralFix;
+
+    // Siste forsvar: hvis tom → bruk "symbol"
+    if (!noun || noun.length < 2) noun = "symbol";
+
+    console.log(`🧩 Core noun detected → "${noun}"`);
+    return noun;
   } catch (err) {
     console.warn("⚠️ getCoreNoun failed:", err.message);
-    return "concept";
+    return "symbol";
   }
 }
 
@@ -307,6 +422,16 @@ function scoreCandidate(core, articleTitle, articleText, candidate) {
   const meta = buildMetadataText(candidate);
   if (!meta) return 0;
 
+  // Tokenize metadata (plural/singular aware) — must be defined early
+  const metaTokensRaw = tokenize(meta);
+  const metaTokens = new Set(
+    metaTokensRaw.flatMap((t) => [
+      t, // original
+      t.replace(/s$/, ""), // plural → singular
+      t + "s", // singular → plural
+    ])
+  );
+
   const parts = core.split(/\s+/).filter(Boolean);
   if (!parts.length) return 0;
 
@@ -332,8 +457,24 @@ function scoreCandidate(core, articleTitle, articleText, candidate) {
         `${articleTitle}\n${articleText}`,
         10
       );
-      const hits = articleKeywords.filter((kw) => meta.includes(kw)).length;
-      if (hits < 2) return 0; // ikke godt nok knyttet til artikkelen
+
+      // Streng string-match
+      const strictHits = articleKeywords.filter((kw) =>
+        meta.includes(kw)
+      ).length;
+
+      // Token-basert match (plural-aware)
+      const tokenHits = articleKeywords.filter(
+        (kw) =>
+          metaTokens.has(kw) ||
+          metaTokens.has(kw.replace(/s$/, "")) ||
+          metaTokens.has(kw + "s")
+      ).length;
+
+      const totalHits = strictHits + tokenHits;
+
+      // Aksepter hvis tema er svært sterkt (minst 3 treff)
+      if (totalHits < 3) return 0;
     }
   }
 
@@ -341,7 +482,16 @@ function scoreCandidate(core, articleTitle, articleText, candidate) {
   let score = 80;
 
   // Bonus for strong match (hele ord)
-  const metaTokens = new Set(tokenize(meta));
+  // Token-set med singular/plural normalisering
+  const metaTokensRaw = tokenize(meta);
+  const metaTokens = new Set(
+    metaTokensRaw.flatMap((t) => [
+      t,
+      t.replace(/s$/, ""), // plural → singular
+      t + "s", // enkel plural-ekspansjon
+    ])
+  );
+
   if (metaTokens.has(primary.toLowerCase())) score += 5;
   if (secondary && metaTokens.has(secondary.toLowerCase())) score += 5;
 
@@ -359,6 +509,24 @@ function scoreCandidate(core, articleTitle, articleText, candidate) {
   // Liten oppløsningsbonus
   if (candidate.width && candidate.width >= 2000) {
     score += 5;
+  }
+
+  // Hvis core er et dyr eller objekt, tillat litt svakere match
+  const lenientSubjects = [
+    "octopus",
+    "seal",
+    "dog",
+    "cat",
+    "tree",
+    "fish",
+    "bird",
+    "coin",
+    "mammoth",
+    "robot",
+    "ship",
+  ];
+  if (lenientSubjects.includes(primary.toLowerCase()) && score >= 60) {
+    score += 10; // mild boost for natur/objektmotiv
   }
 
   // Streng cutoff
