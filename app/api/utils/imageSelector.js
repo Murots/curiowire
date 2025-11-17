@@ -1,3 +1,5 @@
+"use server";
+
 // === app/api/utils/imageSelector.js ===
 // CurioWire Smart Image Selector v5.0 (2025)
 // - Billig & presist, *uten* Vision
@@ -480,17 +482,6 @@ function scoreCandidate(core, articleTitle, articleText, candidate) {
 
   // Basisscore hvis den kommer gjennom nåløyet
   let score = 80;
-
-  // Bonus for strong match (hele ord)
-  // Token-set med singular/plural normalisering
-  const metaTokensRaw = tokenize(meta);
-  const metaTokens = new Set(
-    metaTokensRaw.flatMap((t) => [
-      t,
-      t.replace(/s$/, ""), // plural → singular
-      t + "s", // enkel plural-ekspansjon
-    ])
-  );
 
   if (metaTokens.has(primary.toLowerCase())) score += 5;
   if (secondary && metaTokens.has(secondary.toLowerCase())) score += 5;
