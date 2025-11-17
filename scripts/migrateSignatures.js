@@ -1,10 +1,11 @@
-// ===============================================================
-// CurioWire Migration Script: Generate BOTH curio_signature_text
-// AND topic_signature_text for ALL existing articles.
+// ============================================================================
+// CurioWire Full Signature Migration
+// - Rebuilds topic_signature_text
+// - Rebuilds curio_signature_text
+// - Rebuilds short embedding for duplicate detection
 //
-// Kjør med:
-//   node migrateSignatures.js
-// ===============================================================
+// Run:  node scripts/migrateSignatures.js
+// ============================================================================
 
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
@@ -12,9 +13,9 @@ dotenv.config({ path: ".env.local" });
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
-// ---------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // INIT
-// ---------------------------------------------------------------
+// ----------------------------------------------------------------------------
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -25,10 +26,10 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// ---------------------------------------------------------------
-// Normalizer (samme som i curioSignature.js og topicSignature.js)
-// ---------------------------------------------------------------
-function normalizeSignature(str = "") {
+// ----------------------------------------------------------------------------
+// Normalizer
+// ----------------------------------------------------------------------------
+function normalize(str = "") {
   return str
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
@@ -36,23 +37,34 @@ function normalizeSignature(str = "") {
     .trim();
 }
 
-// ---------------------------------------------------------------
-// GPT: CurioSignature Generator (excerpt-basert)
-// ---------------------------------------------------------------
-async function generateCurioSignature(text) {
+function snakeify(str = "") {
+  return normalize(str).replace(/\s+/g, "_");
+}
+
+// ----------------------------------------------------------------------------
+// GPT Helper: Generate compact topic + curio signatures
+// ----------------------------------------------------------------------------
+async function generateSignatures(title, excerpt) {
   const prompt = `
-You are creating a semantic curiosity signature for an article.
+You MUST return a JSON object. 
+Do NOT wrap it in code fences.
+Do NOT add backticks.
+Do NOT add any explanation before or after.
 
-Given this article excerpt:
+Create two signatures for duplicate detection:
 
-"${text}"
+TITLE:
+${title}
 
-Return JSON EXACTLY like this:
+TEXT (excerpt):
+${excerpt.slice(0, 600)}
+
+Return JSON ONLY:
 
 {
-  "summary": "1-2 sentence curiosity summary",
-  "keywords": ["6-10 keywords"],
-  "normalized": "short normalized signature"
+  "topic": "very short 2-5 word topic phrase",
+  "curio": ["6-10 strong essence keywords"],
+  "summary": "1-2 sentence summary"
 }
 `;
 
@@ -60,70 +72,60 @@ Return JSON EXACTLY like this:
     const r = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 180,
-      temperature: 0.1,
+      max_tokens: 200,
+      temperature: 0.0,
     });
 
-    return JSON.parse(r.choices[0]?.message?.content || "{}");
-  } catch (err) {
-    console.warn("⚠️ CurioSignature fallback:", err.message);
+    let raw = r.choices[0].message.content.trim();
+
+    // ---- NEW: strip accidental code fences ----
+    raw = raw
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
+
+    const parsed = JSON.parse(raw);
+
     return {
-      summary: text.slice(0, 200),
-      keywords: [],
-      normalized: normalizeSignature(text),
+      topic: snakeify(parsed.topic),
+      curio_keywords: parsed.curio.map((k) => normalize(k)),
+      summary: parsed.summary.trim(),
+    };
+  } catch (err) {
+    console.warn("⚠️ GPT failed, using fallback:", err.message);
+    return {
+      topic: snakeify(title),
+      curio_keywords: normalize(excerpt).split(" ").slice(0, 10),
+      summary: excerpt.slice(0, 300),
     };
   }
 }
 
-// ---------------------------------------------------------------
-// GPT: TopicSignature Generator (tittel-basert)
-// ---------------------------------------------------------------
-async function generateTopicSignature(title) {
-  const prompt = `
-You generate a semantic topic signature for clustering.
-
-Given this article title:
-
-"${title}"
-
-Return JSON EXACTLY like this:
-
-{
-  "topic": "2-5 word summary",
-  "keywords": ["4-8 topic keywords"],
-  "normalized": "short normalized signature"
-}
-`;
-
+// ----------------------------------------------------------------------------
+// Generate short semantic embedding
+// ----------------------------------------------------------------------------
+async function makeEmbedding(text) {
   try {
-    const r = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 100,
-      temperature: 0.1,
+    const r = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text,
     });
-
-    return JSON.parse(r.choices[0]?.message?.content || "{}");
+    return r.data[0].embedding;
   } catch (err) {
-    console.warn("⚠️ TopicSignature fallback:", err.message);
-    return {
-      topic: title,
-      keywords: [],
-      normalized: normalizeSignature(title),
-    };
+    console.warn("⚠️ Embedding failed:", err.message);
+    return null;
   }
 }
 
-// ---------------------------------------------------------------
-// MAIN MIGRATOR
-// ---------------------------------------------------------------
-async function migrate() {
-  console.log("🚀 Starting combined signature migration…");
+// ----------------------------------------------------------------------------
+// MAIN MIGRATION
+// ----------------------------------------------------------------------------
+async function run() {
+  console.log("🚀 Starting signature migration…");
 
-  // Fetch all articles
   const { data: articles, error } = await supabase
     .from("articles")
-    .select("id, title, excerpt, curio_signature_text, topic_signature_text");
+    .select("id, title, excerpt");
 
   if (error) {
     console.error("❌ Could not fetch articles:", error.message);
@@ -131,68 +133,40 @@ async function migrate() {
   }
 
   console.log(`📄 Found ${articles.length} articles.`);
-
-  let updated = 0;
+  let count = 0;
 
   for (const a of articles) {
-    const missingCurio = !a.curio_signature_text;
-    const missingTopic = !a.topic_signature_text;
-
-    if (!missingCurio && !missingTopic) {
-      console.log(`⏭️  Skip ID ${a.id} (already complete)`);
-      continue;
-    }
-
-    const baseExcerpt =
-      a.excerpt?.slice(0, 600) || a.title || "no excerpt available";
-
     console.log(`\n🧠 Processing ID ${a.id}…`);
 
-    let curioSig = null;
-    let topicSig = null;
+    const sig = await generateSignatures(a.title, a.excerpt);
 
-    if (missingCurio) {
-      curioSig = await generateCurioSignature(baseExcerpt);
-    }
-    if (missingTopic) {
-      topicSig = await generateTopicSignature(a.title || baseExcerpt);
-    }
+    const combinedText = `${a.title}. ${
+      sig.summary
+    }. keywords: ${sig.curio_keywords.join(", ")}`;
 
-    const updatePayload = {};
+    const embedding = await makeEmbedding(combinedText);
 
-    if (missingCurio) {
-      updatePayload.curio_signature_text =
-        `${curioSig.summary}\n` +
-        `Keywords: ${curioSig.keywords.join(", ")}\n` +
-        `Normalized: ${curioSig.normalized}`;
-    }
-
-    if (missingTopic) {
-      updatePayload.topic_signature_text =
-        `${topicSig.topic}\n` +
-        `Keywords: ${topicSig.keywords.join(", ")}\n` +
-        `Normalized: ${topicSig.normalized}`;
-    }
-
-    const { error: upErr } = await supabase
+    const { error: updateErr } = await supabase
       .from("articles")
-      .update(updatePayload)
+      .update({
+        topic_signature_text: sig.topic,
+        curio_signature_text: sig.curio_keywords.join(" "),
+        semantic_signature: combinedText,
+        embedding,
+      })
       .eq("id", a.id);
 
-    if (upErr) {
-      console.error(`❌ Failed updating ID ${a.id}:`, upErr.message);
+    if (updateErr) {
+      console.error(`❌ Failed to update ${a.id}:`, updateErr.message);
       continue;
     }
 
-    updated++;
-    console.log(`✅ Updated ID ${a.id}`);
+    console.log(`✅ Updated article ${a.id}`);
+    count++;
   }
 
-  console.log(`\n🎉 Migration complete. Updated ${updated} articles.`);
+  console.log(`\n🎉 Migration complete. Updated ${count} articles.`);
   process.exit(0);
 }
 
-// ---------------------------------------------------------------
-// RUN
-// ---------------------------------------------------------------
-migrate();
+run();
