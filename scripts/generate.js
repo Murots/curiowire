@@ -428,7 +428,7 @@ import {
   findAffiliateProduct,
 } from "../app/api/utils/productUtils.js";
 
-import { selectBestImage } from "../app/api/utils/imageSelector.js";
+import { selectBestImage } from "../lib/api/imageSelector.js";
 import { cleanText } from "../app/api/utils/cleanText.js";
 import { refineArticle } from "../app/api/utils/refineTools.js";
 
