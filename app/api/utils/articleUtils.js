@@ -6,7 +6,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function analyzeTopic(topic, key) {
   const analyzePrompt = `
-Summarize briefly what this trending topic is about, assuming it belongs to the category "${key}".
+Summarize briefly what this concept is about, assuming it belongs to the category "${key}".
 Topic: "${topic}"
 Return a short description (max 1 sentence).
 `;
