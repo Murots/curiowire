@@ -522,8 +522,9 @@
 // main().then(() => process.exit(0));
 
 // ============================================================================
-// CurioWire — scripts/generate.js (v5.3 — concept-based generation)
+// CurioWire — scripts/generate.js (v6.0 — concept-based generation + WOW scoring)
 // Replaces Google/Reddit trending with GPT-driven WOW concepts
+// Adds WOW-scoring + smarter concept selection + clearer logging
 // ============================================================================
 
 import OpenAI from "openai";
@@ -570,7 +571,7 @@ import {
 } from "../lib/signatures/topicSignature.js";
 
 // ============================================================================
-// NEW IMPORT — GPT CONCEPT GENERATOR
+// GPT CONCEPT GENERATOR
 // ============================================================================
 import { generateConceptSeeds } from "../lib/concepts/seedConceptGenerator.js";
 
@@ -632,11 +633,57 @@ async function generateEmbedding(text) {
 }
 
 // ============================================================================
-// MAIN GENERATOR — NOW 100% CONCEPT-DRIVEN
+// WOW-SCORING FOR CONCEPTS
+// ============================================================================
+async function scoreConceptWow(concept, category) {
+  const prompt = `
+You are scoring the **WOW-factor and mass-appeal** of a curiosity article concept
+for an online publication called CurioWire.
+
+Category: ${category.toUpperCase()}
+
+Concept:
+"${concept}"
+
+Score from 0 to 100 based on:
+
+• How much it makes a general reader think “WAIT… WHAT?!”  
+• How surprising, counterintuitive, or mind-bending the idea feels  
+• How easy it is to explain to a non-expert audience  
+• How well it could anchor a factual article (not pure sci-fi)  
+• How likely it is to be shared because it's so interesting
+
+Return ONLY a single integer from 0 to 100.
+No words, no explanation, no extra characters.
+`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const raw = completion.choices?.[0]?.message?.content?.trim() || "";
+    const parsed = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+
+    if (Number.isNaN(parsed)) {
+      console.warn("⚠️ WOW-score parse failed, got:", raw);
+      return 50;
+    }
+
+    return Math.max(0, Math.min(100, parsed));
+  } catch (err) {
+    console.warn("⚠️ WOW-scoring failed:", err.message);
+    return 50;
+  }
+}
+
+// ============================================================================
+// MAIN GENERATOR — 100% CONCEPT-DRIVEN + WOW-SELECTION
 // ============================================================================
 export async function main() {
   const start = Date.now();
-  console.log("🕒 Starting CurioWire generation (concept mode)…");
+  console.log("🕒 Starting CurioWire generation (concept mode + WOW)…");
   const results = [];
 
   try {
@@ -647,7 +694,7 @@ export async function main() {
       console.log(`\n📰 Category: ${key}`);
 
       // ==============================================================
-      // NEW STEP: Fetch 5 concept seeds via GPT
+      // STEP 1: Fetch concept seeds via GPT
       // ==============================================================
       console.log("🎯 Fetching WOW concepts…");
       const conceptSeeds = await generateConceptSeeds(key);
@@ -657,7 +704,25 @@ export async function main() {
         continue;
       }
 
-      console.log("💡 Concepts:", conceptSeeds);
+      console.log(`💡 Concepts received for ${key}: ${conceptSeeds.length}`);
+
+      // ==============================================================
+      // STEP 2: WOW-score all concepts and rank them
+      // ==============================================================
+      const scoredConcepts = [];
+      for (const concept of conceptSeeds) {
+        const score = await scoreConceptWow(concept, key);
+        scoredConcepts.push({ concept: concept.trim(), score });
+      }
+
+      scoredConcepts.sort((a, b) => b.score - a.score);
+
+      console.log("🏆 WOW-ranking for concepts:");
+      scoredConcepts.forEach(({ concept, score }, idx) => {
+        const preview =
+          concept.length > 120 ? concept.slice(0, 117) + "..." : concept;
+        console.log(`   ${idx + 1}. [${score}] ${preview}`);
+      });
 
       // We're going to treat each concept as "topic-like"
       let topic = null;
@@ -665,12 +730,19 @@ export async function main() {
       let linkedStory = null;
       let curioSignature = null;
       let topicSig = null;
+      let selectedWowScore = null;
 
       // ==============================================================
-      // LOOP: Find first concept that passes duplicate checks
+      // STEP 3: Find the best WOW concept that also passes dupe checks
       // ==============================================================
-      for (const candidateConcept of conceptSeeds) {
-        console.log(`🔎 Evaluating concept: "${candidateConcept}"`);
+
+      for (const {
+        concept: candidateConcept,
+        score: wowScore,
+      } of scoredConcepts) {
+        console.log(
+          `\n🔎 Evaluating concept (WOW ${wowScore}): "${candidateConcept}"`
+        );
 
         // Build topic signature
         topicSig = await buildTopicSignature({
@@ -678,10 +750,19 @@ export async function main() {
           topic: candidateConcept,
         });
 
+        console.log(
+          `   🔧 TopicSignature → normalized="${topicSig.normalized}", short="${topicSig.short}"`
+        );
+
         const topicDupe = await checkTopicDuplicate(topicSig);
+        console.log(
+          "   🔍 CHECK TOPIC DUPLICATE:",
+          `query: ${topicSig.normalized} | short: ${topicSig.short} | category: ${key}`
+        );
+
         if (topicDupe.isDuplicate) {
           console.log(
-            `🚫 Topic duplicate → ${candidateConcept} (closest: ${topicDupe.closestTitle})`
+            `   🚫 Topic duplicate (WOW ${wowScore}) → closest existing: "${topicDupe.closestTitle}"`
           );
           continue;
         }
@@ -693,11 +774,20 @@ export async function main() {
         try {
           analysis = await analyzeTopic(candidateConcept, key);
           candidateCurio = await linkHistoricalStory(analysis);
-        } catch {
+        } catch (err) {
+          console.log(
+            `   ⚠️ Analysis/linking failed for concept (WOW ${wowScore}):`,
+            err.message
+          );
           continue;
         }
 
-        if (!candidateCurio) continue;
+        if (!candidateCurio) {
+          console.log(
+            `   ⚠️ No factual curiosity link found for concept (WOW ${wowScore}), skipping.`
+          );
+          continue;
+        }
 
         // Build curiosity signature
         const candidateSig = await buildCurioSignature({
@@ -707,36 +797,55 @@ export async function main() {
         });
 
         const dupeInfo = await checkCurioDuplicate(candidateSig);
+        console.log(
+          "   🔍 CHECK CURIO DUPLICATE:",
+          `signature: ${candidateSig.signature} | category: ${key}`
+        );
+
         if (dupeInfo.isDuplicate) {
           console.log(
-            `🚫 Curiosity duplicate (closest: ${dupeInfo.closestTitle})`
+            `   🚫 Curiosity duplicate (WOW ${wowScore}) → closest existing: "${dupeInfo.closestTitle}"`
           );
           continue;
         }
 
-        // We found a unique match!
+        // We found a unique, high-WOW match!
         topic = candidateConcept;
         topicSummary = analysis;
         linkedStory = candidateCurio;
         curioSignature = candidateSig;
+        selectedWowScore = wowScore;
 
-        console.log(`✅ Selected concept →`, topic);
-        console.log(`   Curiosity link →`, linkedStory);
+        console.log(`   ✅ Selected concept [WOW ${wowScore}] → "${topic}"`);
+        console.log(`      Curiosity link → "${linkedStory}"`);
         break;
       }
 
       if (!topic) {
-        console.log(`⚠️ No unique concept found for ${key}, skipping…`);
+        console.log(
+          `⚠️ No unique, non-duplicate concept found for ${key}, skipping…`
+        );
+        results.push({
+          category: key,
+          topic: null,
+          wow_score: null,
+          success: false,
+        });
         continue;
       }
 
-      // Expand topic summary (optional)
+      // Expand topic summary (optional contextual pass — failure is non-fatal)
       try {
         await summarizeTheme(topicSummary, linkedStory);
-      } catch {}
+      } catch (err) {
+        console.log(
+          "ℹ️ summarizeTheme failed or was skipped:",
+          err?.message || "unknown error"
+        );
+      }
 
       // ==================================================================
-      // GENERATE ARTICLE (unchanged)
+      // GENERATE ARTICLE (unchanged core behaviour)
       // ==================================================================
       let prompt;
       if (key === "products") {
@@ -768,7 +877,13 @@ export async function main() {
 
       const raw = completion.choices?.[0]?.message?.content?.trim() || "";
       if (!raw) {
-        results.push({ category: key, topic, success: false });
+        console.error("❌ Empty article response from GPT.");
+        results.push({
+          category: key,
+          topic,
+          wow_score: selectedWowScore,
+          success: false,
+        });
         continue;
       }
 
@@ -835,6 +950,9 @@ export async function main() {
         /<span\s+data-summary-what[^>]*>(.*?)<\/span>/s
       );
       const summaryWhat = summaryMatch ? cleanText(summaryMatch[1].trim()) : "";
+      if (summaryWhat) {
+        console.log(`   🧾 SummaryWhat extracted: "${summaryWhat}"`);
+      }
 
       // ==================================================================
       // EMBEDDING + SIGNATURE MERGE
@@ -855,7 +973,7 @@ export async function main() {
       // ==================================================================
       const imagePref = image === "photo" ? "photo" : "dalle";
 
-      const { imageUrl, source } = await selectBestImage(
+      const { imageUrl, source, bestScore } = await selectBestImage(
         title,
         cleanedArticle,
         key,
@@ -872,6 +990,12 @@ export async function main() {
           : source === "DALL·E"
           ? "Illustration by DALL·E 3"
           : "Image source unknown";
+
+      console.log(
+        `🖼️ Image selected for ${key}: source=${source}, score=${
+          bestScore ?? "n/a"
+        }`
+      );
 
       // ==================================================================
       // SAVE ARTICLE
@@ -902,8 +1026,16 @@ export async function main() {
 
       if (error) throw error;
 
-      console.log(`✅ Saved: ${key} → ${title}`);
-      results.push({ category: key, topic, success: true });
+      console.log(
+        `✅ Saved: ${key} → ${title} (WOW ${selectedWowScore ?? "n/a"})`
+      );
+      results.push({
+        category: key,
+        topic,
+        wow_score: selectedWowScore,
+        image_source: source,
+        success: true,
+      });
     }
 
     // ==================================================================
