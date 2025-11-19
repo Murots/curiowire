@@ -71,7 +71,7 @@ export const Hamburger = styled.button`
   display: none;
   background: none;
   border: none;
-  font-size: 1rem;
+  font-size: 1.4rem;
   color: ${({ theme }) => theme.colors.text};
   cursor: pointer;
   position: absolute;
@@ -113,7 +113,7 @@ export const MobileMenu = styled.div`
   }
 
   a {
-    font-size: 0.8rem;
+    font-size: 1.2rem;
     color: ${({ theme }) => theme.colors.text};
     text-decoration: none;
     transition: color 0.2s ease;

@@ -64,7 +64,7 @@ export const GlobalStyle = createGlobalStyle`
     max-width: 1600px;
     margin: 0 auto;
   
-    @media (max-width: 450px) {
+    @media (max-width: 770px) {
     padding: 4rem 5% 2rem 5%;
   }
   }
