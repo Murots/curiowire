@@ -213,6 +213,10 @@ Output space-separated.
 // BUILD CULTURE PROMPT
 // ============================================================================
 export function buildCulturePrompt(topic, key, tone) {
+  // --- FAILSAFE (prevents crashes) ---
+  key = key || "culture";
+  tone = tone || "neutral";
+
   return `
 ### 🧬 CATEGORY PROFILE
 You are writing in the **${key.toUpperCase()}** category.  

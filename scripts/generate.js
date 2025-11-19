@@ -861,7 +861,7 @@ export async function main() {
             tone
           )) + affiliateAppendix;
       } else if (key === "culture") {
-        prompt = buildCulturePrompt(topic) + naturalEnding;
+        prompt = buildCulturePrompt(topic, key, tone) + naturalEnding;
       } else {
         prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
       }
