@@ -26,7 +26,7 @@ const CATEGORY_DEFINITIONS = {
     "Human-made technology: machines, AI, digital systems, inventions, engineering, communication systems, algorithms, robotics, innovation.",
   culture:
     "Art, language, rituals, traditions, symbols, music, cultural evolution, heritage, identity, shared beliefs.",
-  sport:
+  sports:
     "Remarkable stories and events from the world of sports: historic competitions, legendary athletes, unexpected victories, psychological turning points, iconic matches, forgotten records, and unusual moments that shaped sporting history. Focus on narrative-driven accounts of competition and achievement, not training science, injury treatment, or human physiology. This category excludes health-related topics, excludes exercise science, and excludes general historical events unrelated to sport.",
   products:
     "Consumer products, materials, inventions, manufacturing methods, patents, design oddities, product origins.",
