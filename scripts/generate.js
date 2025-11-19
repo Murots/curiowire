@@ -977,7 +977,8 @@ export async function main() {
         title,
         cleanedArticle,
         key,
-        imagePref
+        imagePref,
+        summaryWhat
       );
 
       const imageCredit =
@@ -993,7 +994,7 @@ export async function main() {
 
       console.log(
         `🖼️ Image selected for ${key}: source=${source}, score=${
-          bestScore ?? "n/a"
+          score ?? "n/a"
         }`
       );
 
