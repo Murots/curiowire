@@ -973,7 +973,11 @@ export async function main() {
       // ==================================================================
       const imagePref = image === "photo" ? "photo" : "dalle";
 
-      const { imageUrl, source, bestScore } = await selectBestImage(
+      const {
+        imageUrl,
+        source,
+        score: bestScore,
+      } = await selectBestImage(
         title,
         cleanedArticle,
         key,
@@ -994,7 +998,7 @@ export async function main() {
 
       console.log(
         `🖼️ Image selected for ${key}: source=${source}, score=${
-          score ?? "n/a"
+          bestScore ?? "n/a"
         }`
       );
 
