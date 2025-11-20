@@ -29,9 +29,8 @@
 // import { refineArticle } from "../app/api/utils/refineTools.js";
 
 // // ============================================================================
-// // UPDATED SIGNATURE IMPORTS  ✅ NEW STRUCTURE
+// // SIGNATURES
 // // ============================================================================
-
 // import {
 //   buildCurioSignature,
 //   checkCurioDuplicate,
@@ -41,6 +40,11 @@
 //   buildTopicSignature,
 //   checkTopicDuplicate,
 // } from "../lib/signatures/topicSignature.js";
+
+// // ============================================================================
+// // GPT CONCEPT GENERATOR
+// // ============================================================================
+// import { generateConceptSeeds } from "../lib/concepts/seedConceptGenerator.js";
 
 // // ============================================================================
 // // INIT OPENAI
@@ -84,7 +88,7 @@
 // }
 
 // // ============================================================================
-// // EMBEDDING HELPER (local version — NOT for duplicate checking)
+// // EMBEDDING HELPER
 // // ============================================================================
 // async function generateEmbedding(text) {
 //   try {
@@ -100,190 +104,220 @@
 // }
 
 // // ============================================================================
-// // REDDIT FILTER
+// // WOW-SCORING FOR CONCEPTS
 // // ============================================================================
-// function isPersonalRedditPost(title) {
-//   const lower = title.toLowerCase();
-//   const banned = [
-//     /\b(i|my|me|our|us|mine|ours)\b/,
-//     /\b(dad|mom|father|mother|boyfriend|girlfriend|wife|husband)\b/,
-//     /\b(confession|story|journey|feeling|struggle|rant)\b/,
-//     /askreddit|relationships|aita|offmychest|trueoffmychest|tifu/,
-//   ];
-//   return banned.some((re) => re.test(lower));
+// async function scoreConceptWow(concept, category) {
+//   const prompt = `
+// You are scoring the **WOW-factor and mass-appeal** of a curiosity article concept
+// for an online publication called CurioWire.
+
+// Category: ${category.toUpperCase()}
+
+// Concept:
+// "${concept}"
+
+// Score from 0 to 100 based on:
+
+// • How much it makes a general reader think “WAIT… WHAT?!”
+// • How surprising, counterintuitive, or mind-bending the idea feels
+// • How easy it is to explain to a non-expert audience
+// • How well it could anchor a factual article (not pure sci-fi)
+// • How likely it is to be shared because it's so interesting
+
+// Return ONLY a single integer from 0 to 100.
+// No words, no explanation, no extra characters.
+// `;
+
+//   try {
+//     const completion = await openai.chat.completions.create({
+//       model: "gpt-4o-mini",
+//       messages: [{ role: "user", content: prompt }],
+//     });
+
+//     const raw = completion.choices?.[0]?.message?.content?.trim() || "";
+//     const parsed = parseInt(raw.replace(/[^0-9]/g, ""), 10);
+
+//     if (Number.isNaN(parsed)) {
+//       console.warn("⚠️ WOW-score parse failed, got:", raw);
+//       return 50;
+//     }
+
+//     return Math.max(0, Math.min(100, parsed));
+//   } catch (err) {
+//     console.warn("⚠️ WOW-scoring failed:", err.message);
+//     return 50;
+//   }
 // }
 
 // // ============================================================================
-// // MAIN GENERATOR
+// // MAIN GENERATOR — 100% CONCEPT-DRIVEN + WOW-SELECTION
 // // ============================================================================
 // export async function main() {
 //   const start = Date.now();
-//   console.log("🕒 Starting CurioWire generation…");
+//   console.log("🕒 Starting CurioWire generation (concept mode + WOW)…");
 //   const results = [];
 
 //   try {
-//     // ============================================================
-//     // LOAD TRENDS
-//     // ============================================================
-//     const baseUrl =
-//       process.env.NEXT_PUBLIC_BASE_URL || "https://www.curiowire.com";
-
-//     let topicsByCategory = {};
-//     try {
-//       const res = await fetch(`${baseUrl}/api/trends`);
-//       topicsByCategory = (await res.json())?.results || {};
-//     } catch (err) {
-//       console.warn("⚠️ Failed to fetch /api/trends:", err.message);
-//     }
-
-//     // Randomize Google/Reddit priority
-//     const primarySource = Math.random() < 0.5 ? "google" : "reddit";
-//     const fallbackSource = primarySource === "google" ? "reddit" : "google";
-//     console.log(`Primary source: ${primarySource.toUpperCase()}`);
-
-//     // ============================================================
+//     // ======================================================================
 //     // PROCESS EACH CATEGORY
-//     // ============================================================
+//     // ======================================================================
 //     for (const [key, { tone, image }] of Object.entries(categories)) {
 //       console.log(`\n📰 Category: ${key}`);
 
-//       const topicData = topicsByCategory[key] || {};
-//       const primaryList = topicData[primarySource] || [];
-//       const fallbackList = topicData[fallbackSource] || [];
+//       // ==============================================================
+//       // STEP 1: Fetch concept seeds via GPT
+//       // ==============================================================
+//       console.log("🎯 Fetching WOW concepts…");
+//       const conceptSeeds = await generateConceptSeeds(key);
 
-//       const allTopics = [...primaryList, ...fallbackList]
-//         .map((t) => (typeof t === "object" ? t.title : t))
-//         .filter((t) => !isPersonalRedditPost(t))
-//         .slice(0, 6);
-
-//       // ============================================================================
-//       // FALLBACK: GPT-TOPIC GENERATION WHEN TRENDS FAIL
-//       // ============================================================================
-
-//       let topicPool = [...allTopics];
-
-//       // If too few topics → generate more using GPT
-//       if (topicPool.length < 3) {
-//         console.log(
-//           `⚠️ Few/no valid topics for ${key} → triggering GPT fallback`
-//         );
-
-//         try {
-//           const gptFallbackPrompt = `
-// You are generating newsworthy, factual and category-relevant article topics.
-// Category: ${key.toUpperCase()}.
-
-// Rules:
-// - Provide 10 topics.
-// - Each topic must be factual, non-personal and aligned with real-world knowledge.
-// - No personal anecdotes, no "my", "I", "we", "you".
-// - No trends involving celebrities' private lives.
-// - No tragedies, crimes, politics scandals or ongoing legal matters.
-// - Each topic MUST support a curiosity connection or historical/scientific parallel.
-// - Style: short, headline-like, but descriptive.
-// - Output ONLY a bullet list of the 10 topics.
-// `;
-
-//           const gptTopics = await openai.chat.completions.create({
-//             model: "gpt-4o-mini",
-//             messages: [{ role: "user", content: gptFallbackPrompt }],
-//           });
-
-//           const extracted = gptTopics.choices[0].message.content
-//             .split("\n")
-//             .map((t) => t.replace(/^\W+/, "").trim())
-//             .filter((t) => t.length > 10);
-
-//           console.log(`🤖 GPT fallback provided ${extracted.length} topics.`);
-//           topicPool.push(...extracted);
-//         } catch (err) {
-//           console.warn("⚠️ GPT fallback failed:", err.message);
-//         }
-//       }
-
-//       // Final safety: if still empty, skip category
-//       if (!topicPool.length) {
-//         console.log(`❌ Still no usable topics for ${key}, skipping.`);
+//       if (!conceptSeeds.length) {
+//         console.log(`❌ No concepts generated for ${key}, skipping.`);
 //         continue;
 //       }
 
-//       // ----------------------------------------------------------
-//       // FIND UNIQUE TOPIC + UNIQUE CURIOSITY
-//       // ----------------------------------------------------------
+//       console.log(`💡 Concepts received for ${key}: ${conceptSeeds.length}`);
+
+//       // ==============================================================
+//       // STEP 2: WOW-score all concepts and rank them
+//       // ==============================================================
+//       const scoredConcepts = [];
+//       for (const concept of conceptSeeds) {
+//         const score = await scoreConceptWow(concept, key);
+//         scoredConcepts.push({ concept: concept.trim(), score });
+//       }
+
+//       scoredConcepts.sort((a, b) => b.score - a.score);
+
+//       console.log("🏆 WOW-ranking for concepts:");
+//       scoredConcepts.forEach(({ concept, score }, idx) => {
+//         const preview =
+//           concept.length > 120 ? concept.slice(0, 117) + "..." : concept;
+//         console.log(`   ${idx + 1}. [${score}] ${preview}`);
+//       });
+
+//       // We're going to treat each concept as "topic-like"
 //       let topic = null;
 //       let topicSummary = null;
 //       let linkedStory = null;
 //       let curioSignature = null;
 //       let topicSig = null;
+//       let selectedWowScore = null;
 
-//       for (const candidateTitle of topicPool) {
-//         console.log(`🔎 Trying topic candidate: "${candidateTitle}"`);
+//       // ==============================================================
+//       // STEP 3: Find the best WOW concept that also passes dupe checks
+//       // ==============================================================
 
-//         // === TOPIC SIGNATURE CHECK ===
+//       for (const {
+//         concept: candidateConcept,
+//         score: wowScore,
+//       } of scoredConcepts) {
+//         console.log(
+//           `\n🔎 Evaluating concept (WOW ${wowScore}): "${candidateConcept}"`
+//         );
+
+//         // Build topic signature
 //         topicSig = await buildTopicSignature({
 //           category: key,
-//           topic: candidateTitle,
+//           topic: candidateConcept,
 //         });
+
+//         console.log(
+//           `   🔧 TopicSignature → normalized="${topicSig.normalized}", short="${topicSig.short}"`
+//         );
+
 //         const topicDupe = await checkTopicDuplicate(topicSig);
+//         console.log(
+//           "   🔍 CHECK TOPIC DUPLICATE:",
+//           `query: ${topicSig.normalized} | short: ${topicSig.short} | category: ${key}`
+//         );
 
 //         if (topicDupe.isDuplicate) {
 //           console.log(
-//             `🚫 Topic duplicate → ${candidateTitle} (closest: ${topicDupe.closestTitle})`
+//             `   🚫 Topic duplicate (WOW ${wowScore}) → closest existing: "${topicDupe.closestTitle}"`
 //           );
 //           continue;
 //         }
 
-//         // === ANALYZE TOPIC & GET CURIOSITY ===
+//         // Analyze concept + find historical curiosity
 //         let analysis;
 //         let candidateCurio;
+
 //         try {
-//           analysis = await analyzeTopic(candidateTitle, key);
+//           analysis = await analyzeTopic(candidateConcept, key);
 //           candidateCurio = await linkHistoricalStory(analysis);
-//         } catch {
+//         } catch (err) {
+//           console.log(
+//             `   ⚠️ Analysis/linking failed for concept (WOW ${wowScore}):`,
+//             err.message
+//           );
 //           continue;
 //         }
 
-//         if (!candidateCurio) continue;
+//         if (!candidateCurio) {
+//           console.log(
+//             `   ⚠️ No factual curiosity link found for concept (WOW ${wowScore}), skipping.`
+//           );
+//           continue;
+//         }
 
-//         // === BUILD CURIO SIGNATURE ===
+//         // Build curiosity signature
 //         const candidateSig = await buildCurioSignature({
 //           category: key,
-//           topic: candidateTitle,
+//           topic: candidateConcept,
 //           curiosity: candidateCurio,
 //         });
 
 //         const dupeInfo = await checkCurioDuplicate(candidateSig);
+//         console.log(
+//           "   🔍 CHECK CURIO DUPLICATE:",
+//           `signature: ${candidateSig.signature} | category: ${key}`
+//         );
+
 //         if (dupeInfo.isDuplicate) {
 //           console.log(
-//             `🚫 Curiosity duplicate for "${candidateTitle}" (closest: ${dupeInfo.closestTitle})`
+//             `   🚫 Curiosity duplicate (WOW ${wowScore}) → closest existing: "${dupeInfo.closestTitle}"`
 //           );
 //           continue;
 //         }
 
-//         // We've found a unique topic + unique curiosity
-//         topic = candidateTitle;
+//         // We found a unique, high-WOW match!
+//         topic = candidateConcept;
 //         topicSummary = analysis;
 //         linkedStory = candidateCurio;
 //         curioSignature = candidateSig;
+//         selectedWowScore = wowScore;
 
-//         console.log(`✅ Selected topic: ${topic}`);
-//         console.log(`   Curiosity: ${linkedStory}`);
+//         console.log(`   ✅ Selected concept [WOW ${wowScore}] → "${topic}"`);
+//         console.log(`      Curiosity link → "${linkedStory}"`);
 //         break;
 //       }
 
 //       if (!topic) {
-//         console.log(`⚠️ No unique curiosity found for category ${key}`);
+//         console.log(
+//           `⚠️ No unique, non-duplicate concept found for ${key}, skipping…`
+//         );
+//         results.push({
+//           category: key,
+//           topic: null,
+//           wow_score: null,
+//           success: false,
+//         });
 //         continue;
 //       }
 
-//       // expand topic
+//       // Expand topic summary (optional contextual pass — failure is non-fatal)
 //       try {
 //         await summarizeTheme(topicSummary, linkedStory);
-//       } catch {}
+//       } catch (err) {
+//         console.log(
+//           "ℹ️ summarizeTheme failed or was skipped:",
+//           err?.message || "unknown error"
+//         );
+//       }
 
-//       // ----------------------------------------------------------
-//       // GENERATE ARTICLE
-//       // ----------------------------------------------------------
+//       // ==================================================================
+//       // GENERATE ARTICLE (unchanged core behaviour)
+//       // ==================================================================
 //       let prompt;
 //       if (key === "products") {
 //         const prodCategory = await resolveProductCategory(
@@ -298,7 +332,7 @@
 //             tone
 //           )) + affiliateAppendix;
 //       } else if (key === "culture") {
-//         prompt = buildCulturePrompt(topic) + naturalEnding;
+//         prompt = buildCulturePrompt(topic, key, tone) + naturalEnding;
 //       } else {
 //         prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
 //       }
@@ -314,11 +348,16 @@
 
 //       const raw = completion.choices?.[0]?.message?.content?.trim() || "";
 //       if (!raw) {
-//         results.push({ category: key, topic, success: false });
+//         console.error("❌ Empty article response from GPT.");
+//         results.push({
+//           category: key,
+//           topic,
+//           wow_score: selectedWowScore,
+//           success: false,
+//         });
 //         continue;
 //       }
 
-//       // extract title + body
 //       const titleMatch = raw.match(/Headline:\s*(.+)/i);
 //       const bodyMatch = raw.match(/Article:\s*([\s\S]+)/i);
 
@@ -327,12 +366,11 @@
 
 //       const articleRaw = bodyMatch ? bodyMatch[1].trim() : raw;
 
-//       // refine
 //       const refined = await refineArticle(articleRaw, title);
 
-//       // ----------------------------------------------------------
+//       // ==================================================================
 //       // SEO
-//       // ----------------------------------------------------------
+//       // ==================================================================
 //       const seoTitleMatch = raw.match(/<title>\s*([^<]+)\s*/i);
 //       const seoDescMatch = raw.match(/<description>\s*([^<]+)\s*/i);
 //       const seoKeywordsMatch = raw.match(/<keywords>\s*([^<]+)\s*/i);
@@ -356,42 +394,40 @@
 //         hashtags = [...new Set(rawTags)].join(" ");
 //       }
 
-//       // ----------------------------------------------------------
-//       // PRODUCT LOGIC
-//       // ----------------------------------------------------------
+//       // ==================================================================
+//       // PRODUCTS
+//       // ==================================================================
 //       let source_url = null;
 //       if (key === "products") {
 //         const nameMatch = raw.match(/\[Product Name\]:\s*(.+)/i);
 //         const productName = nameMatch ? nameMatch[1].trim() : null;
-
 //         const productResult = await findAffiliateProduct(
 //           title,
 //           topic,
 //           refined,
 //           productName
 //         );
-
 //         source_url = productResult.source_url;
 //       }
 
-//       // ----------------------------------------------------------
-//       // CLEAN ARTICLE TEXT
-//       // ----------------------------------------------------------
+//       // Clean article text
 //       const cleanedArticle = refined
 //         .replace(/```html|```/gi, "")
 //         .replace(/\[Product Name\]:\s*.+/i, "")
 //         .replace(/SEO:[\s\S]*$/i, "")
 //         .trim();
 
-//       // summaryWhat (legacy)
 //       const summaryMatch = cleanedArticle.match(
 //         /<span\s+data-summary-what[^>]*>(.*?)<\/span>/s
 //       );
 //       const summaryWhat = summaryMatch ? cleanText(summaryMatch[1].trim()) : "";
+//       if (summaryWhat) {
+//         console.log(`   🧾 SummaryWhat extracted: "${summaryWhat}"`);
+//       }
 
-//       // ----------------------------------------------------------
-//       // EMBEDDING + SEMANTIC SIGNATURE
-//       // ----------------------------------------------------------
+//       // ==================================================================
+//       // EMBEDDING + SIGNATURE MERGE
+//       // ==================================================================
 //       const embedding = await generateEmbedding(`${title}\n${cleanedArticle}`);
 
 //       const mergedKeywords =
@@ -403,16 +439,21 @@
 //         ", "
 //       )}`;
 
-//       // ----------------------------------------------------------
-//       // IMAGE SELECTION
-//       // ----------------------------------------------------------
+//       // ==================================================================
+//       // IMAGE
+//       // ==================================================================
 //       const imagePref = image === "photo" ? "photo" : "dalle";
 
-//       const { imageUrl, source } = await selectBestImage(
+//       const {
+//         imageUrl,
+//         source,
+//         score: bestScore,
+//       } = await selectBestImage(
 //         title,
 //         cleanedArticle,
 //         key,
-//         imagePref
+//         imagePref,
+//         summaryWhat
 //       );
 
 //       const imageCredit =
@@ -426,9 +467,15 @@
 //           ? "Illustration by DALL·E 3"
 //           : "Image source unknown";
 
-//       // ----------------------------------------------------------
+//       console.log(
+//         `🖼️ Image selected for ${key}: source=${source}, score=${
+//           bestScore ?? "n/a"
+//         }`
+//       );
+
+//       // ==================================================================
 //       // SAVE ARTICLE
-//       // ----------------------------------------------------------
+//       // ==================================================================
 //       const { error } = await safeQuery(
 //         `insert article for ${key}`,
 //         supabase.from("articles").insert([
@@ -455,19 +502,24 @@
 
 //       if (error) throw error;
 
-//       console.log(`✅ Saved: ${key} → ${title}`);
-//       results.push({ category: key, topic, success: true });
+//       console.log(
+//         `✅ Saved: ${key} → ${title} (WOW ${selectedWowScore ?? "n/a"})`
+//       );
+//       results.push({
+//         category: key,
+//         topic,
+//         wow_score: selectedWowScore,
+//         image_source: source,
+//         success: true,
+//       });
 //     }
 
-//     // ----------------------------------------------------------
-//     // SEO PING
-//     // ----------------------------------------------------------
+//     // ==================================================================
+//     // SEO PING + LOGGING
+//     // ==================================================================
 //     await updateAndPingSearchEngines();
 //     console.log("🎉 Generation completed successfully.");
 
-//     // ----------------------------------------------------------
-//     // CRON LOG
-//     // ----------------------------------------------------------
 //     const duration = ((Date.now() - start) / 1000).toFixed(1);
 
 //     await safeQuery(
@@ -483,7 +535,6 @@
 
 //     console.log(`🕓 Logged run: ${duration}s`);
 
-//     // keep last 3 logs
 //     const { data: logs } = await safeQuery(
 //       "fetch cron_logs",
 //       supabase
@@ -521,12 +572,6 @@
 // // ============================================================================
 // main().then(() => process.exit(0));
 
-// ============================================================================
-// CurioWire — scripts/generate.js (v6.0 — concept-based generation + WOW scoring)
-// Replaces Google/Reddit trending with GPT-driven WOW concepts
-// Adds WOW-scoring + smarter concept selection + clearer logging
-// ============================================================================
-
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
@@ -543,7 +588,6 @@ import {
 } from "../app/api/utils/prompts.js";
 
 import {
-  analyzeTopic,
   linkHistoricalStory,
   summarizeTheme,
 } from "../app/api/utils/articleUtils.js";
@@ -724,18 +768,17 @@ export async function main() {
         console.log(`   ${idx + 1}. [${score}] ${preview}`);
       });
 
-      // We're going to treat each concept as "topic-like"
+      // Vi behandler hvert konsept som "topic-like"
       let topic = null;
-      let topicSummary = null;
+      let topicSummary = null; // nå bare direkte fra topic
       let linkedStory = null;
       let curioSignature = null;
       let topicSig = null;
       let selectedWowScore = null;
 
       // ==============================================================
-      // STEP 3: Find the best WOW concept that also passes dupe checks
+      // STEP 3: Finn beste WOW-konsept som også passer dupe-sjekkene
       // ==============================================================
-
       for (const {
         concept: candidateConcept,
         score: wowScore,
@@ -744,20 +787,20 @@ export async function main() {
           `\n🔎 Evaluating concept (WOW ${wowScore}): "${candidateConcept}"`
         );
 
-        // Build topic signature
+        // 3A: Bygg topic-signatur
         topicSig = await buildTopicSignature({
           category: key,
           topic: candidateConcept,
         });
 
         console.log(
-          `   🔧 TopicSignature → normalized="${topicSig.normalized}", short="${topicSig.short}"`
+          `   🔧 TopicSignature → normalized="${topicSig.normalized}", short="${topicSig.shortSignature}"`
         );
 
         const topicDupe = await checkTopicDuplicate(topicSig);
         console.log(
           "   🔍 CHECK TOPIC DUPLICATE:",
-          `query: ${topicSig.normalized} | short: ${topicSig.short} | category: ${key}`
+          `query: ${topicSig.normalized} | short: ${topicSig.shortSignature} | category: ${key}`
         );
 
         if (topicDupe.isDuplicate) {
@@ -767,16 +810,15 @@ export async function main() {
           continue;
         }
 
-        // Analyze concept + find historical curiosity
-        let analysis;
+        // 3B: Finn kuriositet direkte fra topic (uten analyzeTopic)
         let candidateCurio;
 
         try {
-          analysis = await analyzeTopic(candidateConcept, key);
-          candidateCurio = await linkHistoricalStory(analysis);
+          // Vi bruker selve topic-teksten som "modern topic" inn i linkHistoricalStory
+          candidateCurio = await linkHistoricalStory(candidateConcept);
         } catch (err) {
           console.log(
-            `   ⚠️ Analysis/linking failed for concept (WOW ${wowScore}):`,
+            `   ⚠️ Curiosity linking failed for concept (WOW ${wowScore}):`,
             err.message
           );
           continue;
@@ -789,7 +831,7 @@ export async function main() {
           continue;
         }
 
-        // Build curiosity signature
+        // 3C: Bygg curiosity-signatur
         const candidateSig = await buildCurioSignature({
           category: key,
           topic: candidateConcept,
@@ -809,9 +851,9 @@ export async function main() {
           continue;
         }
 
-        // We found a unique, high-WOW match!
+        // 3D: Vi fant et unikt, høy-WOW match!
         topic = candidateConcept;
-        topicSummary = analysis;
+        topicSummary = candidateConcept; // vi kan senere bytte til egen summarizer hvis ønskelig
         linkedStory = candidateCurio;
         curioSignature = candidateSig;
         selectedWowScore = wowScore;
@@ -834,7 +876,7 @@ export async function main() {
         continue;
       }
 
-      // Expand topic summary (optional contextual pass — failure is non-fatal)
+      // Utvid tematisk kortoppsummering (valgfri, failure er ikke kritisk)
       try {
         await summarizeTheme(topicSummary, linkedStory);
       } catch (err) {
@@ -866,7 +908,18 @@ export async function main() {
         prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
       }
 
+      // Bind artikkelen sterkt til valgt kuriositet
       prompt += `\nFocus the story around this factual curiosity:\n"${linkedStory}"`;
+
+      // INTERNAL STRUCTURAL ANCHOR — DO NOT DISPLAY IN ARTICLE
+      // (Do NOT appear in final output. For internal steering only.)
+      prompt += `
+You must implicitly follow this conceptual signature.
+Do not show or quote this text in the article.
+
+signature_core: "${curioSignature.signature}"
+signature_keywords: "${(curioSignature.keywords || []).join(", ")}"
+`;
 
       console.log("✍️ Generating article…");
 
@@ -955,18 +1008,29 @@ export async function main() {
       }
 
       // ==================================================================
-      // EMBEDDING + SIGNATURE MERGE
+      // EMBEDDING + UNIFIED SEMANTIC SIGNATURE (CURIOSITY-ONLY)
       // ==================================================================
       const embedding = await generateEmbedding(`${title}\n${cleanedArticle}`);
 
-      const mergedKeywords =
-        (curioSignature?.keywords?.length && curioSignature.keywords) ||
-        (topicSig?.keywords?.length && topicSig.keywords) ||
-        [];
+      // Keywords basert KUN på curiosity-signaturen
+      const curioKeywords = (curioSignature?.keywords || []).map((k) =>
+        k.toLowerCase()
+      );
+      const uniqueKeywords = [...new Set(curioKeywords)];
 
-      const semanticSignature = `${title}. ${seo_description}. keywords: ${mergedKeywords.join(
-        ", "
-      )}`;
+      // Kjerne basert kun på curiosity-signaturen
+      let semanticCore =
+        curioSignature?.signature ||
+        curioSignature?.normalized ||
+        linkedStory ||
+        title;
+
+      const semanticSignature = [
+        semanticCore,
+        uniqueKeywords.length ? `keywords: ${uniqueKeywords.join(", ")}` : null,
+      ]
+        .filter(Boolean)
+        .join(" — ");
 
       // ==================================================================
       // IMAGE
