@@ -65,6 +65,7 @@ export const Image = styled.img`
 
   @media (max-width: 770px) {
     border-radius: 0;
+    filter: grayscale(0%) brightness(1);
   }
 `;
 
