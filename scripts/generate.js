@@ -14,7 +14,6 @@
 // } from "../app/api/utils/prompts.js";
 
 // import {
-//   analyzeTopic,
 //   linkHistoricalStory,
 //   summarizeTheme,
 // } from "../app/api/utils/articleUtils.js";
@@ -195,18 +194,17 @@
 //         console.log(`   ${idx + 1}. [${score}] ${preview}`);
 //       });
 
-//       // We're going to treat each concept as "topic-like"
+//       // Vi behandler hvert konsept som "topic-like"
 //       let topic = null;
-//       let topicSummary = null;
+//       let topicSummary = null; // nå bare direkte fra topic
 //       let linkedStory = null;
 //       let curioSignature = null;
 //       let topicSig = null;
 //       let selectedWowScore = null;
 
 //       // ==============================================================
-//       // STEP 3: Find the best WOW concept that also passes dupe checks
+//       // STEP 3: Finn beste WOW-konsept som også passer dupe-sjekkene
 //       // ==============================================================
-
 //       for (const {
 //         concept: candidateConcept,
 //         score: wowScore,
@@ -215,20 +213,20 @@
 //           `\n🔎 Evaluating concept (WOW ${wowScore}): "${candidateConcept}"`
 //         );
 
-//         // Build topic signature
+//         // 3A: Bygg topic-signatur
 //         topicSig = await buildTopicSignature({
 //           category: key,
 //           topic: candidateConcept,
 //         });
 
 //         console.log(
-//           `   🔧 TopicSignature → normalized="${topicSig.normalized}", short="${topicSig.short}"`
+//           `   🔧 TopicSignature → normalized="${topicSig.normalized}", short="${topicSig.shortSignature}"`
 //         );
 
 //         const topicDupe = await checkTopicDuplicate(topicSig);
 //         console.log(
 //           "   🔍 CHECK TOPIC DUPLICATE:",
-//           `query: ${topicSig.normalized} | short: ${topicSig.short} | category: ${key}`
+//           `query: ${topicSig.normalized} | short: ${topicSig.shortSignature} | category: ${key}`
 //         );
 
 //         if (topicDupe.isDuplicate) {
@@ -238,16 +236,15 @@
 //           continue;
 //         }
 
-//         // Analyze concept + find historical curiosity
-//         let analysis;
+//         // 3B: Finn kuriositet direkte fra topic (uten analyzeTopic)
 //         let candidateCurio;
 
 //         try {
-//           analysis = await analyzeTopic(candidateConcept, key);
-//           candidateCurio = await linkHistoricalStory(analysis);
+//           // Vi bruker selve topic-teksten som "modern topic" inn i linkHistoricalStory
+//           candidateCurio = await linkHistoricalStory(candidateConcept);
 //         } catch (err) {
 //           console.log(
-//             `   ⚠️ Analysis/linking failed for concept (WOW ${wowScore}):`,
+//             `   ⚠️ Curiosity linking failed for concept (WOW ${wowScore}):`,
 //             err.message
 //           );
 //           continue;
@@ -260,7 +257,7 @@
 //           continue;
 //         }
 
-//         // Build curiosity signature
+//         // 3C: Bygg curiosity-signatur
 //         const candidateSig = await buildCurioSignature({
 //           category: key,
 //           topic: candidateConcept,
@@ -280,9 +277,9 @@
 //           continue;
 //         }
 
-//         // We found a unique, high-WOW match!
+//         // 3D: Vi fant et unikt, høy-WOW match!
 //         topic = candidateConcept;
-//         topicSummary = analysis;
+//         topicSummary = candidateConcept; // vi kan senere bytte til egen summarizer hvis ønskelig
 //         linkedStory = candidateCurio;
 //         curioSignature = candidateSig;
 //         selectedWowScore = wowScore;
@@ -305,7 +302,7 @@
 //         continue;
 //       }
 
-//       // Expand topic summary (optional contextual pass — failure is non-fatal)
+//       // Utvid tematisk kortoppsummering (valgfri, failure er ikke kritisk)
 //       try {
 //         await summarizeTheme(topicSummary, linkedStory);
 //       } catch (err) {
@@ -337,7 +334,18 @@
 //         prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
 //       }
 
+//       // Bind artikkelen sterkt til valgt kuriositet
 //       prompt += `\nFocus the story around this factual curiosity:\n"${linkedStory}"`;
+
+//       // INTERNAL STRUCTURAL ANCHOR — DO NOT DISPLAY IN ARTICLE
+//       // (Do NOT appear in final output. For internal steering only.)
+//       prompt += `
+// You must implicitly follow this conceptual signature.
+// Do not show or quote this text in the article.
+
+// signature_core: "${curioSignature.signature}"
+// signature_keywords: "${(curioSignature.keywords || []).join(", ")}"
+// `;
 
 //       console.log("✍️ Generating article…");
 
@@ -426,18 +434,29 @@
 //       }
 
 //       // ==================================================================
-//       // EMBEDDING + SIGNATURE MERGE
+//       // EMBEDDING + UNIFIED SEMANTIC SIGNATURE (CURIOSITY-ONLY)
 //       // ==================================================================
 //       const embedding = await generateEmbedding(`${title}\n${cleanedArticle}`);
 
-//       const mergedKeywords =
-//         (curioSignature?.keywords?.length && curioSignature.keywords) ||
-//         (topicSig?.keywords?.length && topicSig.keywords) ||
-//         [];
+//       // Keywords basert KUN på curiosity-signaturen
+//       const curioKeywords = (curioSignature?.keywords || []).map((k) =>
+//         k.toLowerCase()
+//       );
+//       const uniqueKeywords = [...new Set(curioKeywords)];
 
-//       const semanticSignature = `${title}. ${seo_description}. keywords: ${mergedKeywords.join(
-//         ", "
-//       )}`;
+//       // Kjerne basert kun på curiosity-signaturen
+//       let semanticCore =
+//         curioSignature?.signature ||
+//         curioSignature?.normalized ||
+//         linkedStory ||
+//         title;
+
+//       const semanticSignature = [
+//         semanticCore,
+//         uniqueKeywords.length ? `keywords: ${uniqueKeywords.join(", ")}` : null,
+//       ]
+//         .filter(Boolean)
+//         .join(" — ");
 
 //       // ==================================================================
 //       // IMAGE
@@ -496,6 +515,7 @@
 //             topic_signature_text: topicSig?.signature || null,
 //             short_curio_signature: curioSignature?.shortSignature || null,
 //             short_topic_signature: topicSig?.shortSignature || null,
+//             wow_score: selectedWowScore || 0,
 //           },
 //         ])
 //       );
@@ -620,6 +640,15 @@ import {
 import { generateConceptSeeds } from "../lib/concepts/seedConceptGenerator.js";
 
 // ============================================================================
+// FACT CHECKER
+// ============================================================================
+import {
+  factCheckArticle,
+  extractCorrectedVersion,
+  getFactCheckStatus,
+} from "../lib/factCheck.js";
+
+// ============================================================================
 // INIT OPENAI
 // ============================================================================
 const openai = new OpenAI({
@@ -723,7 +752,78 @@ No words, no explanation, no extra characters.
 }
 
 // ============================================================================
-// MAIN GENERATOR — 100% CONCEPT-DRIVEN + WOW-SELECTION
+// INTERNAL: Generate one article draft (NO refine, NO fact-check yet)
+// ============================================================================
+async function generateArticleDraft({
+  key,
+  tone,
+  image,
+  topic,
+  topicSummary,
+  linkedStory,
+  curioSignature,
+}) {
+  // ==================================================================
+  // GENERATE ARTICLE (same behaviour as before, just wrapped)
+  // ==================================================================
+  let prompt;
+  if (key === "products") {
+    const prodCategory = await resolveProductCategory(
+      topic,
+      topicSummary,
+      linkedStory
+    );
+    prompt =
+      (await buildProductArticlePrompt(
+        `${topic} (${prodCategory})`,
+        key,
+        tone
+      )) + affiliateAppendix;
+  } else if (key === "culture") {
+    prompt = buildCulturePrompt(topic, key, tone) + naturalEnding;
+  } else {
+    prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
+  }
+
+  // Bind artikkelen sterkt til valgt kuriositet
+  prompt += `\nFocus the story around this factual curiosity:\n"${linkedStory}"`;
+
+  // INTERNAL STRUCTURAL ANCHOR — DO NOT DISPLAY IN ARTICLE
+  // (Do NOT appear in final output. For internal steering only.)
+  prompt += `
+You must implicitly follow this conceptual signature.
+Do not show or quote this text in the article.
+
+signature_core: "${curioSignature.signature}"
+signature_keywords: "${(curioSignature.keywords || []).join(", ")}"
+`;
+
+  console.log("✍️ Generating article draft…");
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const raw = completion.choices?.[0]?.message?.content?.trim() || "";
+  if (!raw) {
+    console.error("❌ Empty article response from GPT.");
+    return null;
+  }
+
+  const titleMatch = raw.match(/Headline:\s*(.+)/i);
+  const bodyMatch = raw.match(/Article:\s*([\s\S]+)/i);
+
+  const rawTitle = titleMatch ? titleMatch[1].trim() : topic;
+  const title = trimHeadline(rawTitle);
+
+  const articleRaw = bodyMatch ? bodyMatch[1].trim() : raw;
+
+  return { raw, title, articleRaw };
+}
+
+// ============================================================================
+// MAIN GENERATOR — 100% CONCEPT-DRIVEN + WOW-SELECTION + FACT-CHECK
 // ============================================================================
 export async function main() {
   const start = Date.now();
@@ -887,68 +987,97 @@ export async function main() {
       }
 
       // ==================================================================
-      // GENERATE ARTICLE (unchanged core behaviour)
+      // STEP 4: ARTICLE GENERATION + FACT-CHECK LOOP
       // ==================================================================
-      let prompt;
-      if (key === "products") {
-        const prodCategory = await resolveProductCategory(
+      const maxAttempts = 2;
+      let finalDraft = null;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        console.log(
+          `\n🧪 Article generation attempt ${attempt} for category "${key}"…`
+        );
+
+        const draft = await generateArticleDraft({
+          key,
+          tone,
+          image,
           topic,
           topicSummary,
-          linkedStory
-        );
-        prompt =
-          (await buildProductArticlePrompt(
-            `${topic} (${prodCategory})`,
-            key,
-            tone
-          )) + affiliateAppendix;
-      } else if (key === "culture") {
-        prompt = buildCulturePrompt(topic, key, tone) + naturalEnding;
-      } else {
-        prompt = buildArticlePrompt(topic, key, tone) + naturalEnding;
+          linkedStory,
+          curioSignature,
+        });
+
+        if (!draft) {
+          console.warn("⚠️ Draft generation failed, aborting attempts.");
+          break;
+        }
+
+        const { raw, title, articleRaw } = draft;
+
+        console.log("🔎 Running fact-check on article draft…");
+        const factResult = await factCheckArticle(articleRaw, title);
+        const status = getFactCheckStatus(factResult);
+
+        console.log(`📊 Fact-check status: ${status}`);
+
+        if (status === "OK") {
+          console.log("✅ Fact-check OK — using original article.");
+          finalDraft = { ...draft, articleForRefine: articleRaw };
+          break;
+        }
+
+        if (status === "ISSUES") {
+          const corrected = extractCorrectedVersion(factResult);
+          if (corrected) {
+            console.log(
+              "✅ Fact-check found minor issues — using corrected article version."
+            );
+            finalDraft = { ...draft, articleForRefine: corrected };
+            break;
+          } else {
+            console.warn(
+              "⚠️ ISSUES FOUND but no corrected article present — treating as MAJOR."
+            );
+            // fall through to regeneration if attempt < maxAttempts
+          }
+        }
+
+        if (
+          status === "MAJOR" ||
+          status === "UNCERTAIN" ||
+          status === "UNKNOWN"
+        ) {
+          if (attempt < maxAttempts) {
+            console.warn(
+              `⚠️ Fact-check result "${status}" — regenerating article (attempt ${
+                attempt + 1
+              } of ${maxAttempts})…`
+            );
+          } else {
+            console.error(
+              `❌ Fact-check result "${status}" after ${maxAttempts} attempts — skipping category "${key}".`
+            );
+          }
+        }
       }
 
-      // Bind artikkelen sterkt til valgt kuriositet
-      prompt += `\nFocus the story around this factual curiosity:\n"${linkedStory}"`;
-
-      // INTERNAL STRUCTURAL ANCHOR — DO NOT DISPLAY IN ARTICLE
-      // (Do NOT appear in final output. For internal steering only.)
-      prompt += `
-You must implicitly follow this conceptual signature.
-Do not show or quote this text in the article.
-
-signature_core: "${curioSignature.signature}"
-signature_keywords: "${(curioSignature.keywords || []).join(", ")}"
-`;
-
-      console.log("✍️ Generating article…");
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-      });
-
-      const raw = completion.choices?.[0]?.message?.content?.trim() || "";
-      if (!raw) {
-        console.error("❌ Empty article response from GPT.");
+      if (!finalDraft) {
         results.push({
           category: key,
           topic,
           wow_score: selectedWowScore,
           success: false,
+          reason: "fact-check-failed",
         });
         continue;
       }
 
-      const titleMatch = raw.match(/Headline:\s*(.+)/i);
-      const bodyMatch = raw.match(/Article:\s*([\s\S]+)/i);
+      const { raw, title, articleForRefine } = finalDraft;
 
-      const rawTitle = titleMatch ? titleMatch[1].trim() : topic;
-      const title = trimHeadline(rawTitle);
-
-      const articleRaw = bodyMatch ? bodyMatch[1].trim() : raw;
-
-      const refined = await refineArticle(articleRaw, title);
+      // ==================================================================
+      // STEP 5: REFINE ARTICLE (language, summary, sources)
+      // ==================================================================
+      const refined = await refineArticle(articleForRefine, title);
 
       // ==================================================================
       // SEO
@@ -1089,6 +1218,7 @@ signature_keywords: "${(curioSignature.keywords || []).join(", ")}"
             topic_signature_text: topicSig?.signature || null,
             short_curio_signature: curioSignature?.shortSignature || null,
             short_topic_signature: topicSig?.shortSignature || null,
+            wow_score: selectedWowScore || 0,
           },
         ])
       );

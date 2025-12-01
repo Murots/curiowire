@@ -55,7 +55,7 @@ export const Image = styled.img`
   border-radius: 6px;
   display: block;
   transition: transform 0.6s ease, filter 0.6s ease;
-  filter: grayscale(100%) brightness(0.9);
+  filter: grayscale(0%) brightness(1);
   background-color: #eaeaea;
 
   ${Card}:hover & {

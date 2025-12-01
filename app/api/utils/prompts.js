@@ -164,12 +164,32 @@ Conclude with a thoughtful or emotional observation that leaves readers reflecti
 </p>
 
 4️⃣ **Did You Know?**  
-<h2>Did You Know?</h2>  
-<p>
-Add 2–3 short, verified curiosities or fun facts related to the story.  
-They should be surprising, accurate, and self-contained — sentences that could stand alone on social media and reinforce the article’s central idea.  
-Each fun fact should *add factual depth*, not filler.
-</p>
+<h2>Did You Know?</h2>
+
+Create exactly **3 short, surprising, factual curiosities** directly related to the article.
+
+The facts should be **surprising, accurate, and fully self-contained** — each one must be a standalone insight that could function on its own in social media format while reinforcing the article’s central idea.  
+Each fun fact should **add factual depth**, not filler.
+
+FORMAT RULES (strict):
+- Output must consist of **exactly three <p> elements**, one per fact.  
+- **NO lists** of any kind:
+  - no <ul>, <ol>, <li>
+  - no bullets ("-", "•")
+  - no numbering ("1.", "2.", "3.").
+- **NO markdown formatting**:
+  - no **bold**, no *italic*, no backticks.
+- If emphasis is needed, use **HTML only**: <strong>…</strong> or <em>…</em>.  
+- Each fact must be 1–2 sentences, concise, standalone, and add meaningful factual depth.  
+- Do NOT merge all facts into one paragraph.  
+- Do NOT add any explanatory text before or after the three facts.
+
+REQUIRED OUTPUT FORMAT (exact structure):
+<p>[First fun fact]</p>
+<p>[Second fun fact]</p>
+<p>[Third fun fact]</p>
+
+Produce ONLY these three <p> elements — nothing more.
 
 5️⃣ **Keep Exploring**  
 <h2>Keep Exploring</h2>  
