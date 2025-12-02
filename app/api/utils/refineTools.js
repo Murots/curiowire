@@ -1,133 +1,3 @@
-// import OpenAI from "openai";
-
-// const openai = new OpenAI({
-//   apiKey: process.env.OPENAI_API_KEY,
-//   organization: process.env.OPENAI_ORG_ID,
-// });
-
-// /**
-//  * Kjør en redaksjonell forbedring på ferdig generert artikkel:
-//  * 1. Forbedrer språk, rytme og flyt.
-//  * 2. Legger til oppsummeringsboks (Quick Summary).
-//  * 3. Legger til kildeseksjon nederst ("Sources & References").
-//  *
-//  * @param {string} articleText Full HTML-artikkeltekst
-//  * @param {string} title Artikkeltittel for kontekst
-//  * @returns {Promise<string>} Refined artikkeltekst (samme format)
-//  */
-// export async function refineArticle(articleText, title) {
-//   if (!articleText || articleText.length < 200) return articleText;
-
-//   const refinePrompt = `
-// You are a **senior editor** for *CurioWire*, a publication that blends history, science, and culture through timeless curiosities.
-// Your task is to **refine and finalize** the following article for publication, with clarity, rhythm, tone consistency, and SEO alignment in mind
-
-// The text is already structured in valid HTML using <h2> and <p> tags.
-// You must:
-// 1. Improve clarity, rhythm, tone consistency, and factual readability.
-// 2. Do not alter the structure or remove any <h2> or <p> tags.
-// 3. Strengthen logical transitions and emotional flow between sections.
-// 4. Tighten language — remove filler, redundant phrases, or weak modifiers.
-// 5. Preserve facts, names, dates, and numbers exactly as they appear.
-// 6. Maintain a vivid but factual tone — poetic yet journalistic.
-// 7. Expand or rephrase slightly only if it increases factual clarity.
-// 8. Keep overall length within ±10% of the original.
-
-// ---
-
-// ### 🔹 STEP 1 — Refine Core Article
-// Refine the existing HTML text according to the above rules.
-// Return the improved HTML only — same structure, same tags, no commentary.
-
-// ---
-
-// ### 🔹 STEP 2 — Add Summary Box
-// After refinement, **prepend** a “Quick Summary” section *before the first <h2>* tag.
-// It must summarize the article’s essential information in 100–200 words.
-
-// Format it like this:
-
-// <div class="article-summary-box">
-//   <strong>Quick Summary</strong>
-//   <ul>
-//     <li><b>What:</b> <span data-summary-what>1 sentences summarizing the central curiosity, event or phenomenon.</span></li>
-//     <li><b>Where:</b> [Geographic or contextual setting, if relevant]</li>
-//     <li><b>When:</b> [Time period or historical moment]</li>
-//     <li><b>How:</b> [Key mechanism, cause, or scientific principle]</li>
-//     <li><b>Why:</b> [Why it matters today — social, cultural, or scientific relevance]</li>
-//   </ul>
-// </div>
-
-// Requirements for WHAT:
-// • Write **1 clear, neutral, factual sentences** summarizing the central curiosity, discovery, or event.
-// • You MUST replace the placeholder text completely.
-// • The <span data-summary-what>...</span> must contain ONLY the final WHAT sentences.
-// • Do NOT include any part of the placeholder like:
-//   "1–2 sentences summarizing the main curiosity…" or variations of it.
-// • BEGIN the sentence directly with the subject of the curiosity.
-//   Examples:
-//     “In ancient Mesopotamia…”
-//     “Horace-Bénédict de Saussure’s 1767 invention…”
-//     “Population III stars represent…”
-// • Do NOT begin with meta phrases such as:
-//   “The article…”, “This article…”, “This story…”, “The piece…”
-// • The WHAT text must read like real journalism, not commentary on the article.
-
-// The summary must be concise, factual, and written in the same tone as the article.
-
-// ---
-
-// ### 🔹 STEP 3 — Add Sources Section
-// At the very end of the article, after the final <p> tag, add a “Sources & References” section like this:
-
-// <h2>Sources & References</h2>
-// <ul>
-//   <li>[Source 1 — real or plausible organization, study, or publication relevant to the topic]</li>
-//   <li>[Source 2 — secondary or contextual reference, e.g. museum, archive, or academic database]</li>
-//   <li>[Source 3 — optional third supporting source]</li>
-// </ul>
-
-// If the article mentions a specific historical event, organization, or field, make sure the references match that context.
-// Do **not invent** absurd or fake-sounding sources — keep them credible and thematic.
-
-// ---
-
-// ### 🔹 STYLE NOTES
-// • Tone: factual, reflective, and engaging — like *BBC Future*, *Vox*, or *National Geographic*, blended with the intrigue of *Atlas Obscura*.
-// • Flow: insight → image → emotion → reflection.
-// • Smooth transitions.
-// • Avoid jargon and repetitive phrasing.
-// • Avoid any mention of AI or article generation.
-// • The finished text should be fully ready for SEO indexing and human reading.
-// • Do NOT alter the <span data-summary-what> wrapper.
-// • Do NOT wrap the Quick Summary or its elements in additional containers.
-
-// ---
-
-// Title: "${title}"
-
-// ARTICLE TO REFINE:
-// ${articleText}
-
-// Return ONLY the full, final HTML — including the new summary box and sources section.
-// Do not add explanations, notes, or markdown.
-// `;
-
-//   try {
-//     const completion = await openai.chat.completions.create({
-//       model: "gpt-4o-mini",
-//       messages: [{ role: "user", content: refinePrompt }],
-//       temperature: 0.4,
-//     });
-
-//     const refined = completion.choices[0]?.message?.content?.trim() || "";
-//     console.log("🧹 Refine-pass + Summary + Sources complete ✅");
-//     return refined;
-//   } catch (err) {
-//     console.warn("⚠️ Refine-pass failed:", err.message);
-//     return articleText; // fallback til original
-//   }
-// }
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -146,11 +16,7 @@ function cleanMarkdown(html) {
 
 /* ------------------------------------------------------------
  * Utility: Normalize the Did You Know? section
- * Ensures:
- *   - Exactly 3 <p> elements
- *   - No bullets, numbering, or lists
- *   - Removes <ul>/<ol>/<li>
- *   - Splits concatenated facts correctly
+ * - Cleans up list markup into <p> facts
  * ------------------------------------------------------------ */
 function normalizeDidYouKnow(html) {
   return html.replace(
@@ -162,21 +28,17 @@ function normalizeDidYouKnow(html) {
         // Convert any <li> to <p>
         .replace(/<li>/g, "<p>")
         .replace(/<\/li>/g, "</p>")
-        // Remove bullets, dashes, or numbering
+        // Remove bullets, dashes, or numbering at line start
         .replace(/^\s*([-•]|\d+\.)\s*/gm, "")
         // If multiple facts end up on the same line: split after punctuation + number
         .replace(/(\.)\s*(\d+\.)/g, "$1\n")
         .trim();
 
-      // Split on line breaks
       const facts = cleaned
         .split(/\n+/)
         .map((f) => f.trim())
         .filter(Boolean)
-        .map((f) => {
-          if (!f.startsWith("<p>")) return `<p>${f}</p>`;
-          return f;
-        });
+        .map((f) => (f.startsWith("<p>") ? f : `<p>${f}</p>`));
 
       return `<h2>Did You Know?</h2>\n${facts.join("\n")}\n`;
     }
@@ -188,6 +50,7 @@ function normalizeDidYouKnow(html) {
  * 1. Forbedrer språk, rytme og flyt.
  * 2. Legger til oppsummeringsboks (Quick Summary).
  * 3. Legger til kildeseksjon nederst ("Sources & References").
+ * 4. Bevarer SEO-intensjon, WOW-faktor og spesiallinjer.
  *
  * @param {string} articleText Full HTML-artikkeltekst
  * @param {string} title Artikkeltittel for kontekst
@@ -197,98 +60,191 @@ export async function refineArticle(articleText, title) {
   if (!articleText || articleText.length < 200) return articleText;
 
   const refinePrompt = `
-You are a **senior editor** for *CurioWire*, a publication that blends history, science, and culture through timeless curiosities.
-Your task is to **refine and finalize** the following article for publication, with clarity, rhythm, tone consistency, and SEO alignment in mind
+You are a **senior editor** for *CurioWire*, a publication blending science,
+history, culture, products and curiosity into highly shareable, SEO-strong stories.
 
-The text is already structured in valid HTML using <h2> and <p> tags.  
-You must:
-1. Improve clarity, rhythm, tone consistency, and factual readability.
-2. Do not alter the structure or remove any <h2> or <p> tags.
-3. Strengthen logical transitions and emotional flow between sections.
-4. Tighten language — remove filler, redundant phrases, or weak modifiers.
-5. Preserve facts, names, dates, and numbers exactly as they appear.
-6. Maintain a vivid but factual tone — poetic yet journalistic.
-7. Expand or rephrase slightly only if it increases factual clarity.
-8. Keep overall length within ±10% of the original.
+Your job: **refine the article WITHOUT changing its factual content or structural intent**.
+You are polishing language, rhythm, clarity and emotional impact – not rewriting the story.
 
----
+=====================================================================
+🔒 STRICT FACTUAL LOCKDOWN (NO FACT DRIFT)
+=====================================================================
+You MUST NOT introduce ANY new factual information.
+You MUST NOT:
+• Add new names, dates, locations, events, causes, or mechanisms  
+• Remove any factual elements that are present  
+• Generalize specific facts (e.g. “In 1942” → “In the 1940s”)  
+• Make vague facts more specific (e.g. “some scientists” → “three scientists at MIT”)  
+• Flip cause/effect or change the order of events  
+• Infer missing details that are not explicitly stated  
+• “Clarify” by inventing context, numbers, or attributions  
 
-### 🔹 STEP 1 — Refine Core Article
-Refine the existing HTML text according to the above rules.
-Return the improved HTML only — same structure, same tags, no commentary.
+You may ONLY adjust phrasing, sentence structure and word choice.
+If you are uncertain whether a change affects meaning or factual precision,
+**keep the original wording**.
 
----
+=====================================================================
+🎯 SEO & STRUCTURE SAFETY
+=====================================================================
+The article you receive was generated under strict SEO and category rules.
 
-### 🔹 STEP 2 — Add Summary Box
-After refinement, **prepend** a “Quick Summary” section *before the first <h2>* tag.
-It must summarize the article’s essential information in 100–200 words.
+You MUST:
+• Preserve the **core keywords and key phrases** already present in:
+  - the first paragraph (snippet potential)
+  - each <h2> subheadline
+  - any repeated concept terms throughout the article
 
-Format it like this:
+• You may lightly polish <h2> text for clarity and rhythm, but:
+  - Do NOT remove or replace the main topic nouns and key entities.
+  - Keep long-tail feel intact (no flattening into generic headings).
+
+• Do NOT:
+  - Introduce emojis, markdown, or new list structures (<ul>, <ol>, <li>).
+  - Add hashtags, links, or calls to action.
+  - Reframe the article into a new thematic domain (e.g. into health, politics, medicine, or psychology) if that was not already present.
+
+• Respect structure:
+  - Do NOT add or remove any <h2> elements.
+  - Do NOT move sections around.
+  - You may split or merge <p> blocks minimally for readability,
+    but the logical section order must stay identical.
+
+• In the <h2>Did You Know?</h2> section:
+  - You may polish individual sentences.
+  - Do NOT introduce lists or markdown.
+  - Prefer keeping exactly the same number of <p> facts that are already present.
+
+=====================================================================
+🧷 CRITICAL LINES & PATTERNS TO PRESERVE VERBATIM
+=====================================================================
+If any of the following patterns exist in the article, you MUST copy them EXACTLY,
+without changing a single character (spacing and punctuation included):
+
+1) The closing tagline:
+
+  “CurioWire continues to uncover the world’s hidden histories — one curiosity at a time.”
+
+If this sentence appears, do not change wording, punctuation, or dash type.
+
+2) The affiliate product line (used in the PRODUCTS category):
+
+  A <p> paragraph beginning with:
+  [Product Name]:
+
+For that paragraph:
+• Do NOT change “[Product Name]:” label.
+• Do NOT add adjectives, commentary, or extra context.
+• Do NOT modify, rephrase, or translate the product name text.
+Copy the entire line exactly as it appears.
+
+=====================================================================
+🔥 WOW PRESERVATION & MASS APPEAL
+=====================================================================
+CurioWire content is built around a **WOW-factor** and broad accessibility.
+
+You MUST:
+• Preserve the emotional punch and “astonishing yet true” reveals.
+• Maintain curiosity hooks and contrasts (ancient vs modern, tiny vs immense, etc.).
+• Keep language:
+  - clear and readable for a general audience
+  - rhythmic and vivid, but not purple or overly ornate
+  - optimized for mobile reading with mostly short sentences.
+
+You may:
+• Tighten wording to increase impact.
+• Remove redundancy or weak modifiers.
+• Make metaphors clearer, as long as they stay grounded in the text’s existing facts.
+
+You MUST NOT:
+• Tone down or neutralize the WOW-moments.
+• Replace surprising specific details with vague generalities.
+
+=====================================================================
+🧭 EDITORIAL RULES (LANGUAGE ONLY)
+=====================================================================
+1. Do not modify, remove, or reorder any <h2> tags.
+2. Do not introduce new sections or headings.
+3. Improve clarity, rhythm, and readability of existing <p> content.
+4. Reduce redundancy and tighten phrasing.
+5. Preserve all factual claims exactly (see factual lockdown).
+6. Keep overall length within ±10% of the original articleText.
+7. No emojis, no markdown, no inline links.
+
+=====================================================================
+STEP 1 — Refine Core Article (NO FACT CHANGES)
+=====================================================================
+Refine the existing HTML text according to all rules above.
+Return **only** the improved HTML (still using <h2> and <p>), no commentary.
+
+=====================================================================
+STEP 2 — Prepend “Quick Summary”
+=====================================================================
+After refining, prepend a “Quick Summary” section **before the first <h2>** tag.
+
+Use this format exactly:
 
 <div class="article-summary-box">
   <strong>Quick Summary</strong>
   <ul>
-    <li><b>What:</b> <span data-summary-what>1 sentences summarizing the central curiosity, event or phenomenon.</span></li>
-    <li><b>Where:</b> [Geographic or contextual setting, if relevant]</li>
+    <li><b>What:</b> <span data-summary-what>1 factual sentence summarizing the central curiosity, event, or phenomenon.</span></li>
+    <li><b>Where:</b> [Location or environment, if relevant]</li>
     <li><b>When:</b> [Time period or historical moment]</li>
-    <li><b>How:</b> [Key mechanism, cause, or scientific principle]</li>
-    <li><b>Why:</b> [Why it matters today — social, cultural, or scientific relevance]</li>
+    <li><b>How:</b> [Mechanism, cause, or scientific principle already present in the article]</li>
+    <li><b>Why:</b> [Why it matters today, based ONLY on ideas already in the article]</li>
   </ul>
 </div>
 
 Requirements for WHAT:
-• Write **1 clear, neutral, factual sentences** summarizing the central curiosity, discovery, or event.
-• You MUST replace the placeholder text completely.
-• The <span data-summary-what>...</span> must contain ONLY the final WHAT sentences.
-• Do NOT include any part of the placeholder like:
-  "1–2 sentences summarizing the main curiosity…" or variations of it.
-• BEGIN the sentence directly with the subject of the curiosity.
-  Examples: 
-    “In ancient Mesopotamia…”
-    “Horace-Bénédict de Saussure’s 1767 invention…”
-    “Population III stars represent…”
-• Do NOT begin with meta phrases such as:
-  “The article…”, “This article…”, “This story…”, “The piece…”
-• The WHAT text must read like real journalism, not commentary on the article.
+• One neutral, factual sentence.
+• Do not generalize or invent new detail.
+• Must begin directly with the subject, not with meta-language
+  (“In ancient Mesopotamia…”, “Population III stars represent…”, etc.).
+• Must NOT mention “this article” or “this piece”.
 
-The summary must be concise, factual, and written in the same tone as the article.
+You may NOT invent new facts in the summary; it must only condense what already exists.
 
----
-
-### 🔹 STEP 3 — Add Sources Section
-At the very end of the article, after the final <p> tag, add a “Sources & References” section like this:
+=====================================================================
+STEP 3 — Add Sources Section
+=====================================================================
+At the very end of the article, after the final <p> block, append:
 
 <h2>Sources & References</h2>
 <ul>
-  <li>[Source 1 — real or plausible organization, study, or publication relevant to the topic]</li>
-  <li>[Source 2 — secondary or contextual reference, e.g. museum, archive, or academic database]</li>
-  <li>[Source 3 — optional third supporting source]</li>
+  <li>[Credible source 1 related to the topic — e.g. archive, journal, museum, space agency]</li>
+  <li>[Credible source 2 — secondary or contextual reference]</li>
+  <li>[Credible source 3 — optional, if naturally fitting]</li>
 </ul>
 
-If the article mentions a specific historical event, organization, or field, make sure the references match that context.
-Do **not invent** absurd or fake-sounding sources — keep them credible and thematic.
+The sources must be:
+• Plausible and thematically correct.
+• Generic but credible (no absurd or joke institutions).
+• Not tied to any specific URL or marketing.
 
----
+=====================================================================
+STYLE GUIDELINES
+=====================================================================
+Tone: factual, reflective, and engaging — like BBC Future, Vox, National Geographic + Atlas Obscura.
+Flow pattern: insight → image → emotion → reflection.
+Avoid:
+• Jargon where not needed
+• Repetitive phrasing
+• AI/self-reference of any kind
 
-### 🔹 STYLE NOTES
-• Tone: factual, reflective, and engaging — like *BBC Future*, *Vox*, or *National Geographic*, blended with the intrigue of *Atlas Obscura*.
-• Flow: insight → image → emotion → reflection.
-• Smooth transitions.  
-• Avoid jargon and repetitive phrasing.
-• Avoid any mention of AI or article generation.
-• The finished text should be fully ready for SEO indexing and human reading.
-• Do NOT alter the <span data-summary-what> wrapper.
-• Do NOT wrap the Quick Summary or its elements in additional containers.
+Do NOT alter the <span data-summary-what> wrapper.
+Do NOT wrap the Quick Summary or its elements in additional containers.
 
----
+=====================================================================
 
 Title: "${title}"
 
-ARTICLE TO REFINE:
+ARTICLE TO REFINE (HTML):
 ${articleText}
 
-Return ONLY the full, final HTML — including the new summary box and sources section.
-Do not add explanations, notes, or markdown.
+Return ONLY the full, final HTML — including:
+- the new Quick Summary box,
+- the refined article body,
+- the Sources & References section.
+No explanations, no markdown, no extra commentary.
 `;
 
   try {
@@ -300,13 +256,13 @@ Do not add explanations, notes, or markdown.
 
     let refined = completion.choices[0]?.message?.content?.trim() || "";
 
-    // 🔧 CLEAN MARKDOWN → HTML
+    // 🔧 CLEAN MARKDOWN → HTML if model sneaks in ** or *
     refined = cleanMarkdown(refined);
 
-    // 🔧 NORMALIZE DID YOU KNOW? → three <p> facts
+    // 🔧 NORMALIZE DID YOU KNOW? (convert lists → <p> facts)
     refined = normalizeDidYouKnow(refined);
 
-    console.log("🧹 Refine-pass + Summary + Sources complete ✅");
+    console.log("🧹 Refine-pass complete (FACT-LOCK + SEO-SAFE + WOW-SAFE) ✅");
     return refined;
   } catch (err) {
     console.warn("⚠️ Refine-pass failed:", err.message);

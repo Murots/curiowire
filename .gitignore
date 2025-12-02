@@ -1,5 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# ======================================================================
+# CORE NODE / NEXT / ENV
+# ======================================================================
+
 # dependencies
 /node_modules
 /.pnp
@@ -30,12 +34,62 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
-
-# vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# ======================================================================
+# MEDIA IGNORE RULES — CurioWire video pipeline
+# ======================================================================
+
+# Ignore ALL audio/video/media by default (generated content)
+*.mp3
+*.wav
+*.mp4
+*.mov
+*.webm
+
+# Ignore ALL generated or temporary audio/video folders
+generated_videos/
+temp_audio/
+temp/
+output/
+cache/
+
+# Ignore common ffmpeg & AI-video artifacts
+*-raw.*
+*-raw.mp4
+*-raw.mp3
+*-slow.*
+*-pitchdrop.mp3
+*-resample.mp3
+*-tempo*.mp3
+*-debug.*
+debug-*
+*.ass
+
+# ======================================================================
+# WHITELIST — STATIC ASSETS THAT MUST BE TRACKED IN GIT
+# ======================================================================
+
+# Background music (static assets)
+!lib/video/audio/bgm/**
+
+# Sound effects (static assets)
+!lib/video/audio/fx/**
+
+# Intro video (static asset)
+!lib/video/intro/**
+
+# Fonts (static assets)
+!lib/video/fonts/**
+
+# NOTE:
+# The above negations ensure that ONLY your required assets
+# (BGM, SFX, intro video, fonts) stay in Git.
+# Everything else generated in pipelines is ignored safely.
