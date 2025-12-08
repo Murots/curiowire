@@ -123,7 +123,6 @@ import {
   PageButton,
 } from "../sitemap.styles";
 
-// CLIENT-SIDE SUPABASE CLIENT (correct)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -132,51 +131,54 @@ const supabase = createClient(
 const PAGE_SIZE = 20;
 
 export default function SitemapCategoryContent() {
-  const { category } = useParams();
+  const params = useParams();
   const searchParams = useSearchParams();
-  const page = parseInt(searchParams.get("page") || "1", 10);
+
+  const category = params?.category || null;
+  const page = parseInt(searchParams?.get("page") || "1", 10);
 
   const [articles, setArticles] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Prevent crash if category is undefined (Next.js race condition)
   useEffect(() => {
-    let isActive = true;
-
-    async function fetchArticles() {
+    if (!category) return;
+    const fetchArticles = async () => {
       setLoading(true);
+
       const start = (page - 1) * PAGE_SIZE;
       const end = start + PAGE_SIZE - 1;
 
-      const result = await supabase
+      const { data, count, error } = await supabase
         .from("articles")
         .select("id, title, created_at", { count: "exact" })
         .eq("category", category)
         .order("created_at", { ascending: false })
         .range(start, end);
 
-      if (!isActive) return;
-
-      if (result.error) {
-        console.error("❌ Error fetching articles:", result.error.message);
+      if (error) {
+        console.error("❌ Error fetching articles:", error);
       }
 
-      // Null-safe handling
-      const safeArticles = Array.isArray(result.data) ? result.data : [];
-      const safeCount = typeof result.count === "number" ? result.count : 0;
-
-      setArticles(safeArticles);
-      setTotalCount(safeCount);
+      setArticles(data || []);
+      setTotalCount(count || 0);
       setLoading(false);
-    }
+    };
 
     fetchArticles();
-    return () => {
-      isActive = false;
-    };
   }, [category, page]);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  // If category is missing while Next.js resolves params
+  if (!category) {
+    return (
+      <Wrapper>
+        <Info>Loading sitemap...</Info>
+      </Wrapper>
+    );
+  }
 
   if (loading) {
     return (
@@ -207,9 +209,7 @@ export default function SitemapCategoryContent() {
                 {a.title || "Untitled"}
               </LinkStyled>
               <Timestamp>
-                {a.created_at
-                  ? new Date(a.created_at).toLocaleDateString()
-                  : "Unknown date"}
+                {new Date(a.created_at).toLocaleDateString()}
               </Timestamp>
             </Item>
           ))}
