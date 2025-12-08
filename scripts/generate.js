@@ -26,6 +26,7 @@ import {
 import { selectBestImage } from "../lib/imageSelector.js";
 import { cleanText } from "../app/api/utils/cleanText.js";
 import { refineArticle } from "../app/api/utils/refineTools.js";
+import { cleanWikimediaAttribution } from "../app/api/utils/cleanAttribution.js";
 
 // ============================================================================
 // SIGNATURES
@@ -593,7 +594,7 @@ export async function main() {
 
       const imageCredit =
         source === "Wikimedia"
-          ? attribution || "Image via Wikimedia Commons"
+          ? cleanWikimediaAttribution(attribution)
           : source === "Pexels"
           ? "Image courtesy of Pexels"
           : source === "Unsplash"
