@@ -146,7 +146,7 @@ export default function ArticlePage({
                 (max-width: 1200px) 800px,
                 (max-width: 1600px) 1200px,
                 1600px"
-          alt={cleanText(title)}
+          alt={article.image_credit || cleanText(title)}
           loading="eager"
           decoding="async"
           style={{ backgroundColor: "#eaeaea" }}

@@ -582,6 +582,7 @@ export async function main() {
         imageUrl,
         source,
         score: bestScore,
+        attribution, // 👈 ADD THIS
       } = await selectBestImage(
         title,
         cleanedArticle,
@@ -592,7 +593,7 @@ export async function main() {
 
       const imageCredit =
         source === "Wikimedia"
-          ? "Image via Wikimedia Commons"
+          ? attribution || "Image via Wikimedia Commons"
           : source === "Pexels"
           ? "Image courtesy of Pexels"
           : source === "Unsplash"
