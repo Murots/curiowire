@@ -111,13 +111,8 @@
 // 🧭 Dynamic Sitemap per Category — CurioWire
 
 import Script from "next/script";
-import { createClient } from "@supabase/supabase-js";
 import SitemapCategoryContent from "./SitemapCategoryContent";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabaseServer } from "@/lib/supabaseServer";
 
 const PAGE_SIZE = 20;
 
@@ -163,14 +158,15 @@ export async function generateMetadata({ params, searchParams }) {
 export default async function SitemapCategoryPage({ params, searchParams }) {
   const { category } = params;
   const page = parseInt(searchParams?.page || "1", 10);
-
   const baseUrl = "https://curiowire.com";
 
-  // --- PAGINATION ---
+  const supabase = supabaseServer();
+
+  // PAGINATION
   const start = (page - 1) * PAGE_SIZE;
   const end = start + PAGE_SIZE - 1;
 
-  // --- FETCH FROM SUPABASE ---
+  // SUPABASE QUERY
   const {
     data: articles,
     count,
@@ -192,7 +188,7 @@ export default async function SitemapCategoryPage({ params, searchParams }) {
       ? `${baseUrl}/sitemap/${category}?page=${page}`
       : `${baseUrl}/sitemap/${category}`;
 
-  // === STRUCTURED DATA ===
+  // STRUCTURED DATA
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
