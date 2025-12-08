@@ -111,8 +111,8 @@
 // 🧭 Dynamic Sitemap per Category — CurioWire
 
 import Script from "next/script";
+import { supabaseServer } from "@/lib/supabaseServer"; // ← viktig
 import SitemapCategoryContent from "./SitemapCategoryContent";
-import { supabaseServer } from "@/lib/supabaseServer";
 
 const PAGE_SIZE = 20;
 
@@ -138,6 +138,7 @@ export async function generateMetadata({ params, searchParams }) {
       type: "website",
       title: `${formattedCategory} Sitemap — CurioWire`,
       description: `All ${formattedCategory.toLowerCase()} stories published on CurioWire.`,
+      siteName: "CurioWire",
       url: canonicalUrl,
       images: [`${baseUrl}/icon.png`],
     },
@@ -154,31 +155,30 @@ export async function generateMetadata({ params, searchParams }) {
   };
 }
 
-/* === 🧩 PAGE COMPONENT (SERVER RENDERED) === */
+/* === 🧩 SERVER COMPONENT === */
 export default async function SitemapCategoryPage({ params, searchParams }) {
   const { category } = params;
   const page = parseInt(searchParams?.page || "1", 10);
+
   const baseUrl = "https://curiowire.com";
 
-  const supabase = supabaseServer();
-
-  // PAGINATION
   const start = (page - 1) * PAGE_SIZE;
   const end = start + PAGE_SIZE - 1;
 
-  // SUPABASE QUERY
-  const {
-    data: articles,
-    count,
-    error,
-  } = await supabase
+  // Use server-safe supabase client
+  const supabase = supabaseServer();
+
+  // --- SAFE FETCH ---
+  const result = await supabase
     .from("articles")
     .select("id, title, created_at", { count: "exact" })
     .eq("category", category)
     .order("created_at", { ascending: false })
     .range(start, end);
 
-  if (error) console.error("❌ Supabase error:", error.message);
+  // Prevent Supabase null crash
+  const articles = Array.isArray(result.data) ? result.data : [];
+  const totalCount = typeof result.count === "number" ? result.count : 0;
 
   const formattedCategory =
     category.charAt(0).toUpperCase() + category.slice(1);
@@ -188,35 +188,39 @@ export default async function SitemapCategoryPage({ params, searchParams }) {
       ? `${baseUrl}/sitemap/${category}?page=${page}`
       : `${baseUrl}/sitemap/${category}`;
 
-  // STRUCTURED DATA
+  // --- STRUCTURED DATA (JSON-LD CRASH SAFE) ---
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: `${formattedCategory} Articles — CurioWire Sitemap`,
-    description: `All ${formattedCategory.toLowerCase()} stories on CurioWire.`,
+    description: `All ${formattedCategory.toLowerCase()} stories published on CurioWire.`,
     url: canonicalUrl,
     publisher: {
       "@type": "Organization",
       name: "CurioWire",
       url: baseUrl,
-      logo: { "@type": "ImageObject", url: `${baseUrl}/icon.png` },
+      logo: {
+        "@type": "ImageObject",
+        url: `${baseUrl}/icon.png`,
+      },
     },
     mainEntity: {
       "@type": "ItemList",
-      numberOfItems: count || 0,
+      numberOfItems: totalCount,
       itemListOrder: "Descending",
-      itemListElement: (articles || []).map((a, i) => ({
+      itemListElement: articles.map((a, i) => ({
         "@type": "ListItem",
         position: start + i + 1,
         url: `${baseUrl}/article/${a.id}`,
-        name: a.title,
-        datePublished: a.created_at,
+        name: a.title || "Untitled",
+        datePublished: a.created_at || null,
       })),
     },
   };
 
   return (
     <>
+      {/* Structured data */}
       <Script
         id={`structured-data-sitemap-${category}`}
         type="application/ld+json"
@@ -225,6 +229,8 @@ export default async function SitemapCategoryPage({ params, searchParams }) {
           __html: JSON.stringify(structuredData),
         }}
       />
+
+      {/* Client-side paginator */}
       <SitemapCategoryContent />
     </>
   );
