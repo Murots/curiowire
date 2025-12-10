@@ -447,6 +447,14 @@ Rules:
 • WHAT must begin directly with the subject  
 • Keep summary tight but meaningful  
 
+IMPORTANT:
+The WHAT line MUST always contain this wrapper:
+<span data-summary-what> ... </span>
+
+Do NOT remove, replace, paraphrase, or omit this span wrapper.
+It is required for downstream components.
+If the input article does not include it, you MUST generate it.
+
 =====================================================================
 STEP 3 — ADD SOURCES SECTION
 =====================================================================

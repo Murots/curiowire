@@ -66,7 +66,7 @@ export default async function HomePage() {
     name: "CurioWire",
     url: baseUrl,
     description:
-      "Explore remarkable, AI-generated stories about science, technology, nature, space, history, and culture.",
+      "Explore remarkable, AI-generated stories about science, technology, nature, space, history, culture and more.",
     publisher: {
       "@type": "Organization",
       name: "CurioWire",
@@ -85,7 +85,7 @@ export default async function HomePage() {
     "@type": "ItemList",
     name: "Trending Curiosities — CurioWire",
     description:
-      "The top AI-generated stories trending this week across science, history, nature, and technology.",
+      "The top AI-generated stories trending this week across science, history, nature, technology and more.",
     numberOfItems: articles.length,
     itemListElement: articles.map((a, index) => ({
       "@type": "ListItem",
@@ -100,10 +100,10 @@ export default async function HomePage() {
   const newsArticlesData = articles.slice(0, 3).map((a) => ({
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    headline: a.title,
+    headline: a.seo_title || a.title,
     description:
-      a.excerpt?.slice(0, 180) ||
-      "Explore this week's trending AI-generated story on CurioWire.",
+      a.seo_description ||
+      `Trending curiosity from the category ${a.category}.`,
     image: [a.image_url || `${baseUrl}/icon.png`],
     articleSection: a.category || "General",
     url: `${baseUrl}/article/${a.id}`,

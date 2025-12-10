@@ -7,7 +7,6 @@ import Script from "next/script";
 export async function generateMetadata({ params }) {
   const { id } = await params;
 
-  // 📰 Hent artikkel fra Supabase
   const { data: article } = await supabase
     .from("articles")
     .select("*")
@@ -24,20 +23,24 @@ export async function generateMetadata({ params }) {
 
   const baseUrl = "https://curiowire.com";
   const url = `${baseUrl}/article/${id}`;
-  const cleanTitle = (article.title || "Untitled — CurioWire")
+  const image = article.image_url || `${baseUrl}/icon.png`;
+  const category = article.category || "General";
+
+  const cleanTitle = (
+    article.seo_title ||
+    article.title ||
+    "Untitled — CurioWire"
+  )
     .replace(/\*/g, "")
     .trim();
-  const category = article.category || "General";
-  const image = article.image_url || `${baseUrl}/icon.png`;
 
-  const rawExcerpt =
-    article.excerpt?.replace(/\s+/g, " ").trim() ||
-    "Explore unique, AI-generated curiosities on CurioWire.";
-  const trimmedExcerpt =
-    rawExcerpt.length > 155
-      ? rawExcerpt.slice(0, 155).replace(/\s+\S*$/, "") + "…"
-      : rawExcerpt;
-  const description = `${trimmedExcerpt} Discover more →`;
+  const description =
+    article.seo_description ||
+    "AI-generated curiosity from CurioWire — explore hidden stories in science, history, nature, culture and more.";
+
+  const keywords = article.seo_keywords
+    ? article.seo_keywords.split(",").map((k) => k.trim())
+    : [];
 
   return {
     title: cleanTitle,
@@ -70,7 +73,7 @@ export async function generateMetadata({ params }) {
       "article:section": category,
       "og:image:alt": cleanTitle,
       "theme-color": "#95010e",
-      "og:locale": "en_US",
+      keywords: keywords.join(", "),
     },
   };
 }

@@ -11,11 +11,20 @@ const supabase = createClient(
 
 const BASE_URL = "https://curiowire.com";
 
+function stripHtml(html = "") {
+  return html
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function GET() {
   try {
     const { data: articles, error } = await supabase
       .from("articles")
-      .select("id, title, excerpt, category, created_at, image_url")
+      .select(
+        "id, title, seo_description, excerpt, category, created_at, image_url"
+      )
       .order("created_at", { ascending: false })
       .limit(30);
 
@@ -30,7 +39,10 @@ export async function GET() {
   <guid>${BASE_URL}/article/${a.id}</guid>
   <category>${a.category}</category>
   <pubDate>${new Date(a.created_at).toUTCString()}</pubDate>
-  <description><![CDATA[${a.excerpt || "Curious story"}]]></description>
+  <description><![CDATA[${
+    a.seo_description ||
+    stripHtml(a.excerpt?.slice(0, 200) || "CurioWire curiosity.")
+  }]]></description>
   ${a.image_url ? `<enclosure url="${a.image_url}" type="image/jpeg" />` : ""}
 </item>`
       )

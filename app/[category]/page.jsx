@@ -103,9 +103,9 @@ export default async function CategoryPageWrapper({ params, searchParams }) {
   const newsArticlesData = (articles || []).slice(0, 3).map((a) => ({
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    headline: a.title,
+    headline: a.seo_title || a.title,
     description:
-      a.excerpt?.slice(0, 180) ||
+      a.seo_description ||
       `Explore ${formattedCategory.toLowerCase()} stories and curiosities on CurioWire.`,
     image: [a.image_url || `${baseUrl}/icon.png`],
     articleSection: formattedCategory,
