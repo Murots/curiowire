@@ -124,14 +124,17 @@ export default async function CategoryPageWrapper({ params, searchParams }) {
     },
   }));
 
-  const allStructuredData = [collectionData, itemListData, ...newsArticlesData];
+  // Knytter ItemList til CollectionPage
+  collectionData.mainEntity = itemListData;
+
+  const allStructuredData = [collectionData, ...newsArticlesData];
 
   /* === 🧩 RETURNER SIDE === */
   return (
     <>
       {/* ✅ Faktisk JSON-LD for Google */}
       <Script
-        id={`structured-data-${category}`}
+        id="structured-data-category"
         type="application/ld+json"
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
