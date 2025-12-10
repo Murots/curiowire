@@ -134,7 +134,7 @@ export default async function CategoryPageWrapper({ params, searchParams }) {
     <>
       {/* ✅ Faktisk JSON-LD for Google */}
       <Script
-        id="structured-data-category"
+        id={`structured-data-category-${category}`}
         type="application/ld+json"
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
