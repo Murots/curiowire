@@ -614,7 +614,7 @@ Possible story angles (choose whichever fits best):
 // ============================================================================
 // BUILD ARTICLE PROMPT
 // ============================================================================
-export function buildArticlePrompt(topic, key, tone) {
+export function buildArticlePrompt(topic, key, tone, factualFrame) {
   return `
 ### 🧬 CATEGORY PROFILE
 You are writing in the **${key.toUpperCase()}** category.  
@@ -640,7 +640,7 @@ Your voice is:
 ### ⚡ VIRAL ANGLE & EMOTIONAL HOOK
 Before writing, identify the **viral core** of the article:
 
-• What part of the curiosity makes people say “NO WAY—BUT TRUE”?  
+• What part of the factual frame makes people say “NO WAY—BUT TRUE”?  
 • What contrast or paradox hits hardest emotionally?  
 • What image or moment at the start would make someone stop scrolling?  
 • Which part lends itself to short-form clips (TikTok/Shorts)?
@@ -654,12 +654,29 @@ Never present speculation as fact.
 
 ---
 
+### 🔬 FACTUAL RESEARCH FRAME (MUST BE FOLLOWED)
+Use this factual frame as the ONLY source of factual grounding:
+
+${factualFrame}
+
+You may:
+✔ expand it narratively  
+✔ create emotional atmosphere  
+✔ interpret the implications  
+
+You may NOT:
+✘ introduce new factual claims  
+✘ contradict the frame  
+✘ add external information not implied by the frame  
+
+---
+
 ### 🔍 SEO OBJECTIVES (SECONDARY PRIORITY)
 SEO should support the story, not dominate it.
 
 The article must:
 • include evergreen long-tail keywords related to "${topic}"  
-• mention one real organization, researcher, study, mission, or geographic location  
+• You may add supporting real-world references as long as they do not contradict the factual research frame.  
 • include one quantifiable detail (year, distance, percentage, measurement)  
 • contain one sentence early that could function as a Google snippet  
 
@@ -670,10 +687,10 @@ Emotional impact and curiosity come first.
 
 ### 🧭 CONTEXT
 Do NOT treat the concept as news.  
-Treat it as a **signal** pointing toward a forgotten or overlooked factual curiosity — something real, specific, and surprising.
+Treat it as a **signal** pointing toward the emotional tone and narrative contrast.
 
 The core requirement:
-> Reveal a truth from history, science, or culture that feels *impossible but real*, and link it clearly back to the concept seed.
+Use the concept seed only to shape the emotional tone and narrative contrast. All factual content must come from the factual research frame.
 
 Concept Seed: "${topic}"  
 Category: ${key}  
@@ -684,17 +701,18 @@ Voice model: **BBC Future × Atlas Obscura × Popular Science**, but punchier.
 ---
 
 ### 🎯 STRATEGY
-- Find one **astonishing factual event, mechanism, or discovery** related to the category.  
+- Expand the provided factual research frame into a vivid, surprising narrative.  
+- Do NOT invent new factual claims — all factual grounding must come from the research frame.  
 - Write in cinematic, emotionally engaging language anchored in facts.  
 - Explain **why this truth matters**, not just what happened.  
-- Build clear thematic resonance between the seed and the curiosity.  
+- Build clear thematic resonance between the seed and the factual research frame.  
 - Use short, fast-paced sentences where appropriate for rhythm.  
 - Always include at least one proper noun (scientist, region, study, mission name, artifact, etc.).  
 - Never fabricate details — use cautious language where needed.  
 - End with thought-provoking wonder, not a conclusion.
 
 ⚡ **WOW REQUIREMENT**  
-The article MUST contain at least one rare, counterintuitive, surprising fact that genuinely produces a “WOW—this is real?” reaction.
+Highlight the rare or counterintuitive character already inherent in the factual research frame, that genuinely produces a “WOW—this is real?” reaction.
 
 ---
 
@@ -728,43 +746,28 @@ Write the article in **valid HTML only**.
 1️⃣ **Opening Hook**  
 <h2>[impactful viral-style subheadline]</h2>  
 <p>
-Start with a cinematic, emotionally charged line tied to the concept seed.  
+Start with a cinematic line inspired by the concept seed and immediately anchor the opening in the factual research frame.  
 Deliver one concrete factual detail immediately.  
 End with a question or tension-setting hint.
-Do NOT use this example literally — generate your own unique phrasing every time.
-Example patterns (do not copy them word-for-word):
-• something unexpected shifted…
-• the real puzzle emerged only when…
-• what followed was far stranger…
-• few realized what this moment would reveal…
+Do NOT use the examples literally — generate your own phrasing.
 </p>
 
 2️⃣ **Revealing the Hidden Truth**  
 <h2>[subheadline capturing astonishment + keywords]</h2>  
 <p>
 This is the core (≈50% of the article).  
-Describe the factual event, mechanism, or discovery in vivid detail.  
-Include:
-• real dates  
-• real people  
-• real locations  
-• one measurable statistic  
+Expand the factual frame (field, evidence, note, theme phrase) into a rich explanatory narrative.  
+You may add context, but avoid adding new factual claims not supported by the frame.  
 Explain why this was shocking, overlooked, or misunderstood.  
-Link clearly to the concept seed’s theme.
+Link clearly to the concept seed’s emotional theme.
 </p>
 
 3️⃣ **Why It Still Matters Today**  
 <h2>[subheadline about meaning + modern relevance]</h2>  
 <p>
 Explain the modern echo of the event.  
-Use one real modern study, figure, or example as contrast.  
-Deliver an emotional insight that reframes the story.
-Do NOT use the example phrase literally.
-Example patterns you may reinterpret:
-• at its core, this shows…
-• the deeper truth is that…
-• the lasting lesson hidden here is…
-• it reminds us that… 
+Use one real modern study, figure, or example ONLY if compatible with the factual frame.  
+Deliver an emotional insight that reframes the story.  
 End with reflective curiosity, not closure.
 </p>
 
@@ -837,7 +840,7 @@ Output space-separated.
 // ============================================================================
 // BUILD CULTURE PROMPT
 // ============================================================================
-export function buildCulturePrompt(topic, key, tone) {
+export function buildCulturePrompt(topic, key, tone, factualFrame) {
   // --- FAILSAFE ---
   key = key || "culture";
   tone = tone || "neutral";
@@ -877,11 +880,31 @@ Your article must:
 
 ---
 
+### 🔬 FACTUAL RESEARCH FRAME (STRICT)
+Use this factual frame as the **only source** of factual content:
+
+${factualFrame}
+
+You may:
+✔ expand it narratively  
+✔ create sensory atmosphere  
+✔ highlight symbolism implied by the frame  
+
+You may NOT:
+✘ invent new facts  
+✘ contradict the frame  
+✘ import unrelated historical material  
+
+All factual grounding MUST come from the frame and nowhere else.
+
+---
+
 ### 🧭 CONTEXT
 You are NOT writing an opinion piece.  
 You are NOT writing a generic cultural essay.
 
-Use the concept seed as a **symbolic spark** leading to a real cultural curiosity.  
+Use the concept seed as a **symbolic spark**, shaping tone, imagery, and emotional contrast — NOT as a source of facts.
+
 Your mission is to uncover a story that feels:
 
 ✨ *beautiful*  
@@ -901,21 +924,16 @@ Voice: factual + poetic, never fictional.
 
 ### 🎯 STRATEGY
 - Write with sensory richness: color, texture, sound, light.  
-- Anchor every image in **verifiable cultural or historical detail**.  
+- Anchor every image in **verifiable cultural or historical detail from the factual frame**.  
 - Reveal layers of meaning like a museum curator unveiling a hidden artifact.  
 - Use short, rhythmic sentences optimized for mobile reading.  
-- Deliver **at least one WOW-moment**: a rare, surprising cultural fact almost no one knows.  
+- Deliver **at least one WOW-moment**: a rare, surprising cultural fact already present or implied in the factual frame.  
 - Maintain the rhythm:  
   **image → fact → meaning → wonder**  
 
 ⚡ **WOW-FACTOR REQUIREMENT**  
-You MUST include at least one *counterintuitive, forgotten, or mind-bending* cultural fact that is100% real.  
-Examples of tone:  
-• “Some medieval scribes drew tiny, angry caricatures in the margins to protest their workload.”  
-• “Ancient Andean quipus stored memory in knotted strings long before written alphabets.”  
-• “A 9th-century Japanese poem still dictates modern cherry-blossom rituals.”
-
-Nothing fictional. Nothing speculative. Only surprising truth.
+You MUST include at least one *counterintuitive, forgotten, or mind-bending* cultural detail that arises naturally from the factual frame.  
+Nothing fictional. Nothing speculative.
 
 🚫 Never reference:  
 • Reddit  
@@ -961,7 +979,7 @@ Follow EXACT structure:
 1️⃣ **Opening Scene**  
 <h2>[Generate a vivid, sensory subheadline]</h2>  
 <p>
-Open with a sensory image rooted in a real artifact, place, or moment.  
+Open with a sensory image rooted in a real artifact, place, or moment from the factual research frame.  
 Include one datable element (century, region, period).  
 Hint at a hidden meaning waiting to be revealed.  
 End with a line that creates emotional tension or curiosity.
@@ -970,11 +988,11 @@ End with a line that creates emotional tension or curiosity.
 2️⃣ **Historical Core**  
 <h2>[Generate a poetic, factual subheadline]</h2>  
 <p>
-Reveal the real cultural story.  
-Include names, dates, objects, rituals, or movements.  
+Reveal the real cultural story entirely from the factual frame.  
+Include names, dates, objects, rituals, or movements only if they appear or are implied in the frame.  
 Use sensory detail + factual precision.  
 Tie the story to a universal human theme (memory, identity, loss, rebirth).  
-Deliver the WOW-fact here — a surprising but verifiable cultural detail.
+Deliver the WOW-fact here — a surprising but verifiable cultural detail grounded in the frame.
 </p>
 
 3️⃣ **Modern Echo**  
@@ -982,7 +1000,7 @@ Deliver the WOW-fact here — a surprising but verifiable cultural detail.
 <p>
 Explain why the tradition or artifact still matters today.  
 Start with a linking sentence (“Its echo remains because…”).  
-Relate the story to modern cultural habits, art, or identity.  
+Relate the story to modern cultural habits, art, or identity, without adding new historical facts.  
 End with poetic SEO-relevant wonder.
 </p>
 
@@ -1000,9 +1018,9 @@ FORMAT RULES (strict):
 - **NO lists** of any kind:
   - no <ul>, <ol>, <li>
   - no bullets ("-", "•")
-  - no numbering ("1.", "2.", "3.").
+  - no numbering ("1.", "2.", "3.").  
 - **NO markdown formatting**:
-  - no **bold**, no *italic*, no backticks.
+  - no **bold**, no *italic*, no backticks.  
 - If emphasis is needed, use **HTML only**: <strong>…</strong> or <em>…</em>.  
 - Each fact must be 1–2 sentences, concise, standalone, and add meaningful factual depth.  
 - Do NOT merge all facts into one paragraph.  
@@ -1026,7 +1044,7 @@ End with this exact line:
 
 ### 🧠 REQUIREMENTS
 • 600–700 words (800 if natural and factual)  
-• One real cultural reference (artist, artifact, movement, museum, archive)  
+• One real cultural reference (artist, artifact, movement, museum, archive) ONLY if present in the factual frame  
 • All poetic elements must anchor in **verifiable reality**  
 • HTML only — no markdown  
 
@@ -1056,7 +1074,7 @@ Output space-separated.
 // ============================================================================
 // BUILD PRODUCT ARTICLE PROMPT
 // ============================================================================
-export function buildProductArticlePrompt(topic, key, tone) {
+export function buildProductArticlePrompt(topic, key, tone, factualFrame) {
   return `
 ### 🧬 CATEGORY PROFILE
 You are writing in the **${key.toUpperCase()}** category.  
@@ -1090,6 +1108,25 @@ Turn a simple object into a **viral curiosity with deep factual roots**.
 
 ---
 
+### 🔬 FACTUAL RESEARCH FRAME (STRICT)
+Use the following frame as the **sole factual foundation** for the article:
+
+${factualFrame}
+
+Rules:
+✔ You may expand the frame narratively  
+✔ You may describe sensory detail, mood, texture, conflict  
+✔ You may add emotional emphasis and thematic framing  
+
+But you may NOT:
+✘ introduce new historical facts  
+✘ name new inventors, dates, locations, materials not present or implied in the frame  
+✘ contradict the frame in any way  
+
+All factual content MUST come from the research frame.
+
+---
+
 ### 🔥 VIRAL OBJECTIVE (PRIORITY OVER SEO)
 Your article must feel:
 • surprising  
@@ -1106,8 +1143,13 @@ SEO still matters, but *secondary*.
 ---
 
 ### 🧭 CONTEXT
-The concept seed is your thematic spark — NOT the article’s topic.  
-It guides mood, symbolism, irony, contrast, or emotional shape.
+The concept seed shapes:
+• mood  
+• symbolism  
+• contrast  
+• emotional tone  
+
+NOT factual content.
 
 Concept Seed: "${topic}"  
 Category: ${key}  
@@ -1118,11 +1160,11 @@ Voice: cinematic, factual, curiosity-driven — like *Wired* + *Atlas Obscura* +
 
 ### ⚡ STRATEGY (STRICT)
 Every article must contain:
-• one **astonishing factual twist**  
-• one **rarely discussed invention detail**  
-• one **human drama or coincidence**  
-• one **quantifiable detail** (year, model, measurement, patent no.)  
-• one **modern echo**  
+• one **astonishing factual twist** grounded in the factual frame  
+• one **rarely discussed invention detail** from the frame  
+• one **human drama or coincidence** only if implied in the frame  
+• one **quantifiable detail** (year, model, measurement, patent number)  
+• one **modern echo** rooted in factual implications  
 
 Allow *debated interpretations* using safe phrasing:
 • “Some engineers argue…”  
@@ -1135,20 +1177,20 @@ Never fabricate facts.
 
 ### ⚡ WOW-FACTOR REQUIREMENT
 Mandatory:
-The article MUST include one **counterintuitive, surprising, or nearly forgotten truth** about the invention or object.
+Include one **counterintuitive, surprising, or nearly forgotten truth** about the object or invention — already present, implied, or inferable from the factual frame.
 
-Examples of acceptable WOW flavor:
+Acceptable WOW directions:
 • accidental discoveries  
-• failed prototypes that reshaped history  
-• obscure patents that predate fame  
-• objects used in bizarre or unintended ways  
-• inventions that caused unintended ripple effects  
+• failures leading to breakthroughs  
+• obscure prototypes  
+• materials used in bizarre ways  
+• unintended consequences  
 
 Reject:
 • common knowledge  
 • textbook history  
 • marketing language  
-• modern influencer/consumer culture  
+• invented anecdotes  
 
 ---
 
@@ -1160,7 +1202,7 @@ Write one **cinematic, viral, SEO-optimized headline**:
 4. include at least one recognizable object/invention keyword  
 5. avoid marketing tone  
 
-Approved headline templates:
+Examples:
 • “The Forgotten <Object> That Quietly Changed the World”  
 • “How a <Tiny/Obscure Tool> Altered Modern Life”  
 • “The <Prototype> That Sparked an Unexpected Revolution”  
@@ -1170,88 +1212,81 @@ Approved headline templates:
 ### 🎨 SUBHEADLINE (H2) RULES
 Each <h2> must:
 • be 5–10 words  
-• include a relevant invention keyword  
-• feel cinematic, like a documentary segment  
-• avoid punctuation at the end  
-• vary emotional tone each time (mystery → conflict → meaning)
+• contain an invention-relevant keyword  
+• feel cinematic  
+• avoid punctuation  
+• vary emotional tone  
 
 ---
 
 ### 🧱 STRUCTURE (STRICT HTML)
-Write the article using **valid HTML only** (<h2>, <p>).
+Use **valid HTML only** (<h2>, <p>).
+
+---
 
 1️⃣ **Present Echo**  
 <h2>[cinematic subheadline — present → hint of mystery]</h2>  
 <p>
-Begin with a striking, modern image of the object.  
-Include one surprising measurable detail about its current usage or presence.  
-End with a tension-building line (but avoid always using the same phrase).  
-Examples of varied cues:
-• “Yet its origins tell a stranger story.”  
-• “But few remember where it truly began.”  
-• “Yet the real twist lies buried in history.”  
+Begin with a striking, modern image of the object that aligns with the factual frame.  
+Include one surprising measurable detail about its present influence or presence.  
+End with a tension-building line (vary phrasing each time).
 </p>
+
+---
 
 2️⃣ **Historical Core**  
 <h2>[factual + dramatic subheadline]</h2>  
 <p>
-Reveal the origin story with cinematic precision.  
+Reveal the origin story strictly from the factual frame.  
 Include:
-• at least one real inventor  
+• at least one real inventor (if present in the frame)  
 • one real date  
 • one real location  
 • one measurable detail (material, patent number, prototype count)  
 
-Highlight conflict:
+Highlight conflict ONLY if implied:
 • accidents  
-• disputes  
 • failures  
-• surprising inspirations  
+• disputed ideas  
+• unexpected breakthroughs  
 
 Explain why this moment is astonishing or rarely known.
 </p>
 
+---
+
 3️⃣ **Timeless Reflection**  
 <h2>[subheadline about meaning + influence]</h2>  
 <p>
-Explain why this invention still matters today.  
-Start with a varied linking phrase (rotate structure):
-• “Its influence endures in…”  
-• “Today, its legacy appears in…”  
-• “Modern design still echoes…”  
-• “Engineers still borrow from…”  
-
-Connect past → present → enduring insight.  
+Explain why the invention still matters today.  
+Link past → present using only implications allowed by the factual frame.  
 End with a poetic but factual closing image.
 </p>
+
+---
 
 4️⃣ **Did You Know?**  
 <h2>Did You Know?</h2>
 
 Create exactly **3 short, surprising, factual curiosities or fun facts** directly related to the product.
 
-The facts should be about the legacy or influence — adaptations, rediscoveries, modern successors of the product.  
-Each should be a standalone micro-fact that adds credibility and wonder.
+The facts should relate to legacy, influence, rediscoveries, or modern echoes consistent with the frame.
 
 FORMAT RULES (strict):
-- Output must consist of **exactly three <p> elements**, one per fact.  
-- **NO lists** of any kind:
-  - no <ul>, <ol>, <li>
-  - no bullets ("-", "•")
-  - no numbering ("1.", "2.", "3.").
-- **NO markdown formatting**:
-  - no **bold**, no *italic*, no backticks.
-- If emphasis is needed, use **HTML only**: <strong>…</strong> or <em>…</em>.  
-- Each fact must be 1–2 sentences, concise, standalone, and add meaningful factual depth.  
-- Do NOT merge all facts into one paragraph.  
-- Do NOT add any explanatory text before or after the three facts.
+- Exactly **three <p> elements**  
+- No lists, no bullets, no numbering  
+- No markdown  
+- 1–2 standalone sentences each  
+- Must add meaningful depth  
 
-REQUIRED OUTPUT FORMAT (exact structure):
-<p>[First fun fact]</p>
-<p>[Second fun fact]</p>
+REQUIRED OUTPUT FORMAT:
+<p>[First fun fact]</p>  
+<p>[Second fun fact]</p>  
 <p>[Third fun fact]</p>
 
-Produce ONLY these three <p> elements — nothing more.
+ONLY these three paragraphs.
+
+---
 
 5️⃣ **Keep Exploring**  
 <h2>Keep Exploring</h2>  
@@ -1259,6 +1294,8 @@ Produce ONLY these three <p> elements — nothing more.
 End with this exact line:  
 “CurioWire continues to uncover the world’s hidden histories — one curiosity at a time.”
 </p>
+
+---
 
 6️⃣ **Product Name**  
 <p>
@@ -1269,11 +1306,11 @@ At the very end of the article, include this line exactly:
 ---
 
 ### 🧠 REQUIREMENTS
-• 600–700 words (800 allowed if naturally driven by facts)  
-• Must include one real inventor, one real date, one real location  
+• 600–700 words (800 allowed if natural)  
+• Must include one real inventor, one real date, one real location — ONLY if present in the factual frame  
 • Zero marketing tone  
 • HTML only  
-• Rhythm: **present → past → insight → micro-curiosities → closure**
+• Rhythm: **present → past → insight → curiosities → closure**  
 
 ---
 
@@ -1281,12 +1318,12 @@ At the very end of the article, include this line exactly:
 Headline: <headline — cinematic, factual, SEO-rich>  
 
 Article:  
-<full article using <h2> and <p> tags as described above>
+<full article using <h2> and <p> tags as described>
 
 SEO:  
 <title> — same as headline  
 <description> — 150–160 character factual yet cinematic snippet for Google  
-<keywords> — 7–10 comma-separated long-tail keyword phrases related to ${topic}, invention, and human ingenuity  
+<keywords> — 7–10 long-tail keywords tied to ${topic}, invention, ingenuity  
 
 Hashtags:  
 Generate 7–10 relevant hashtags matching the topic and article content.  
@@ -1302,7 +1339,7 @@ Output space-separated.
 export const affiliateAppendix = `
 === AFFILIATE TASK ===
 At the end of your article, include one line in this exact format:
-[Product Name]: <the exact name of a real or typical product found on Amazon.com>
+[Product Name]: <the name of a real, trending, or best-selling product type commonly found on Amazon.com>
 Example:
 [Product Name]: Swing-A-Way Can Opener
 Do NOT include any link.

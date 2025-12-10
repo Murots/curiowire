@@ -208,7 +208,13 @@ async function generateArticleDraft({
   }
 
   // Bind artikkelen sterkt til valgt kuriositet
-  prompt += `\nFocus the story around this factual curiosity:\n"${linkedStory}"`;
+  prompt += `
+Focus the story around this factual research frame:
+Field: ${linkedStory.field}
+Evidence: ${linkedStory.anchor}
+Note: ${linkedStory.note}
+Theme phrase: "${linkedStory.phrase}"
+`;
 
   // INTERNAL STRUCTURAL ANCHOR — DO NOT DISPLAY IN ARTICLE
   // (Do NOT appear in final output. For internal steering only.)
@@ -338,6 +344,17 @@ export async function main() {
         try {
           // Vi bruker selve topic-teksten som "modern topic" inn i linkHistoricalStory
           candidateCurio = await linkHistoricalStory(candidateConcept, key);
+          if (
+            !candidateCurio ||
+            !candidateCurio.field ||
+            !candidateCurio.anchor ||
+            !candidateCurio.phrase
+          ) {
+            console.log(
+              `   ⚠️ Invalid curiosity structure for concept (WOW ${wowScore}), skipping.`
+            );
+            continue;
+          }
         } catch (err) {
           console.log(
             `   ⚠️ Curiosity linking failed for concept (WOW ${wowScore}):`,
@@ -346,18 +363,11 @@ export async function main() {
           continue;
         }
 
-        if (!candidateCurio) {
-          console.log(
-            `   ⚠️ No factual curiosity link found for concept (WOW ${wowScore}), skipping.`
-          );
-          continue;
-        }
-
         // 3C: Bygg curiosity-signatur
         const candidateSig = await buildCurioSignature({
           category: key,
           topic: candidateConcept,
-          curiosity: candidateCurio,
+          curiosity: `${candidateCurio.field} — ${candidateCurio.anchor} — ${candidateCurio.phrase}`,
         });
 
         const dupeInfo = await checkCurioDuplicate(candidateSig);
@@ -381,7 +391,10 @@ export async function main() {
         selectedWowScore = wowScore;
 
         console.log(`   ✅ Selected concept [WOW ${wowScore}] → "${topic}"`);
-        console.log(`      Curiosity link → "${linkedStory}"`);
+        console.log(
+          `      Curiosity link → field="${linkedStory.field}", anchor="${linkedStory.anchor}"`
+        );
+
         break;
       }
 
@@ -604,7 +617,7 @@ export async function main() {
       let semanticCore =
         curioSignature?.signature ||
         curioSignature?.normalized ||
-        linkedStory ||
+        `${linkedStory.field} — ${linkedStory.anchor} — ${linkedStory.phrase}` ||
         title;
 
       const semanticSignature = [

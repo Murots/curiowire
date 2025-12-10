@@ -287,21 +287,16 @@ function cleanMarkdown(html) {
 
 /* ------------------------------------------------------------
  * Utility: Normalize the Did You Know? section
- * - Cleans up list markup into <p> facts
  * ------------------------------------------------------------ */
 function normalizeDidYouKnow(html) {
   return html.replace(
     /<h2>Did You Know\?<\/h2>([\s\S]*?)(?=<h2>|$)/,
     (match, sectionContent) => {
       let cleaned = sectionContent
-        // Remove list wrappers
         .replace(/<\/?ul>|<\/?ol>/g, "")
-        // Convert any <li> to <p>
         .replace(/<li>/g, "<p>")
         .replace(/<\/li>/g, "</p>")
-        // Remove bullets, dashes, or numbering at line start
         .replace(/^\s*([-•]|\d+\.)\s*/gm, "")
-        // If multiple facts end up on the same line: split after punctuation + number
         .replace(/(\.)\s*(\d+\.)/g, "$1\n")
         .trim();
 
@@ -316,26 +311,37 @@ function normalizeDidYouKnow(html) {
   );
 }
 
-/**
- * Kjør en redaksjonell forbedring på ferdig generert artikkel:
- * 1. Forbedrer språk, rytme og flyt.
- * 2. Legger til oppsummeringsboks (Quick Summary).
- * 3. Legger til kildeseksjon nederst ("Sources & References").
- * 4. Bevarer SEO-intensjon, WOW-faktor og spesiallinjer.
- *
- * @param {string} articleText Full HTML-artikkeltekst
- * @param {string} title Artikkeltittel for kontekst
- * @returns {Promise<string>} Refined artikkeltekst (samme format)
- */
+/* ------------------------------------------------------------
+ * MAIN: refineArticle
+ * ------------------------------------------------------------ */
 export async function refineArticle(articleText, title) {
   if (!articleText || articleText.length < 200) return articleText;
 
   const refinePrompt = `
-You are a **senior editor** for *CurioWire*, a publication blending science,
-history, culture, products, and curiosity into highly shareable, SEO-strong stories.
+You are a **senior editor** for *CurioWire*, working under the Frontier Realism mandate:
+high-density factual wonder, frontier-level science/culture/history, strong rhythm, 
+and absolute factual safety.
 
-Your job: **refine the article WITHOUT changing its factual content or structural intent**.
-You polish language, rhythm, clarity, and emotional flow — but never rewrite the story.
+Your task: **refine the article WITHOUT changing meaning, facts, structure, or length profile**.
+
+Your edits focus on:
+• clarity  
+• flow  
+• rhythm  
+• eliminating true redundancy  
+• strengthening transitions  
+• preserving vivid frontier realism language  
+
+DO NOT shorten the article unless:
+• a sentence is pure repetition  
+• two sentences express the same idea identically  
+• the removed text does NOT reduce meaning  
+
+DO NOT expand the article unless:
+• the original sentence is unclear  
+• improved flow requires microscopic clarification  
+• expansion stays within the article’s established facts  
+Any added text must be **value-adding and fact-neutral**.
 
 =====================================================================
 🔒 STRICT FACTUAL LOCKDOWN (NO FACT DRIFT)
@@ -343,33 +349,65 @@ You polish language, rhythm, clarity, and emotional flow — but never rewrite t
 You MUST NOT introduce ANY new factual information.
 
 Forbidden:
-• adding new names, dates, locations, events, causes, mechanisms  
-• removing factual elements  
-• generalizing specific facts  
-• making vague facts more specific  
-• changing the sequence of events  
-• inferring missing details  
-• "clarifying" by inventing supporting evidence  
+• new names, dates, mechanisms, events  
+• invented clarity  
+• implying new causes  
+• adding scientific context not already in the article  
+• merging vague sentences into more specific ones with new facts  
 
-If uncertain, preserve the original wording.
+If uncertain: **do NOT change the factual sentence**.
+
+=====================================================================
+🌋 FRONTIER REALISM PRESERVATION
+=====================================================================
+CurioWire operates in the factual frontier zone:
+rare phenomena, overlooked mechanisms, emerging research, unusual truths.
+
+You MUST:
+• preserve intensity and strangeness  
+• preserve emotionally striking contrasts  
+• preserve every unusual detail exactly  
+• preserve the tone of scientific awe  
+
+You MAY:
+• polish language  
+• improve pacing  
+• avoid softening or mainstreaming rare facts  
+
+NEVER:
+• weaken the strange  
+• dilute the sense of discovery  
+• tone down the frontier aspects  
+
+=====================================================================
+🎯 HIGH INFORMATION DENSITY RULE
+=====================================================================
+Every paragraph must contain at least one of:
+• a concrete factual detail  
+• a meaningful conceptual insight  
+• a narrative transition with purpose  
+• an emotional pivot grounded in reality  
+
+Remove ONLY sentences that contain:
+• no factual value  
+• no conceptual insight  
+• no emotional or structural relevance  
 
 =====================================================================
 🎯 SEO & STRUCTURE SAFETY
 =====================================================================
-• Preserve all core keywords, recurring concepts, and long-tail phrasing  
-• You may lightly polish <h2> text — do NOT change topic nouns  
+• preserve keywords  
+• preserve long-tail phrasing  
+• preserve all <h2> tags exactly  
+• do NOT alter category framing  
+• keep length within ±10%  
 
-Do NOT:
-• introduce emojis, markdown, lists  
-• add links, CTAs, hashtags  
-• shift the article into a new category domain  
-• move or remove <h2> tags  
-
-Paragraphs may be split or tightened if readability improves WITHOUT altering meaning.
-
-The <h2>Did You Know?</h2> section:
-• keep same number of <p> facts  
-• polish wording only  
+No:
+• emojis  
+• markdown  
+• CTAs  
+• hyperlinks  
+• hashtag changes  
 
 =====================================================================
 🧷 CRITICAL LINES TO PRESERVE VERBATIM
@@ -377,54 +415,21 @@ The <h2>Did You Know?</h2> section:
 1) The closing tagline:
 “CurioWire continues to uncover the world’s hidden histories — one curiosity at a time.”
 
-2) Product section lines beginning with:
+2) Product appendix lines beginning with:
 [Product Name]:
 
-Do NOT alter ANY character in those lines.
-
-=====================================================================
-🔥 WOW-PRESERVATION (NON-BOOST MODE)
-=====================================================================
-CurioWire requires strong, surprising, emotionally charged moments.
-
-You MUST:
-• preserve impactful contrasts and wow-moments  
-• keep tension-building hooks  
-• maintain vivid but factual imagery  
-• protect strong phrasing when it is factual and stylistically intentional  
-
-You MAY:
-• tighten language to improve punch  
-• remove redundancy  
-• enhance clarity  
-
-You MUST NOT:
-• weaken dramatic moments  
-• replace specific surprising facts with vague text  
-• exaggerate or fabricate for effect  
-• introduce stronger drama than originally present (no WOW-boosting — preservation only)
-
-This is a **strict preserve-but-polish** mode.
-
-=====================================================================
-🧭 EDITORIAL RULES (LANGUAGE ONLY)
-=====================================================================
-1. Do not modify, remove, or reorder any <h2> tags.  
-2. Do not add new sections.  
-3. Improve rhythm, clarity, and readability of existing paragraphs.  
-4. Preserve ALL facts exactly.  
-5. Keep total length within ±10%.  
-6. No markdown, no emojis, no hyperlinks.  
+These lines must be preserved EXACTLY.
 
 =====================================================================
 STEP 1 — REFINE CORE ARTICLE
 =====================================================================
-Return the improved HTML only.
+Return the improved HTML — same structure, same factual content,
+same thematic direction, but with better rhythm, flow, density,
+and purified frontier realism clarity.
 
 =====================================================================
-STEP 2 — ADD “Quick Summary” BEFORE THE FIRST <h2>
+STEP 2 — ADD “Quick Summary” BEFORE FIRST <h2>
 =====================================================================
-Use EXACTLY this template:
 
 <div class="article-summary-box">
   <strong>Quick Summary</strong>
@@ -432,45 +437,41 @@ Use EXACTLY this template:
     <li><b>What:</b> <span data-summary-what>1 factual sentence summarizing the central curiosity, event, or phenomenon.</span></li>
     <li><b>Where:</b> [Location or environment, if relevant]</li>
     <li><b>When:</b> [Time period or historical moment]</li>
-    <li><b>How:</b> [Mechanism, cause, or scientific principle already present in the article]</li>
-    <li><b>Why:</b> [Why it matters today, based ONLY on ideas already in the article]</li>
+    <li><b>How:</b> [Mechanism or principle explicitly stated in the article]</li>
+    <li><b>Why:</b> [Why it matters, based ONLY on ideas in the article]</li>
   </ul>
 </div>
 
-Rules for the WHAT sentence:
-• one neutral, factual sentence  
-• must begin with the subject directly  
-• no meta-references  
-• NO new facts — ONLY compress content already in the article  
+Rules:
+• NO new facts  
+• WHAT must begin directly with the subject  
+• Keep summary tight but meaningful  
 
 =====================================================================
-STEP 3 — ADD SOURCES SECTION (END OF ARTICLE)
+STEP 3 — ADD SOURCES SECTION
 =====================================================================
-Append:
 
 <h2>Sources & References</h2>
 <ul>
-  <li>[Credible source 1 related to the topic — e.g. archive, journal, museum, space agency]</li>
-  <li>[Credible source 2 — secondary or contextual reference]</li>
-  <li>[Credible source 3 — optional, if fitting]</li>
+  <li>[Credible thematic source — archive, journal, museum, research body]</li>
+  <li>[Secondary contextual source]</li>
+  <li>[Optional tertiary source]</li>
 </ul>
 
 Sources must be:
 • plausible  
-• thematic  
-• generic (no URLs)  
-• NOT invented with excessive specificity  
+• generic descriptors (no URLs)  
+• not invented with excessive specificity  
 
 =====================================================================
 STYLE RULES
 =====================================================================
-Tone: factual, reflective, vivid — like BBC Future × Vox × NatGeo × Atlas Obscura  
-Flow: insight → image → emotion → reflection  
-No jargon unless necessary  
-No repetitive phrasing  
-No AI self-reference  
-
-Do NOT alter the <span data-summary-what> wrapper.
+Tone: vivid, reflective, frontier-realism factuality  
+Flow: insight → image → tension → resolution → wonder  
+No jargon unless already present  
+No text simplification that reduces density  
+No generic filler language  
+No AI references  
 
 =====================================================================
 
@@ -498,15 +499,15 @@ No commentary.
     // Clean stray markdown
     refined = cleanMarkdown(refined);
 
-    // Normalize Did You Know section
+    // Normalize the Did You Know? section
     refined = normalizeDidYouKnow(refined);
 
     console.log(
-      "🧹 Refine-pass complete (FACT-LOCK + SEO-SAFE + WOW-PRESERVE) ✅"
+      "🧹 Refine-pass complete (FRONTIER-SAFE + FACT-LOCKED + FLOW-OPTIMIZED) ✅"
     );
     return refined;
   } catch (err) {
     console.warn("⚠️ Refine-pass failed:", err.message);
-    return articleText; // fallback
+    return articleText;
   }
 }

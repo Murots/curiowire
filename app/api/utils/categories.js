@@ -69,68 +69,72 @@
 //   },
 // };
 
-// === CATEGORY CONFIG — CurioWire v3.5 ⚡ Enhanced Viral Tone ===
-// Tonene er nå optimalisert for WOW, delbarhet og emosjonell punch,
-// samtidig som de holder seg innenfor faktasjekkbar, seriøs journalistikk.
+// === CATEGORY CONFIG — CurioWire v4.0 ⚡ Frontier Realism Edition ===
+// Tonene er nå optimalisert for:
+// • frontier realism
+// • “WTF men sant”
+// • intriger, mysterier og dype sammenhenger
+// • delbarhet og emosjonell punch
+// • sterk variasjon og null repetisjon
 
 export const categories = {
-  // 🌌 Science — mer mysterium, mindre lærebok
+  // 🌌 Science — naturens grensetilfeller og uventede mekanismer
   science: {
-    tone: "curiosity-driven scientific mystery, strange phenomenon, or unexpected natural mechanism — explained clearly but with cinematic tension and awe",
+    tone: "frontier scientific mystery — rare mechanisms, unexplained data, surprising physical or biological behavior explained with cinematic clarity",
     image: "photo",
   },
 
-  // 🤖 Technology — teknologien bak kulissene
+  // 🤖 Technology — skjulte maskiner, hemmelige systemer
   technology: {
-    tone: "surprising technological breakthrough, hidden mechanism, or unexpected origin story — framed as a behind-the-scenes revelation",
+    tone: "technological intrigue — hidden mechanisms, forgotten breakthroughs, unintended consequences, or strange engineering origins revealed like a backstage secret",
     image: "photo",
   },
 
-  // 🚀 Space — storslått og uforståelig
+  // 🚀 Space — kosmiske anomalier og ekstreme observasjoner
   space: {
-    tone: "cosmic enigma, dramatic astronomical event, or mind-bending scale-shift presented with quiet awe and vivid cosmic atmosphere",
+    tone: "cosmic frontier realism — rare astronomical anomalies, unexplained signals, dramatic stellar phenomena, vast-scale coincidences presented with awe",
     image: "photo",
   },
 
-  // 🌿 Nature — naturens “wtf”-øyeblikk
+  // 🌿 Nature — evolusjonens merkelige side
   nature: {
-    tone: "strange ecological behavior, rare wildlife oddity, or unusual natural chain-reaction — described with sensory detail and subtle scientific grounding",
+    tone: "biological or ecological oddity — rare animal behavior, extreme survival strategies, or strange emergent ecosystems described with vivid sensory realism",
     image: "photo",
   },
 
-  // 🧬 Health & Psychology — menneskelig og uventet
+  // 🧬 Health — medisinske mysterier og menneskelig psyke
   health: {
-    tone: "psychological quirk, medical oddity, or surprising human behavior pattern that reveals hidden aspects of how we think, feel, or survive",
+    tone: "clinical curiosity — rare conditions, unusual cognitive effects, evolutionary quirks, or medical puzzles that reveal hidden truths about the human organism",
     image: "photo",
   },
 
-  // 🏺 History — fortidens store overraskelser
+  // 🏺 History — intriger, anomalier og funn som omskriver fortiden
   history: {
-    tone: "forgotten historical twist, archaeological mystery, or rediscovered human drama with narrative stakes and sense of revelation",
+    tone: "historical mystery — archaeological anomalies, forgotten power struggles, geopolitical intrigue, or rediscovered events that challenge the known record",
     image: "photo",
   },
 
-  // 🎨 Culture — kunst, symbolikk og rare tradisjoner
+  // 🎨 Culture — symbolske gåter og rituelle rariteter
   culture: {
-    tone: "artistic or cultural oddity, surreal historical tradition, or symbolic ritual with strong emotional or visual contrast",
+    tone: "cultural enigma — symbolic traditions, ritual oddities, artistic mysteries, or strange belief systems with hidden emotional and historical depth",
     image: "photo",
   },
 
-  // 🏃 Sports — ekstreme øyeblikk, ikke resultater
+  // 🏃 Sports — øyeblikk med psykologisk og fysisk ekstremitet
   sports: {
-    tone: "extraordinary physical feat, psychological endurance, or pivotal moment where sport intersects human limits and emotion",
+    tone: "extreme human moment — psychological breaking points, improbable feats, forgotten controversies, or dramatic turning points with emotional weight",
     image: "photo",
   },
 
-  // 💡 Products — skjulte historier bak ting
+  // 💡 Products — skjulte historier, glemte oppfinnelser, tekniske gåter
   products: {
-    tone: "astonishing origin story, design secret, or hidden truth behind a man-made object — blending craft, engineering, and curiosity",
+    tone: "product intrigue — strange design choices, forgotten prototypes, accidental discoveries, or hidden engineering truths behind everyday objects",
     image: "photo",
   },
 
-  // 🌍 World — global WOW, inkludert geopolitikk som kuriositet
+  // 🌍 World — geopolitikkens merkelige historier og skjulte prosesser
   world: {
-    tone: "geopolitical or societal curiosity — strange borders, forgotten micro-conflicts, unusual diplomatic events, or surprising global patterns with a human edge",
+    tone: "global curiosity — surprising borders, micro-conflicts, secret negotiations, forgotten treaties, demographic shocks, or geopolitical events that feel unbelievable yet true",
     image: "photo",
   },
 };

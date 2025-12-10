@@ -36,172 +36,189 @@
 // };
 
 // ============================================================================
-// CATEGORY DEFINITIONS — CurioWire v3.6
+// CATEGORY DEFINITIONS — CurioWire v4.0 Frontier Realism Edition
 // Master semantic boundaries for ALL categories.
-// These definitions drive concept generation, seed filtering,
-// article steering, dupe-checking, and factual linking.
-// They must be precise, exhaustive, and non-overlapping.
+// These definitions govern:
+// • concept generation
+// • seed filtering
+// • article steering
+// • duplication checks
+// • factual anchoring
 // ============================================================================
 
 export const CATEGORY_DEFINITIONS = {
   // --------------------------------------------------------------------------
-  // 🚀 SPACE — Cosmic phenomena and universe-scale mysteries
+  // 🚀 SPACE — Astronomical anomalies, deep-time signals, cosmic puzzles
   // --------------------------------------------------------------------------
   space: `
-Content about the universe beyond Earth: astronomical events, planets, stars,
-galaxies, nebulae, cosmic radiation, black holes, exoplanets, orbital mechanics,
-space-time, astrophysics, cosmic evolution, early universe conditions, and
-observational or theoretical cosmology. Includes strange cosmic phenomena,
-rare orbital coincidences, deep-space mysteries, space exploration discoveries,
-and dramatic large-scale celestial dynamics.
+Space phenomena beyond Earth: extreme stellar behaviour, black holes, 
+exoplanet anomalies, orbital oddities, cosmic radiation events, unexplained 
+astronomical signals, deep-space transitions, early-universe mysteries,
+rare orbital coincidences, and dramatic celestial dynamics.
 
 Excludes:
-• Earth-bound atmospheric weather or geology (belongs to Science/Nature)
-• Human spaceflight culture unless tied directly to cosmic science
-• Geopolitics of space programs (belongs to World)
+• geology or atmospheric phenomena on Earth (Science/Nature)
+• geopolitical aspects of space programs (World)
 `,
 
   // --------------------------------------------------------------------------
-  // 🔬 SCIENCE — Mechanisms of the natural world (non-human)
+  // 🔬 SCIENCE — Physical & biological frontier mechanisms
   // --------------------------------------------------------------------------
   science: `
-Evidence-based natural science focused on mechanisms, causes, and physical laws:
-physics, chemistry, geology, geophysics, volcanology, seismology, atmospheric
-science, oceanography, climate systems, microbiology, non-human evolutionary
-biology, molecular processes, DNA/RNA mechanisms, natural forces, materials
-science, and laboratory-based or field-based empirical research.
+Mechanisms of the natural world involving physical, chemical, geological, 
+or molecular forces, including rare edge-case physics, unexpected chemical 
+behaviour, odd materials, unexplained natural patterns, extreme microbial traits,
+and surprising empirical results.
 
-Suitable for: strange experiments, unexpected natural mechanisms, unusual
-chemical reactions, odd physical phenomena, evolutionary surprises.
+Includes:
+• frontier biology (non-human)
+• extreme environments
+• unexplained lab results (when real)
 
 Excludes:
-• Human health or psychology (belongs to Health)
-• Animal behavior narratives (belongs to Nature)
-• Ecology, habitats, migrations (belongs to Nature)
-• Pure astronomy or cosmic-scale physics (belongs to Space)
+• human psychology or physiology (Health)
+• animal behaviour narratives (Nature)
+• cosmic-scale phenomena (Space)
 `,
 
   // --------------------------------------------------------------------------
-  // 🏺 HISTORY — The past, rediscovered or reinterpreted
+  // 🏺 HISTORY — Forgotten power struggles, archaeological anomalies
   // --------------------------------------------------------------------------
   history: `
-Past civilizations, wars, empires, leadership events, ancient technologies,
-lost cultures, archaeology, artifacts, excavation discoveries, forgotten
-historical episodes, unusual traditions, unexplained historical events, old maps,
-trade networks, historical coincidences, cultural clashes, and myth-like stories
-rooted in real-world evidence.
+Past civilizations, hidden political intrigue, forgotten conflicts, strange 
+archeological discoveries, anomalous artifacts, unexplained historical events,
+lost maps, rediscovered technologies, ancient engineering puzzles, and buried 
+narratives that challenge the accepted record.
+
+Emphasizes:
+• intrigue
+• unsolved questions
+• sudden historical reversals
+• rediscovered evidence
 
 Excludes:
-• Modern geopolitics (belongs to World)
-• Cultural analysis or symbolism (belongs to Culture)
-• Sports history unless central to athletic achievement (belongs to Sports)
+• modern geopolitics (World)
+• symbolic/cultural interpretation (Culture)
+• technical invention narratives (Products)
 `,
 
   // --------------------------------------------------------------------------
-  // 🌍 WORLD — Global patterns, geopolitics, societal oddities
+  // 🌍 WORLD — Strange geopolitics, borders, micro-conflicts, demographic shocks
   // --------------------------------------------------------------------------
   world: `
-Global-scale human stories: geopolitics, borders, diplomatic incidents, microstates,
-breakaway regions, strange laws, disputed territories, unusual government actions,
-societal shifts, unexpected global trends, demographic anomalies, and bizarre
-international events. Includes forgotten conflicts, rare treaties, and
-"how did this become real?" world-phenomena.
+Global-scale human behavior: surprising borders, forgotten treaties, microstates,
+breakaway regions, unusual diplomatic incidents, demographic anomalies, 
+hidden political manoeuvres, rare conflicts, societal disruptions, and 
+geopolitical patterns that feel improbable yet are real.
+
+Includes:
+• modern intrigue (last ~150 years)
+• strange international alignments
+• unusual government actions
 
 Excludes:
-• Historical events beyond ~100 years unless framed as global/social phenomenon
-• Cultural rituals, art, or symbolism (belongs to Culture)
-• Pure science or environmental phenomena (Science/Nature)
+• deep historical civilizations (History)
+• cultural rituals or symbolism (Culture)
 `,
 
   // --------------------------------------------------------------------------
-  // 🌿 NATURE — Living ecosystems, animals, odd behaviors
+  // 🌿 NATURE — Ecological oddities, emergent wildlife behaviour
   // --------------------------------------------------------------------------
   nature: `
-Observable natural world phenomena: animal behavior, migrations, predator-prey
-interactions, unusual wildlife strategies, symbiosis, camouflage, plants, fungi,
-ecosystems, biomes, food webs, climate effects on living organisms, rare species,
-emergent ecological dynamics, and sensory or experiential descriptions of the wild.
+Animal behaviour, ecological interactions, emergent patterns in ecosystems, 
+strange survival strategies, fungi networks, plant oddities, rare species, 
+symbiosis, camouflage, migrations, predator-prey inversion, and unexpected 
+responses to climate or environment.
 
 Excludes:
-• Molecular biology or lab science (belongs to Science)
-• Human biology or psychology (belongs to Health)
-• Geology or atmospheric mechanisms (belongs to Science)
+• molecular biology (Science)
+• human physiology/psychology (Health)
+• geological or physical forces (Science)
 `,
 
   // --------------------------------------------------------------------------
-  // 🤖 TECHNOLOGY — Human-made systems and breakthroughs
+  // 🤖 TECHNOLOGY — Hidden mechanisms, surprising algorithms, unseen systems
   // --------------------------------------------------------------------------
   technology: `
-Human-built innovations: engineering breakthroughs, algorithms, robotics,
-AI systems, communications technology, computing, cryptography, mechanical
-ingenuity, infrastructure, materials engineering, automation, industrial design,
-unexpected technological origins, surprising failures, and behind-the-scenes
-mechanisms of modern devices.
+Human-made systems and breakthroughs involving engineering, robotics, 
+computation, cryptography, information systems, automation, industrial design,
+and unexpected failures or origins of technical systems.
+
+Includes:
+• algorithmic oddities
+• engineering puzzles
+• “how it really works” tech revelations
 
 Excludes:
-• Consumer product histories (belongs to Products)
-• Geopolitical implications of technology (belongs to World)
-• Artistic symbolism (belongs to Culture)
+• consumer product histories (Products)
+• geopolitical impact of tech (World)
 `,
 
   // --------------------------------------------------------------------------
-  // 🎨 CULTURE — Human beliefs, symbols, rituals, and identity
+  // 🎨 CULTURE — Symbolic puzzles, ritual anomalies, artistic mysteries
   // --------------------------------------------------------------------------
   culture: `
-Art, literature, mythology, symbolism, language evolution, rituals, festivals,
-traditions, spiritual practices, folk customs, aesthetic movements, artistic
-innovations, cultural artifacts, collective identity, social meaning-making,
-and emotional/creative human expression across time.
+Human meaning-making: symbols, rituals, myths, creative movements, artistic
+innovation, linguistic evolution, belief systems, aesthetic traditions, 
+ritual oddities, cultural taboos, festival origins, and interpretive frameworks 
+that shape identity and emotional experience.
+
+Includes:
+• symbolic mysteries
+• surreal customs
+• forgotten artistic gestures
 
 Excludes:
-• Political or geopolitical behavior (World)
-• Archaeological discovery (History)
-• Product/invention origin (Products)
+• political intrigue (World)
+• archaeological discovery (History)
+• invention origins (Products)
 `,
 
   // --------------------------------------------------------------------------
-  // 🏃 SPORTS — Human limits, legendary moments, emotional stakes
+  // 🏃 SPORTS — Extreme human limits, psychological turning points
   // --------------------------------------------------------------------------
   sports: `
-Extraordinary athletic feats, iconic competitions, underdog stories, turning
-points, extreme endurance, psychological battles in sport, record-breaking
-moments, forgotten teams, dramatic collapses, remarkable comebacks, and
-little-known historical sports events with human emotional weight.
+Athletic feats under extreme pressure: legendary comebacks, psychological 
+breaking points, improbable endurance, forgotten controversies, dramatic 
+competition reversals, and rare sports events with deep emotional stakes.
 
 Excludes:
-• Physiology or injury mechanisms (Health)
-• General historical events not tied to sport
-• Modern sports business or politics (World)
+• physiology science (Health)
+• non-sport historical events (History)
+• business or political angles (World)
 `,
 
   // --------------------------------------------------------------------------
-  // 💡 PRODUCTS — Objects, inventions, materials, hidden origins
+  // 💡 PRODUCTS — Hidden origins, strange prototypes, invention anomalies
   // --------------------------------------------------------------------------
   products: `
-Man-made objects and the hidden truths behind them: invention histories,
-materials, manufacturing, prototypes, failures, patents, design innovations,
-accidental discoveries, craft traditions, industrial processes, and strange or
-unexpected ways objects shaped society. Includes both historical and modern
-product narratives.
+Objects and inventions: hidden histories behind tools, design secrets, 
+accidental discoveries, rare prototypes, forgotten patents, unusual materials, 
+unexpected product evolution, and surprising ways objects reshaped society.
+
+Includes:
+• frontier engineering tied to a specific object
+• strange design choices
+• invention failures and rediscoveries
 
 Excludes:
-• General technology breakthroughs (Technology)
-• Art or symbolism (Culture)
-• Geopolitical consequences (World)
+• broad technology systems (Technology)
+• symbolic uses (Culture)
+• geopolitical implications (World)
 `,
 
   // --------------------------------------------------------------------------
-  // 🧬 HEALTH — Human body, mind, and medical science
+  // 🧬 HEALTH — Medical mysteries, psychological oddities, human limits
   // --------------------------------------------------------------------------
   health: `
-Human biology and psychology: disease mechanisms, physiology, nutrition, medicine,
-mental health, cognitive processes, epidemiology, public health, clinical findings,
-sleep science, immune function, evolutionary physiology, behavioral insights,
-and evidence-based explanations of how the human body and mind operate.
+Human physiology and psychology: rare conditions, unusual neurological effects,
+medical anomalies, evolutionary quirks, behavioural puzzles, sleep phenomena,
+memory distortions, immune surprises, and clinical observations that reveal 
+hidden dimensions of the human organism.
 
 Excludes:
-• Non-human biology (Science/Nature)
-• Cultural interpretation of health rituals (Culture)
-• Sports performance unless physiological (Sports)
+• non-human biology (Science/Nature)
+• cultural meaning of health rituals (Culture)
+• sports narratives (Sports)
 `,
 };

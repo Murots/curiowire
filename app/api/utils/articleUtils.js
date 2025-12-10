@@ -174,27 +174,39 @@
 //     return { shortTheme: "", shortStory: "" };
 //   }
 // }
-// === ARTICLE ANALYSIS UTILS ===
-// Håndterer linking til historisk kuriositet og korte tematiske sammendrag
+// ============================================================================
+// ARTICLE ANALYSIS UTILS — NEW VERSION
+// Replaces historical curiosity with: factual anchor + research domain framing
+// ============================================================================
 
 import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 import { CATEGORY_DEFINITIONS } from "./categoryDefinitions.js";
 
 // ============================================================================
-// 1. linkHistoricalStory(topic)
-// ============================================================================
-// ============================================================================
-// MAIN EXPORT
-// topic: the WOW concept picked from seedConceptGenerator
-// category: the article category ("history", "space", etc.)
+// 1. linkHistoricalStory(topic, category)
+// NEW PURPOSE:
+// • NOT generating a new curiosity
+// • NOT pulling us toward “classic trivia”
+// • INSTEAD: generate a factual research-domain anchor for the chosen concept
+//
+// Output shape:
+// {
+//   field: "paleomagnetism",
+//   anchor: "deep-ocean sediment core reversal records",
+//   note: "mechanism partially debated; evidence well-documented",
+//   phrase: "geomagnetic memory in ancient sediments"
+// }
+//
+// The `phrase` is a compact thematic echo used in refinement.
 // ============================================================================
 
 export async function linkHistoricalStory(topic, category) {
   const categoryDefinition = CATEGORY_DEFINITIONS[category];
 
   const prompt = `
-You are generating a **single factual WOW-curiosity** that connects to:
+You are NOT generating a curiosity.
+You are generating a **factual research anchor** that helps an article expand the following concept:
 
 TOPIC:
 "${topic}"
@@ -206,151 +218,215 @@ CATEGORY DEFINITION:
 "${categoryDefinition}"
 
 ===============================================================================
-CORE REQUIREMENT — SEMANTIC ECHO
+YOUR TASK — VERY IMPORTANT
 ===============================================================================
-The curiosity must:
-• Reflect or “echo” the emotional energy, contrast, or surprise inside the topic  
-• NOT copy its literal content  
-• Create a parallel or mirrored effect: a real-world fact that feels thematically aligned  
-===============================================================================
+Create a compact factual framing that:
+• Identifies a **real scientific/historical/cultural research field** connected to the topic  
+• Names **one concrete form of evidence or dataset** relevant to that field  
+• States **one caution note** (e.g., "mechanism debated", "interpretation disputed", "data incomplete")  
+• Produces **one short poetic-but-factual phrase** that summarizes the anchor (max 6–8 words)
 
 ===============================================================================
-CATEGORY FOCUS (flexible, NOT rigid)
+ABSOLUTE REQUIREMENTS (NO EXCEPTIONS)
 ===============================================================================
-• The curiosity must clearly fit the category  
-• BUT you may reinterpret the topic metaphorically to stay within the category  
-• Do NOT force literal alignment if metaphorical alignment gives a better result  
-• Stay factual and avoid drifting into unrelated domains  
-===============================================================================
+• Must not invent fictional fields or discoveries  
+• Must not generate a trivia-style curiosity  
+• Must not reference overused facts (Roman concrete, tardigrades, Voynich, pyramids, giant fungi, etc.)  
+• Must be niche, specific, and academically grounded  
+• The field must be a real domain used by real researchers  
+• The anchor must reference real types of evidence (ice cores, stratigraphy, inscriptions, tree rings, satellite scatterometry, fossil layers, radiocarbon records)  
+• The note must be accurate and cautious  
+• The phrase must be factual but evocative
 
 ===============================================================================
-STRONG WOW-FACTOR (HIGH PRIORITY)
-===============================================================================
-The curiosity must be:
-• 100% real and verifiable  
-• Surprising or counterintuitive  
-• Visually or emotionally striking  
-• Easy to explain in a single breath (“Did you know that…?”)  
-• NOT common knowledge  
-• NOT a cliché fact often seen on TikTok, YouTube, Reddit, or trivia lists  
+OUTPUT FORMAT (STRICT)
+Return ONLY a JSON object like this:
 
-Discard ANY curiosity that resembles known viral trivia such as:
-• Cleopatra timeline comparisons  
-• NASA probe disappear/return stories  
-• Tardigrades  
-• Roman concrete  
-• Giant fungi  
-• “largest X”, “deepest Y”, “oldest Z” trivia  
-• Famous hoaxes  
-===============================================================================
+{
+  "field": "...",
+  "anchor": "...",
+  "note": "...",
+  "phrase": "..."
+}
 
+No commentary. No additional text.
 ===============================================================================
-QUALITY SHIELD — ORIGINALITY + UNIQUENESS
-===============================================================================
-• The fact must feel fresh, niche, or overlooked  
-• It must contain a concrete place, event, mechanism, or timeline  
-• It must be clearly factual, not mythological (unless historically documented)  
-• Avoid vague generalities (“scientists discovered”, “some cultures believed”)  
-===============================================================================
-
-FORMAT RULES:
-• Output MUST be 1–2 sentences  
-• No lists, no bullet points, no commentary  
-• Only return the curiosity itself  
-===============================================================================
-
 Begin now.
 `;
 
   try {
     const res = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.75,
-      max_tokens: 150,
+      temperature: 0.6,
+      max_tokens: 200,
       messages: [{ role: "user", content: prompt }],
     });
 
-    const output = res.choices?.[0]?.message?.content?.trim();
+    const raw = res.choices?.[0]?.message?.content?.trim();
 
-    if (!output) {
-      console.warn("⚠️ linkedHistoricalStory returned empty — fallback used.");
-      return fallbackHistoricalCuriosity(category);
+    if (!raw) {
+      console.warn("⚠️ linkedHistoricalStory returned empty — using fallback.");
+      return fallbackHistoricalAnchor(category);
     }
 
-    return output;
+    // Try to parse JSON safely
+    try {
+      return JSON.parse(raw);
+    } catch {
+      console.warn(
+        "⚠️ linkedHistoricalStory JSON parse failed — using fallback."
+      );
+      return fallbackHistoricalAnchor(category);
+    }
   } catch (err) {
     console.error("💥 linkedHistoricalStory error:", err.message);
-    return fallbackHistoricalCuriosity(category);
+    return fallbackHistoricalAnchor(category);
   }
 }
 
 // ============================================================================
-// FALLBACK (safer than returning null)
+// FALLBACK — returns safe anchor structure instead of curiosity
 // ============================================================================
-function fallbackHistoricalCuriosity(category) {
+
+function fallbackHistoricalAnchor(category) {
   switch (category) {
     case "history":
-      return "In 1799, a French officer digging a foundation accidentally uncovered the Rosetta Stone, which unlocked thousands of years of forgotten languages.";
-    case "space":
-      return "In 2008, astronomers found a planet-sized object made of crystallized carbon — essentially a giant diamond orbiting a pulsar.";
+      return {
+        field: "epigraphy",
+        anchor:
+          "multilingual stone inscriptions from cross-cultural trade zones",
+        note: "translation debates persist between scholars",
+        phrase: "trade routes carved in stone",
+      };
+
     case "science":
-      return "Some metals can spontaneously grow tiny branching structures called dendrites, which behave like microscopic metallic trees forming in real time.";
+      return {
+        field: "geochemistry",
+        anchor: "isotopic signatures in volcanic ash and mineral phases",
+        note: "environmental reconstructions remain partially uncertain",
+        phrase: "chemistry stored in ancient layers",
+      };
+
+    case "space":
+      return {
+        field: "stellar archaeology",
+        anchor: "spectral absorption fingerprints of ancient stars",
+        note: "metallicity estimates vary across models",
+        phrase: "ancestry written in starlight",
+      };
+
     case "nature":
-      return "There is a species of tree in South Africa whose seeds only open after being exposed to the heat of a wildfire, making the forest dependent on destruction to regenerate.";
+      return {
+        field: "paleoecology",
+        anchor: "fossil pollen sequences in lake-bed sediments",
+        note: "regional climate correlations under active study",
+        phrase: "ecosystems preserved in pollen",
+      };
+
     case "world":
-      return "In the 1960s, a remote Icelandic village used geothermal vents as natural ovens, baking bread and cooking meals directly in the volcanic ground.";
-    case "sports":
-      return "During the 1904 Olympics, a marathon runner was disqualified after secretly hitching a ride in a passing car for several miles before rejoining the race.";
-    case "technology":
-      return "The first computer password was created in 1961 at MIT, and the system was hacked just weeks later by a student who printed every password in the lab.";
+      return {
+        field: "historical demography",
+        anchor: "archival census fragments and tax rolls",
+        note: "population models include uncertainty margins",
+        phrase: "societies traced through numbers",
+      };
+
     case "culture":
-      return "In 17th-century Japan, aristocrats carried intricately carved netsuke charms that served both as fashion symbols and as locking mechanisms for their robes.";
+      return {
+        field: "symbolic anthropology",
+        anchor: "ritual artifacts found in household strata",
+        note: "symbolic interpretations not universally agreed",
+        phrase: "meaning encoded in objects",
+      };
+
+    case "sports":
+      return {
+        field: "kinetic performance history",
+        anchor: "archived match logs and early motion analyses",
+        note: "technique attribution sometimes disputed",
+        phrase: "movement recorded through time",
+      };
+
+    case "technology":
+      return {
+        field: "computing history",
+        anchor: "lab notebooks from early hardware prototypes",
+        note: "authorship of innovations often contested",
+        phrase: "ideas etched in circuits",
+      };
+
     case "products":
-      return "The first vending machines in ancient Greece dispensed holy water and worked using a simple balance-beam mechanism triggered by a coin’s weight.";
+      return {
+        field: "industrial archaeology",
+        anchor: "manufacturing marks on early machine components",
+        note: "supply chains reconstructed indirectly",
+        phrase: "industry hidden in metal",
+      };
+
     case "health":
-      return "Your stomach grows a completely new lining every few days to prevent it from digesting itself with its own acid.";
+      return {
+        field: "medical paleopathology",
+        anchor: "lesion patterns in ancient skeletal remains",
+        note: "disease attribution can be probabilistic",
+        phrase: "illness traced in bone",
+      };
+
     default:
-      return "History is filled with overlooked facts that mirror modern ideas in striking ways.";
+      return {
+        field: "archival studies",
+        anchor: "fragmented records preserved through accidental survival",
+        note: "interpretations remain open",
+        phrase: "memory recovered from dust",
+      };
   }
 }
 
 // ============================================================================
 // 2. summarizeTheme(topic, linkedStory)
+// Now expects linkedStory = { field, anchor, note, phrase }
 // ============================================================================
+
 export async function summarizeTheme(topic, linkedStory) {
   const summaryPrompt = `
-Summarize the following two texts into a short dual phrase of no more than 8 words each.
+Create two ultra-short summary phrases (max 6–8 words each).
 
-1. A short theme phrase describing the modern topic.
-2. A short phrase describing the historical curiosity.
+1. Theme: capturing the essence of the TOPIC.
+2. Anchor: capturing the essence of the factual FRAME (linkedStory.phrase).
 
-Respond in this exact format:
-Theme: <short phrase>
-Story: <short phrase>
+Respond EXACTLY in this format:
 
-Text A (topic): ${topic}
-Text B (curiosity): ${linkedStory}
+Theme: <short theme>
+Anchor: <short anchor>
+
+TOPIC:
+${topic}
+
+FACTUAL FRAME:
+Field: ${linkedStory.field}
+Anchor evidence: ${linkedStory.anchor}
+Phrase: ${linkedStory.phrase}
+Note: ${linkedStory.note}
 `;
 
   try {
     const compactSummary = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: summaryPrompt }],
-      max_tokens: 40,
+      max_tokens: 50,
       temperature: 0.3,
     });
 
-    const compactText = compactSummary.choices[0]?.message?.content || "";
+    const text = compactSummary.choices[0]?.message?.content || "";
 
-    const themeMatch = compactText.match(/Theme:\s*(.+)/i);
-    const storyMatch = compactText.match(/Story:\s*(.+)/i);
+    const themeMatch = text.match(/Theme:\s*(.+)/i);
+    const anchorMatch = text.match(/Anchor:\s*(.+)/i);
 
     return {
       shortTheme: themeMatch ? themeMatch[1].trim() : "",
-      shortStory: storyMatch ? storyMatch[1].trim() : "",
+      shortAnchor: anchorMatch ? anchorMatch[1].trim() : "",
     };
   } catch (err) {
-    console.warn("⚠️ Compact summary failed:", err.message);
-    return { shortTheme: "", shortStory: "" };
+    console.warn("⚠️ summarizeTheme failed:", err.message);
+    return { shortTheme: "", shortAnchor: "" };
   }
 }
