@@ -67,6 +67,42 @@ Return only the category in 1–2 words.
   return productCategory;
 }
 
+// export async function findAffiliateProduct(
+//   title,
+//   topic,
+//   article,
+//   existingName
+// ) {
+//   let productName = existingName || null;
+//   let source_url = null;
+
+//   if (!productName) {
+//     console.log(`🧠 No product name found — asking GPT for match`);
+//     const productPrompt = buildProductPrompt(title, topic, article);
+//     try {
+//       const productSearch = await openai.chat.completions.create({
+//         model: "gpt-4o-mini",
+//         messages: [{ role: "user", content: productPrompt }],
+//         max_tokens: 50,
+//         temperature: 0.3,
+//       });
+//       productName = productSearch.choices[0]?.message?.content?.trim();
+//       if (productName) {
+//         source_url = makeAffiliateSearchLink(productName);
+//         console.log(`✅ Created affiliate search link for "${productName}"`);
+//       } else {
+//         console.warn(`⚠️ GPT returned no valid product name for "${topic}"`);
+//       }
+//     } catch (err) {
+//       console.error("❌ Error fetching product name:", err.message);
+//     }
+//   } else {
+//     source_url = makeAffiliateSearchLink(productName);
+//     console.log(`🛍️ Found product name: "${productName}"`);
+//   }
+
+//   return { productName, source_url };
+// }
 export async function findAffiliateProduct(
   title,
   topic,
@@ -87,18 +123,26 @@ export async function findAffiliateProduct(
         temperature: 0.3,
       });
       productName = productSearch.choices[0]?.message?.content?.trim();
-      if (productName) {
-        source_url = makeAffiliateSearchLink(productName);
-        console.log(`✅ Created affiliate search link for "${productName}"`);
-      } else {
-        console.warn(`⚠️ GPT returned no valid product name for "${topic}"`);
-      }
     } catch (err) {
       console.error("❌ Error fetching product name:", err.message);
     }
-  } else {
+  }
+
+  if (productName) {
+    // enforce letters, numbers, spaces, hyphens only
+    const cleaned = productName.replace(/[^\w\s-]/g, "").trim();
+    if (cleaned.length > 0) {
+      productName = cleaned;
+    } else {
+      console.log("⚠️ Cleaned product name was empty — fallback triggered.");
+      productName = "historical object"; // safe fallback
+    }
+  }
+
+  // Now build URL
+  if (productName) {
     source_url = makeAffiliateSearchLink(productName);
-    console.log(`🛍️ Found product name: "${productName}"`);
+    console.log(`🛍️ Using validated product name: "${productName}"`);
   }
 
   return { productName, source_url };

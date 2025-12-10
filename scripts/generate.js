@@ -117,21 +117,36 @@ async function generateEmbedding(text) {
 // ============================================================================
 async function scoreConceptWow(concept, category) {
   const prompt = `
-You are scoring the **WOW-factor and mass-appeal** of a curiosity article concept
-for an online publication called CurioWire.
+You are scoring the VIRALITY and WOW-appeal of a short curiosity concept 
+for a platform called CurioWire.
 
 Category: ${category.toUpperCase()}
 
 Concept:
 "${concept}"
 
-Score from 0 to 100 based on:
+Score from 0 to 100 based ONLY on:
 
-• How much it makes a general reader think “WAIT… WHAT?!”  
-• How surprising, counterintuitive, or mind-bending the idea feels  
-• How easy it is to explain to a non-expert audience  
-• How well it could anchor a factual article (not pure sci-fi)  
-• How likely it is to be shared because it's so interesting
+🔥 VIRALITY FACTORS (main weight)
+• How strongly it triggers instant curiosity in the first 2 seconds  
+• Whether the idea creates a vivid mental image  
+• Whether a general audience would feel “Wait… WHAT?!”  
+• How naturally it could be turned into a TikTok/YouTube Short hook  
+• How emotionally provocative, surprising, or visually dramatic it is  
+
+🚫 NEGATIVE WEIGHT (subtract points)
+• If it feels academic, technical, or niche  
+• If it depends on specialized knowledge  
+• If it sounds like a textbook or a scientific paper  
+• If it is too abstract or vague to visualize  
+• If it resembles common overused trivia  
+
+🎯 POSITIVE WEIGHT (bonus)
+• Universally understandable  
+• Strong contrast or reversal  
+• Feels fresh, unexpected, shareable  
+• Easy to retell verbally (“Did you know that…?”)  
+• Feels like something that would spread on social media  
 
 Return ONLY a single integer from 0 to 100.
 No words, no explanation, no extra characters.
@@ -455,11 +470,36 @@ export async function main() {
           }
         }
 
-        if (
-          status === "MAJOR" ||
-          status === "UNCERTAIN" ||
-          status === "UNKNOWN"
-        ) {
+        // if (
+        //   status === "MAJOR" ||
+        //   status === "UNCERTAIN" ||
+        //   status === "UNKNOWN"
+        // ) {
+        //   if (attempt < maxAttempts) {
+        //     console.warn(
+        //       `⚠️ Fact-check result "${status}" — regenerating article (attempt ${
+        //         attempt + 1
+        //       } of ${maxAttempts})…`
+        //     );
+        //   } else {
+        //     console.error(
+        //       `❌ Fact-check result "${status}" after ${maxAttempts} attempts — skipping category "${key}".`
+        //     );
+        //   }
+        // }
+
+        // === HANDLE STATUS: UNCERTAIN ===
+        // New doctrine: UNCERTAIN = ACCEPTABLE if article uses cautious language.
+        if (status === "UNCERTAIN") {
+          console.log(
+            "⚪ Fact-check returned UNCERTAIN — treating as OK due to cautious/ambiguous topic."
+          );
+          finalDraft = { ...draft, articleForRefine: articleRaw };
+          break;
+        }
+
+        // === HANDLE STATUS: MAJOR OR UNKNOWN ===
+        if (status === "MAJOR" || status === "UNKNOWN") {
           if (attempt < maxAttempts) {
             console.warn(
               `⚠️ Fact-check result "${status}" — regenerating article (attempt ${
