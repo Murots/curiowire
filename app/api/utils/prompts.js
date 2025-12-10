@@ -809,7 +809,7 @@ End with one poetic yet SEO-friendly closing line inviting further discovery:
 ---
 
 ### 🧠 REQUIREMENTS
-• Length: 600–700 words (aim for 800 if natural)  
+• Length: Minimum 600–700 words (aim for 800 if natural)  
 • Must include one proper noun + one quantifiable detail  
 • No fiction, no invented events  
 • No markdown, no emojis, no links  
@@ -1043,7 +1043,7 @@ End with this exact line:
 ---
 
 ### 🧠 REQUIREMENTS
-• 600–700 words (800 if natural and factual)  
+• Minimum 600–700 words (800 if natural and factual)  
 • One real cultural reference (artist, artifact, movement, museum, archive) ONLY if present in the factual frame  
 • All poetic elements must anchor in **verifiable reality**  
 • HTML only — no markdown  
@@ -1306,7 +1306,7 @@ At the very end of the article, include this line exactly:
 ---
 
 ### 🧠 REQUIREMENTS
-• 600–700 words (800 allowed if natural)  
+• Minimum 600–700 words (800 allowed if natural)  
 • Must include one real inventor, one real date, one real location — ONLY if present in the factual frame  
 • Zero marketing tone  
 • HTML only  
