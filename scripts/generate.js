@@ -28,6 +28,12 @@ import { cleanText } from "../app/api/utils/cleanText.js";
 import { refineArticle } from "../app/api/utils/refineTools.js";
 import { cleanWikimediaAttribution } from "../app/api/utils/cleanAttribution.js";
 
+import {
+  makeSummarySignature,
+  normalizeSummary,
+  summariesAreSimilar,
+} from "../lib/signatures/summarySignature.js";
+
 // ============================================================================
 // SIGNATURES
 // ============================================================================
@@ -483,24 +489,6 @@ export async function main() {
           }
         }
 
-        // if (
-        //   status === "MAJOR" ||
-        //   status === "UNCERTAIN" ||
-        //   status === "UNKNOWN"
-        // ) {
-        //   if (attempt < maxAttempts) {
-        //     console.warn(
-        //       `⚠️ Fact-check result "${status}" — regenerating article (attempt ${
-        //         attempt + 1
-        //       } of ${maxAttempts})…`
-        //     );
-        //   } else {
-        //     console.error(
-        //       `❌ Fact-check result "${status}" after ${maxAttempts} attempts — skipping category "${key}".`
-        //     );
-        //   }
-        // }
-
         // === HANDLE STATUS: UNCERTAIN ===
         // New doctrine: UNCERTAIN = ACCEPTABLE if article uses cautious language.
         if (status === "UNCERTAIN") {
@@ -541,9 +529,22 @@ export async function main() {
       const { raw, title, articleForRefine } = finalDraft;
 
       // ==================================================================
-      // STEP 5: REFINE ARTICLE (language, summary, sources)
+      // STEP 5: REFINE ARTICLE (language, summary, sources) + Summary Signature
       // ==================================================================
       const refined = await refineArticle(articleForRefine, title);
+
+      // === SUMMARY SIGNATURE ===
+      const summaryBlock = refined?.summary || refined?.quickSummary || null;
+
+      let summary_normalized = null;
+      let summary_signature = null;
+
+      if (summaryBlock) {
+        summary_normalized = normalizeSummary(summaryBlock);
+        summary_signature = makeSummarySignature(summaryBlock);
+
+        console.log("🧬 Summary signature:", summary_signature);
+      }
 
       // ==================================================================
       // SEO
@@ -663,6 +664,38 @@ export async function main() {
       );
 
       // ==================================================================
+      // SUMMARY DUPLICATE CHECK
+      // ==================================================================
+
+      if (summary_signature) {
+        const { data: existingSummaries } = await supabase
+          .from("articles")
+          .select("id, title, summary_signature, summary_normalized");
+
+        let isSummaryDuplicate = false;
+
+        for (const row of existingSummaries || []) {
+          const sigSame = row.summary_signature === summary_signature;
+          const fuzzySame =
+            row.summary_normalized &&
+            summariesAreSimilar(row.summary_normalized, summary_normalized);
+
+          if (sigSame || fuzzySame) {
+            console.log(
+              `⚠️ BLOCKED — Summary duplicate detected vs article ${row.id}: "${row.title}"`
+            );
+            isSummaryDuplicate = true;
+            break;
+          }
+        }
+
+        if (isSummaryDuplicate) {
+          console.log("⛔ Skipping article due to SUMMARY DUPLICATE.");
+          continue; // hopper til neste kategori
+        }
+      }
+
+      // ==================================================================
       // SAVE ARTICLE
       // ==================================================================
       const { error } = await safeQuery(
@@ -686,6 +719,8 @@ export async function main() {
             short_curio_signature: curioSignature?.shortSignature || null,
             short_topic_signature: topicSig?.shortSignature || null,
             wow_score: selectedWowScore || 0,
+            summary_signature,
+            summary_normalized,
           },
         ])
       );
