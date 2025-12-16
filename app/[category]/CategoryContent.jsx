@@ -21,14 +21,23 @@ export default function CategoryContent() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+
   const PAGE_SIZE = 15;
 
+  // 🔹 Synk initial page fra URL (SEO / deling)
+  useEffect(() => {
+    setCurrentPage(page);
+  }, [page]);
+
+  // 🔹 Hent artikler (append ved "More")
   useEffect(() => {
     if (!category) return;
 
-    const fetchArticles = async () => {
+    const fetchArticles = async (pageToLoad) => {
       setLoading(true);
-      const from = (page - 1) * PAGE_SIZE;
+
+      const from = (pageToLoad - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
       const { data, error, count } = await supabase
@@ -44,15 +53,21 @@ export default function CategoryContent() {
         return;
       }
 
-      setArticles(data || []);
+      setArticles((prev) =>
+        pageToLoad === 1 ? data || [] : [...prev, ...(data || [])]
+      );
+
       setHasMore(count && to + 1 < count);
       setLoading(false);
     };
 
-    fetchArticles();
-  }, [category, page]);
+    fetchArticles(currentPage);
+  }, [category, currentPage]);
 
-  if (loading) return <Loader>Fetching stories from {category}...</Loader>;
+  // 🔹 Loader kun ved første load
+  if (loading && articles.length === 0) {
+    return <Loader>Fetching stories from {category}...</Loader>;
+  }
 
   const formattedCategory =
     category.charAt(0).toUpperCase() + category.slice(1);
@@ -79,11 +94,10 @@ export default function CategoryContent() {
 
       {hasMore && (
         <LoadMore
-          onClick={() =>
-            (window.location.href = `/${category}?page=${page + 1}`)
-          }
+          onClick={() => setCurrentPage((p) => p + 1)}
+          disabled={loading}
         >
-          More ↓
+          {loading ? "Loading…" : "More ↓"}
         </LoadMore>
       )}
     </Wrapper>

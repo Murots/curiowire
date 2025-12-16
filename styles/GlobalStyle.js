@@ -8,12 +8,17 @@ export const GlobalStyle = createGlobalStyle`
   }
 
   html, body {
-    background-color: ${({ theme }) => theme.colors.bg};
-    color: ${({ theme }) => theme.colors.text};
-    font-family: ${({ theme }) => theme.fonts.body};
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
+  background-color: ${({ theme }) => theme.colors.bg};
+  color: ${({ theme }) => theme.colors.text};
+  font-family: ${({ theme }) => theme.fonts.body};
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
   }
+
+  html {
+  font-size: 16.3px;
+  }
+
 
   a {
     color: ${({ theme }) => theme.colors.link};

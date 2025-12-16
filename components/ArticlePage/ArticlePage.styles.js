@@ -245,3 +245,122 @@ export const NextLink = styled.a`
     text-decoration: underline;
   }
 `;
+
+/* ---------------------------------------------
+   RELATED ARTICLES — soft editorial continuation
+---------------------------------------------- */
+
+export const RelatedSection = styled.section`
+  margin-top: 40px;
+  padding-top: 40px;
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+export const RelatedTitle = styled.h2`
+  position: relative;
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  margin-bottom: 32px;
+  padding-bottom: 8px;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 60px;
+    height: 3px;
+    background: ${({ theme }) => theme.colors.accent};
+    opacity: 0.7;
+    border-radius: 3px;
+  }
+`;
+
+export const RelatedGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+`;
+
+// export const RelatedCard = styled.a`
+//   text-decoration: none;
+//   color: inherit;
+//   border-radius: 10px;
+//   overflow: hidden;
+//   background: ${({ theme }) => theme.colors.bgAlt};
+//   transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+//   &:hover {
+//     transform: translateY(-2px);
+//     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+//   }
+// `;
+export const RelatedCard = styled.a`
+  position: relative; /* ← KRITISK */
+  text-decoration: none;
+  color: inherit;
+  border-radius: 12px;
+  overflow: hidden;
+  background: ${({ theme }) => theme.colors.bgAlt};
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  }
+
+  &:hover .arrow {
+    transform: translateX(4px);
+    opacity: 1;
+  }
+`;
+
+// export const RelatedImage = styled.img`
+//   width: 100%;
+//   aspect-ratio: 16 / 9;
+//   object-fit: cover;
+// `;
+export const RelatedImage = styled.img`
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+`;
+
+export const RelatedImageOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 10%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+  pointer-events: none;
+`;
+
+// export const RelatedText = styled.div`
+//   padding: 14px 16px;
+//   font-size: 0.95rem;
+//   line-height: 1.4;
+//   font-weight: 500;
+// `;
+export const RelatedText = styled.div`
+  position: absolute;
+  bottom: 0;
+  padding: 14px 16px 16px;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: white;
+  z-index: 2;
+
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+
+  .arrow {
+    display: inline-block;
+    margin-left: 6px;
+    opacity: 0.6;
+    font-size: 1.15em;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+`;
