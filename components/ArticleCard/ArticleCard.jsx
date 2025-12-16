@@ -11,6 +11,7 @@ import {
   Title,
   ReadMore,
   SummaryWhat,
+  CategoryBadge,
 } from "./ArticleCard.styles";
 
 import { cleanText } from "@/app/api/utils/cleanText";
@@ -79,7 +80,10 @@ export default function ArticleCard({
 
         <Content>
           <Meta>
-            <span>{category.toUpperCase()}</span> — {formattedDate}
+            <CategoryBadge $category={category}>
+              {category.toUpperCase()}
+            </CategoryBadge>
+            {formattedDate}
           </Meta>
 
           <Title>{cleanText(title)}</Title>

@@ -17,6 +17,7 @@ import {
   Published,
 } from "./ArticlePage.styles";
 import { cleanText } from "../../app/api/utils/cleanText";
+import { CategoryBadge } from "./ArticlePage.styles";
 
 export default function ArticlePage({
   article: initialArticle,
@@ -130,7 +131,8 @@ export default function ArticlePage({
 
       <Title>{cleanText(title)}</Title>
       <Published>
-        Published {formattedDate} - {category.toUpperCase()}
+        <CategoryBadge $category={category}>{category}</CategoryBadge>
+        Published {formattedDate}
       </Published>
 
       {image_url && (

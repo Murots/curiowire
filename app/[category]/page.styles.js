@@ -29,7 +29,7 @@ export const SubIntro = styled.p`
   color: ${({ theme }) => theme.colors.muted};
   font-style: italic;
   font-size: 1.1rem;
-  margin-bottom: 60px;
+  margin-bottom: 30px;
 
   /* første tegn (emoji) skal ikke være kursiv */
   &::first-letter {

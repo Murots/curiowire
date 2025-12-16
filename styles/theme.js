@@ -10,7 +10,7 @@ export const theme = {
     // ✨ Nye nøkkelfarger
     accent: "#95010eff", // brukt til understreker, hover osv.
     muted: "#7c7c7cff", // brukt til datoer, meta-tekst, rammer
-    bgAlt: "#edededff", // brukt i header/footer
+    bgAlt: "#eaeaeaff", // brukt i header/footer
     special: "#c93",
   },
 

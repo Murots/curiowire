@@ -46,7 +46,9 @@ export default function Header() {
   return (
     <HeaderWrapper>
       <Logo>
-        <Link href="/">CurioWire</Link>
+        <Link href="/" aria-label="CurioWire home">
+          <img src="/logo.svg" alt="CurioWire" />
+        </Link>
       </Logo>
 
       <Hamburger onClick={() => setMenuOpen(!menuOpen)}>

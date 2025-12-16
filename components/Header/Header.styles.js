@@ -16,15 +16,27 @@ export const HeaderWrapper = styled.header`
   z-index: 50;
 `;
 
-export const Logo = styled.p`
-  margin: 0;
+export const Logo = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   a {
-    color: ${({ theme }) => theme.colors.text};
-    text-decoration: none;
-    font-size: 1.5rem;
-    font-family: "Playfair Display", "Poppins", serif;
-    font-weight: 700;
-    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  img {
+    display: block;
+    height: 26px;
+    width: auto;
+  }
+
+  @media (max-width: 770px) {
+    img {
+      height: 26px;
+    }
   }
 `;
 

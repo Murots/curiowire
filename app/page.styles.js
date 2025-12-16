@@ -8,7 +8,7 @@ export const Wrapper = styled.div`
 
 export const Headline = styled.h1`
   text-align: center;
-  margin-bottom: 50px;
+  margin-bottom: 30px;
   color: var(--color-text);
   border-bottom: 3px solid var(--color-accent);
   display: inline-block;
