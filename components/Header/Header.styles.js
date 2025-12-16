@@ -5,7 +5,7 @@ export const HeaderWrapper = styled.header`
   width: 100%;
   background: ${({ theme }) => theme.colors.bgAlt || "#e9e9e9"};
 
-  padding: 16px 24px;
+  padding: 16px 24px 12px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -29,7 +29,7 @@ export const Logo = styled.div`
 
   img {
     display: block;
-    height: 26px;
+    height: 28px;
     width: auto;
   }
 

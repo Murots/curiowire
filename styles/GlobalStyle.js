@@ -16,7 +16,7 @@ export const GlobalStyle = createGlobalStyle`
   }
 
   html {
-  font-size: 16.3px;
+  font-size: 18.5px;
   }
 
 
