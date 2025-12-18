@@ -34,6 +34,8 @@ import {
   summariesAreSimilar,
 } from "../lib/signatures/summarySignature.js";
 
+import { markAxisUsed } from "../lib/concepts/selectAxes.js";
+
 // ============================================================================
 // SIGNATURES
 // ============================================================================
@@ -275,22 +277,27 @@ export async function main() {
       // STEP 1: Fetch concept seeds via GPT
       // ==============================================================
       console.log("🎯 Fetching WOW concepts…");
-      const conceptSeeds = await generateConceptSeeds(key);
+      const { concepts, axes, seeds } = await generateConceptSeeds(key);
 
-      if (!conceptSeeds.length) {
+      if (!concepts || !concepts.length) {
         console.log(`❌ No concepts generated for ${key}, skipping.`);
         continue;
       }
 
-      console.log(`💡 Concepts received for ${key}: ${conceptSeeds.length}`);
+      console.log(`💡 Concepts received for ${key}: ${concepts.length}`);
 
       // ==============================================================
       // STEP 2: WOW-score all concepts and rank them
       // ==============================================================
       const scoredConcepts = [];
-      for (const concept of conceptSeeds) {
-        const score = await scoreConceptWow(concept, key);
-        scoredConcepts.push({ concept: concept.trim(), score });
+      for (const item of concepts) {
+        const score = await scoreConceptWow(item.concept, key);
+
+        scoredConcepts.push({
+          axis_id: item.axis_id,
+          concept: item.concept.trim(),
+          score,
+        });
       }
 
       scoredConcepts.sort((a, b) => b.score - a.score);
@@ -309,11 +316,13 @@ export async function main() {
       let curioSignature = null;
       let topicSig = null;
       let selectedWowScore = null;
+      let selectedAxisId = null;
 
       // ==============================================================
       // STEP 3: Finn beste WOW-konsept som også passer dupe-sjekkene
       // ==============================================================
       for (const {
+        axis_id,
         concept: candidateConcept,
         score: wowScore,
       } of scoredConcepts) {
@@ -395,6 +404,7 @@ export async function main() {
         linkedStory = candidateCurio;
         curioSignature = candidateSig;
         selectedWowScore = wowScore;
+        selectedAxisId = axis_id;
 
         console.log(`   ✅ Selected concept [WOW ${wowScore}] → "${topic}"`);
         console.log(
@@ -718,6 +728,7 @@ export async function main() {
             topic_signature_text: topicSig?.signature || null,
             short_curio_signature: curioSignature?.shortSignature || null,
             short_topic_signature: topicSig?.shortSignature || null,
+            axis_id: selectedAxisId,
             wow_score: selectedWowScore || 0,
             summary_signature,
             summary_normalized,
@@ -727,9 +738,14 @@ export async function main() {
 
       if (error) throw error;
 
+      if (selectedAxisId) {
+        await markAxisUsed(selectedAxisId);
+      }
+
       console.log(
         `✅ Saved: ${key} → ${title} (WOW ${selectedWowScore ?? "n/a"})`
       );
+
       results.push({
         category: key,
         topic,
