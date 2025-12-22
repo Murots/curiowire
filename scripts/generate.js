@@ -34,6 +34,8 @@ import {
   summariesAreSimilar,
 } from "../lib/signatures/summarySignature.js";
 
+import { extractSummaryObject } from "../lib/signatures/summaryExtractor.js";
+
 import { markAxisUsed } from "../lib/concepts/selectAxes.js";
 
 // ============================================================================
@@ -302,6 +304,17 @@ export async function main() {
 
       scoredConcepts.sort((a, b) => b.score - a.score);
 
+      // --------------------------------------------------------------
+      // STEP 2.5 — Pick best concept PER AXIS (local WOW)
+      // --------------------------------------------------------------
+      const bestPerAxis = new Map();
+
+      for (const item of scoredConcepts) {
+        if (!bestPerAxis.has(item.axis_id)) {
+          bestPerAxis.set(item.axis_id, item);
+        }
+      }
+
       console.log("🏆 WOW-ranking for concepts:");
       scoredConcepts.forEach(({ concept, score }, idx) => {
         const preview =
@@ -325,7 +338,7 @@ export async function main() {
         axis_id,
         concept: candidateConcept,
         score: wowScore,
-      } of scoredConcepts) {
+      } of bestPerAxis.values()) {
         console.log(
           `\n🔎 Evaluating concept (WOW ${wowScore}): "${candidateConcept}"`
         );
@@ -539,22 +552,9 @@ export async function main() {
       const { raw, title, articleForRefine } = finalDraft;
 
       // ==================================================================
-      // STEP 5: REFINE ARTICLE (language, summary, sources) + Summary Signature
+      // STEP 5: REFINE ARTICLE (language, summary, sources)
       // ==================================================================
       const refined = await refineArticle(articleForRefine, title);
-
-      // === SUMMARY SIGNATURE ===
-      const summaryBlock = refined?.summary || refined?.quickSummary || null;
-
-      let summary_normalized = null;
-      let summary_signature = null;
-
-      if (summaryBlock) {
-        summary_normalized = normalizeSummary(summaryBlock);
-        summary_signature = makeSummarySignature(summaryBlock);
-
-        console.log("🧬 Summary signature:", summary_signature);
-      }
 
       // ==================================================================
       // SEO
@@ -612,6 +612,25 @@ export async function main() {
       if (summaryWhat) {
         console.log(`   🧾 SummaryWhat extracted: "${summaryWhat}"`);
       }
+
+      // ==================================================================
+      // === SUMMARY SIGNATURE ===
+      // ==================================================================
+      const summaryObject = extractSummaryObject(cleanedArticle);
+
+      let summary_normalized = null;
+      let summary_signature = null;
+
+      if (!summaryObject) {
+        console.warn(
+          "⚠️ No valid Quick Summary extracted — article will be blocked."
+        );
+        console.log("⛔ Skipping article due to missing Quick Summary.");
+        continue;
+      }
+
+      summary_normalized = normalizeSummary(summaryObject);
+      summary_signature = makeSummarySignature(summaryObject);
 
       // ==================================================================
       // EMBEDDING + UNIFIED SEMANTIC SIGNATURE (CURIOSITY-ONLY)
