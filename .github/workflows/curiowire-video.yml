@@ -1,0 +1,72 @@
+name: CurioWire Video Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      schedule:
+        description: "Queue a new video job before running (true/false)"
+        required: true
+        default: "false"
+
+concurrency:
+  group: curiowire-video-only
+  cancel-in-progress: false
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: Production
+
+    env:
+      # Core
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
+
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      # Media APIs
+      FAL_KEY: ${{ secrets.FAL_KEY }}
+      PIKA_IMAGE_MODEL: ${{ secrets.PIKA_IMAGE_MODEL }}
+      PIKA_IMAGE_MODEL_FALLBACK: ${{ secrets.PIKA_IMAGE_MODEL_FALLBACK }}
+      PIKA_TEXT_MODEL: ${{ secrets.PIKA_TEXT_MODEL }}
+
+      # Social (YouTube first)
+      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+
+      # (Keep the rest if you want, harmless even if not used yet)
+      TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      INSTAGRAM_BUSINESS_ID: ${{ secrets.INSTAGRAM_BUSINESS_ID }}
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+      FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+
+      NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+      NEXT_PUBLIC_UNSPLASH_ACCESS_KEY: ${{ secrets.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY }}
+      NEXT_PUBLIC_PEXELS_API_KEY: ${{ secrets.NEXT_PUBLIC_PEXELS_API_KEY }}
+
+      REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+      REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+      REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci
+
+      # Optional: queue a job
+      - name: 🎬 Schedule single video
+        if: ${{ github.event.inputs.schedule == 'true' }}
+        run: node scripts/scheduleSingleVideo.js
+
+      # Run pipeline (will pick oldest queued)
+      - name: 🎥 Generate & post single video
+        run: node scripts/runSingleVideoPipeline.js
