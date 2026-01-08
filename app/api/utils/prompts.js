@@ -82,9 +82,9 @@ SEO should support the story, not dominate it.
 
 The article must:
 • include evergreen long-tail keywords related to "${topic}"  
-• You may add supporting real-world references as long as they do not contradict the factual research frame.  
-• include one quantifiable detail (year, distance, percentage, measurement)  
-• contain one sentence early that could function as a Google snippet  
+• You may add supporting real-world references ONLY if they are explicitly present or clearly implied by the factual research frame.
+• include one quantifiable detail (year, distance, percentage, measurement) ONLY if present or clearly implied by the factual research frame (otherwise omit)
+• contain one sentence early that could function as a Google snippet
 
 BUT:  
 Emotional impact and curiosity come first.
@@ -113,7 +113,7 @@ Voice model: **BBC Future × Atlas Obscura × Popular Science**, but punchier.
 - Explain **why this truth matters**, not just what happened.  
 - Build clear thematic resonance between the seed and the factual research frame.  
 - Use short, fast-paced sentences where appropriate for rhythm.  
-- Always include at least one proper noun (scientist, region, study, mission name, artifact, etc.).  
+- Include at least one proper noun ONLY if present or clearly implied by the factual research frame (otherwise omit).  
 - Never fabricate details — use cautious language where needed.  
 - End with thought-provoking wonder, not a conclusion.
 

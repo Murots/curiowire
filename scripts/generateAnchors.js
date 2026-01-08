@@ -341,9 +341,29 @@ async function main() {
   console.log("   anchors per category:", ANCHORS_PER_CATEGORY);
 
   for (const category of categories) {
-    console.log(`\n=== CATEGORY: ${category.toUpperCase()} ===`);
+    const categoryKey = category.toLowerCase();
 
-    let anchors = await generateAnchorsForCategory(category);
+    console.log(`\n=== CATEGORY: ${categoryKey.toUpperCase()} ===`);
+
+    // ------------------------------------------------------------
+    // Count BEFORE (for delta insight)
+    // ------------------------------------------------------------
+    const { count: beforeCount, error: beforeErr } = await supabase
+      .from("curiosity_anchors")
+      .select("*", { count: "exact", head: true })
+      .eq("category", categoryKey);
+
+    if (beforeErr) {
+      console.warn(
+        `⚠️ Could not read pre-count for ${categoryKey}:`,
+        beforeErr.message
+      );
+    }
+
+    // ------------------------------------------------------------
+    // Generate anchors
+    // ------------------------------------------------------------
+    let anchors = await generateAnchorsForCategory(categoryKey);
 
     let safety = 0;
     while (anchors.length < ANCHORS_PER_CATEGORY && safety < 5) {
@@ -352,7 +372,7 @@ async function main() {
         `⚠️ Got ${anchors.length}/${ANCHORS_PER_CATEGORY}. Top-up pass ${safety}...`
       );
 
-      const more = await generateAnchorsForCategory(category);
+      const more = await generateAnchorsForCategory(categoryKey);
       const merged = [...anchors, ...more];
 
       const seen = new Set();
@@ -368,17 +388,45 @@ async function main() {
 
     if (anchors.length < ANCHORS_PER_CATEGORY) {
       console.error(
-        `❌ Failed to generate enough anchors for ${category}: ${anchors.length}/${ANCHORS_PER_CATEGORY}`
+        `❌ Failed to generate enough anchors for ${categoryKey}: ${anchors.length}/${ANCHORS_PER_CATEGORY}`
       );
       process.exit(1);
     }
 
+    // ------------------------------------------------------------
+    // Upsert
+    // ------------------------------------------------------------
     anchors = shuffle(anchors);
     const res = await upsertAnchors(anchors);
 
     console.log(
-      `✅ Upserted ${res.inserted} anchors into Supabase for ${category}`
+      `✅ Upserted ${res.inserted} anchors into Supabase for ${categoryKey}`
     );
+
+    // ------------------------------------------------------------
+    // Count AFTER + delta
+    // ------------------------------------------------------------
+    const { count: afterCount, error: afterErr } = await supabase
+      .from("curiosity_anchors")
+      .select("*", { count: "exact", head: true })
+      .eq("category", categoryKey);
+
+    if (afterErr) {
+      console.warn(
+        `⚠️ Could not read post-count for ${categoryKey}:`,
+        afterErr.message
+      );
+    } else {
+      const delta =
+        beforeCount != null && afterCount != null
+          ? afterCount - beforeCount
+          : null;
+
+      console.log(`📊 Total anchors in ${categoryKey}: ${afterCount}`);
+      if (delta != null) {
+        console.log(`📈 Net new anchors added: ${delta}`);
+      }
+    }
   }
 
   console.log("\n🎉 Done. Anchors generated + stored.");

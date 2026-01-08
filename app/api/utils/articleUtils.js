@@ -93,9 +93,10 @@ Begin now.
       return fallbackHistoricalAnchor(category);
     }
 
-    // Try to parse JSON safely
+    // Try to parse JSON safely (strip code fences)
     try {
-      return JSON.parse(raw);
+      const cleaned = raw.replace(/```json|```/gi, "").trim();
+      return JSON.parse(cleaned);
     } catch {
       console.warn(
         "⚠️ linkedHistoricalStory JSON parse failed — using fallback."
