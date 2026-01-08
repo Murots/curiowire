@@ -982,19 +982,29 @@ const openai = new OpenAI({
 });
 
 // ============================================================================
-// INIT SUPABASE
+// INIT SUPABASE (scripts MUST use Service Role)
 // ============================================================================
+
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-console.log("🧩 Supabase URL:", supabaseUrl ? "✔️ Loaded" : "❌ Missing");
-console.log(
-  "🔑 Supabase Key:",
-  supabaseKey ? `✔️ Loaded (${supabaseKey.slice(0, 6)}...)` : "❌ Missing"
-);
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Hard fail: scripts/generate.js skal aldri kjøre med anon/public key
+if (!supabaseUrl) {
+  throw new Error(
+    "Missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) for scripts/generate.js"
+  );
+}
+
+if (!supabaseKey) {
+  throw new Error(
+    "Missing SUPABASE_SERVICE_ROLE_KEY for scripts/generate.js (required)"
+  );
+}
+
+console.log("🧩 Supabase URL:", "✔️ Loaded");
+console.log("🔑 Supabase Key:", `✔️ Loaded (${supabaseKey.slice(0, 6)}...)`);
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -1223,21 +1233,34 @@ export async function main() {
           continue;
         }
 
-        // 1) Score først
+        const conceptText = item.concept.trim();
+        if (!conceptText) continue;
+
+        // 1) Score først (WOW)
         let score = 50;
         try {
-          score = await scoreConceptWow(item.concept, key);
+          score = await scoreConceptWow(conceptText, key);
         } catch (err) {
-          console.warn(`⚠️ WOW-scoring failed, using fallback (50)`);
+          console.warn("⚠️ WOW-scoring failed, using fallback (50)");
+          score = 50;
         }
 
-        // 2) Så plausibility penalty
-        const verdict = item.plausibility_verdict || "UNCERTAIN";
+        // 2) Så plausibility penalty (normaliser verdict)
+        const verdict = String(item.plausibility_verdict || "UNCERTAIN")
+          .trim()
+          .toUpperCase();
+
+        // FAIL skal egentlig ikke forekomme (seedConceptGenerator filtrerer FAIL),
+        // men vi gjør det bombesikkert:
+        if (verdict === "FAIL") continue;
+
         const penalty = verdict === "UNCERTAIN" ? 5 : 0;
+
+        // 3) Clamp etter penalty
         score = Math.max(0, Math.min(100, score - penalty));
 
         scoredConcepts.push({
-          concept: item.concept.trim(),
+          concept: conceptText,
           score,
           verifier: item.verifier ?? null,
           plausibility_verdict: verdict,
