@@ -19,7 +19,7 @@ function cleanMarkdown(html) {
  * ------------------------------------------------------------ */
 function normalizeDidYouKnow(html) {
   return html.replace(
-    /<h2>Did You Know\?<\/h2>([\s\S]*?)(?=<h2>|$)/,
+    /<h2>Did You Know\?<\/h2>([\s\S]*?)(?=<h2>|$)/g,
     (match, sectionContent) => {
       let cleaned = sectionContent
         .replace(/<\/?ul>|<\/?ol>/g, "")
@@ -29,11 +29,17 @@ function normalizeDidYouKnow(html) {
         .replace(/(\.)\s*(\d+\.)/g, "$1\n")
         .trim();
 
-      const facts = cleaned
+      let facts = cleaned
         .split(/\n+/)
         .map((f) => f.trim())
         .filter(Boolean)
         .map((f) => (f.startsWith("<p>") ? f : `<p>${f}</p>`));
+
+      // ✅ Enforce MAX 3 facts
+      facts = facts.slice(0, 3);
+
+      // // ✅ Optional: ensure at least 3 <p> elements exist
+      // while (facts.length < 3) facts.push("<p></p>");
 
       return `<h2>Did You Know?</h2>\n${facts.join("\n")}\n`;
     }
@@ -41,9 +47,37 @@ function normalizeDidYouKnow(html) {
 }
 
 /* ------------------------------------------------------------
+ * Utility: Ensure Sources Section (CANONICAL + NO PLACEHOLDERS)
+ * ------------------------------------------------------------ */
+function ensureSourcesSection(html) {
+  const canonical = `
+<h2>Sources & References</h2>
+<ul>
+  <li><span data-source-primary></span></li>
+  <li><span data-source-secondary></span></li>
+  <li><span data-source-tertiary></span></li>
+</ul>`.trim();
+
+  let out = (html || "").trim();
+
+  // 1) Remove any existing Sources section entirely (header + until next <h2> or end)
+  out = out
+    .replace(
+      /<h2>\s*Sources\s*(?:&|&amp;)\s*References\s*<\/h2>[\s\S]*?(?=<h2>|$)/gi,
+      ""
+    )
+    .trim();
+
+  // 2) Append canonical block at the end
+  out = `${out}\n\n${canonical}\n`;
+
+  return out;
+}
+
+/* ------------------------------------------------------------
  * MAIN: refineArticle
  * ------------------------------------------------------------ */
-export async function refineArticle(articleText, title) {
+export async function refineArticle(articleText, title, factualFrame = "") {
   if (!articleText || articleText.length < 200) return articleText;
 
   const refinePrompt = `
@@ -190,20 +224,21 @@ STEP 3 — ADD SOURCES SECTION
 
 <h2>Sources & References</h2>
 <ul>
-  <li><span data-source-primary>Primary source referenced or implied by the article</span></li>
-  <li><span data-source-secondary>Secondary contextual source</span></li>
-  <li><span data-source-tertiary>Optional tertiary source</span></li>
+  <li><span data-source-primary></span></li>
+  <li><span data-source-secondary></span></li>
+  <li><span data-source-tertiary></span></li>
 </ul>
 
 Rules:
-• You MUST replace the text inside each <span> with a plausible real-world source
-• Sources must be institutions, archives, journals, museums, or research bodies
-• NO URLs
-• NO fabricated article titles
-• NO excessive specificity (years, issue numbers)
-• Use recognizable, authoritative entities (e.g. national archives, major journals, museums)
+• You MUST NOT invent sources.
+• The Primary source MUST be the anchor/dataset/archive/object explicitly named in the factual research frame (or in the article).
+• Secondary and tertiary sources are OPTIONAL.
+• If no real source is explicitly named in the frame/article, leave the span empty (do not guess).
+• If you cannot fill a span with a source explicitly named in the article/frame, output it as an empty span: <span data-source-secondary></span>.
+• NO URLs.
+• NO fabricated titles.
+• NO adding institutions/journals “just to look credible”.
 • Sources must be consistent with the article’s topic
-• If fewer than three sources are appropriate, leave the tertiary source empty
 • Do NOT leave placeholder text in the final output
 
 =====================================================================
@@ -219,6 +254,18 @@ No AI references
 =====================================================================
 
 Title: "${title}"
+
+=====================================================================
+FACT WHITELIST (FRAME)
+=====================================================================
+You must not add ANY concrete facts unless present in this frame:
+
+${factualFrame || "(none provided)"}
+
+Rule:
+- If you feel tempted to add specificity not in the frame: do NOT.
+- Prefer leaving the sentence unchanged.
+=====================================================================
 
 ARTICLE TO REFINE (HTML):
 ${articleText}
@@ -244,6 +291,9 @@ No commentary.
 
     // Normalize the Did You Know? section
     refined = normalizeDidYouKnow(refined);
+
+    // Ensure sources section
+    refined = ensureSourcesSection(refined);
 
     console.log(
       "🧹 Refine-pass complete (FRONTIER-SAFE + FACT-LOCKED + FLOW-OPTIMIZED) ✅"

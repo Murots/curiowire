@@ -57,6 +57,19 @@ Use this factual frame as the ONLY source of factual grounding:
 
 ${factualFrame}
 
+NOTE:
+The factual research frame may include an appended section named "FACTPACK (ENRICHMENT)".
+
+If present:
+• Facts inside FACTPACK are part of the same factual whitelist.
+• You may use them normally in the article body.
+• If FACTPACK includes entries like:
+  - "Canonical page: X"
+  - "Entity: Y (QID)"
+you MAY name these verbatim in the "Sources & References" section.
+Do NOT add URLs.
+Do NOT paraphrase or infer new sources.
+
 You may:
 ✔ expand it narratively  
 ✔ create emotional atmosphere  
@@ -65,7 +78,26 @@ You may:
 You may NOT:
 ✘ introduce new factual claims  
 ✘ contradict the frame  
-✘ add external information not implied by the frame  
+✘ add external information not explicitly present in the frame
+
+---
+
+=====================================================================
+🔒 FACT WHITELIST (ABSOLUTE — NO NEW FACTS)
+=====================================================================
+You may ONLY state concrete facts (names, dates, numbers, locations, institutions, studies, “according to…”, “data shows…”) if they appear in the factual research frame EXACTLY.
+
+If a concrete detail is not explicitly present in the frame, you MUST:
+• remove it, and
+• replace it with uncertainty language (“it’s unclear…”, “records are incomplete…”, “researchers debate…”, “the evidence is mixed…”).
+
+ABSOLUTELY FORBIDDEN:
+• inventing statistics, percentages, counts, rankings
+• inventing study names, researchers, institutions, journals
+• inventing dates/years/locations not in the frame
+• inventing “sources say” style claims without explicit frame support
+
+If the frame is too thin to support a claim, keep it conceptual and explicitly uncertain.
 
 ---
 
@@ -82,8 +114,8 @@ SEO should support the story, not dominate it.
 
 The article must:
 • include evergreen long-tail keywords related to "${topic}"  
-• You may add supporting real-world references ONLY if they are explicitly present or clearly implied by the factual research frame.
-• include one quantifiable detail (year, distance, percentage, measurement) ONLY if present or clearly implied by the factual research frame (otherwise omit)
+• You may add supporting real-world references ONLY if they are explicitly present in the factual research frame.
+• You may include one quantifiable detail ONLY if explicitly present in the factual research frame; otherwise omit entirely.
 • contain one sentence early that could function as a Google snippet
 
 BUT:  
@@ -113,7 +145,7 @@ Voice model: **BBC Future × Atlas Obscura × Popular Science**, but punchier.
 - Explain **why this truth matters**, not just what happened.  
 - Build clear thematic resonance between the seed and the factual research frame.  
 - Use short, fast-paced sentences where appropriate for rhythm.  
-- Include at least one proper noun ONLY if present or clearly implied by the factual research frame (otherwise omit).  
+- Proper nouns are OPTIONAL and ONLY allowed if explicitly present in the factual research frame.
 - Never fabricate details — use cautious language where needed.  
 - End with thought-provoking wonder, not a conclusion.
 
@@ -153,7 +185,7 @@ Write the article in **valid HTML only**.
 <h2>[impactful viral-style subheadline]</h2>  
 <p>
 Start with a cinematic line inspired by the concept seed and immediately anchor the opening in the factual research frame.  
-Deliver one concrete factual detail immediately.  
+Deliver one concrete factual detail immediately ONLY if explicitly present in the factual research frame. Otherwise, keep the opening descriptive and clearly uncertain.
 End with a question or tension-setting hint.
 Do NOT use the examples literally — generate your own phrasing.
 </p>
@@ -172,7 +204,7 @@ Link clearly to the concept seed’s emotional theme.
 <h2>[subheadline about meaning + modern relevance]</h2>  
 <p>
 Explain the modern echo of the event.  
-Use one real modern study, figure, or example ONLY if compatible with the factual frame.  
+Use a modern echo ONLY as a conceptual reflection unless the factual frame explicitly includes a modern example or study.
 Deliver an emotional insight that reframes the story.  
 End with reflective curiosity, not closure.
 </p>
@@ -180,7 +212,16 @@ End with reflective curiosity, not closure.
 4️⃣ **Did You Know?**  
 <h2>Did You Know?</h2>
 
-Create exactly **3 short, surprising, factual curiosities or fun facts** directly related to the article.
+Create exactly **3 short CurioNotes** directly related to the article.
+
+RULES (ANTI-HALLUCINATION):
+• Each CurioNote MUST be derived from the factual research frame.
+• If the frame does not contain enough distinct facts for 3 notes, you MUST write safe, clearly uncertain notes:
+  - no numbers, no dates, no named institutions, no “studies show”
+  - use “may”, “can”, “is often debated”, “remains unclear”
+• Do NOT add new factual claims to “fill space”.
+• It is preferred that each CurioNote introduce a factual detail NOT already stated explicitly in the main article body, or that it meaningfully build on already stated information by adding context, implications, or lesser-known aspects.
+
 
 The facts should be **surprising, accurate, and fully self-contained** — each one must be a standalone insight that could function on its own in social media format while reinforcing the article’s central idea.  
 Each fun fact should **add factual depth**, not filler.
@@ -216,10 +257,12 @@ End with one poetic yet SEO-friendly closing line inviting further discovery:
 
 ### 🧠 REQUIREMENTS
 • Length: Minimum 600–700 words (aim for 800 if natural)  
-• Must include one proper noun + one quantifiable detail  
-• No fiction, no invented events  
+• NO invented facts, events, sources, names, dates, or numbers  
+• Proper nouns are OPTIONAL and ONLY allowed if present in the factual frame  
+• Quantifiable details (years, measurements, percentages) are OPTIONAL and ONLY allowed if present in the factual frame  
 • No markdown, no emojis, no links  
-• Maintain rhythm: **impact → truth → meaning → wonder**  
+• Maintain rhythm: **impact → truth → meaning → wonder**
+
 ---
 
 ### 🧩 OUTPUT FORMAT
@@ -279,8 +322,8 @@ Think: *National Geographic + Atlas Obscura + a touch of mythic resonance (but a
 Your article must:
 • Target **evergreen long-tail keywords** related to “${topic}”.  
 • Include synonyms + cultural terms (ritual, memory, symbol, heritage, tradition).  
-• Mention **one real artifact, artist, or cultural movement** to build trust.  
-• Include a **datable element** (year, century, period) for indexing.  
+• Mention an artifact/artist/movement ONLY if explicitly present in the factual frame (otherwise omit)
+• Include a datable element (year/century/period) ONLY if explicitly present in the factual frame (otherwise omit)
 • Make first 150 characters snippet-ready — factual, emotional, keyword-rich.  
 • Include **one early line** that works as a Featured Snippet.
 
@@ -291,10 +334,24 @@ Use this factual frame as the **only source** of factual content:
 
 ${factualFrame}
 
+NOTE:
+The factual research frame may include an appended section named "FACTPACK (ENRICHMENT)".
+
+If present:
+• Facts inside FACTPACK are part of the same factual whitelist.
+• You may use them normally in the article body.
+• If FACTPACK includes entries like:
+  - "Canonical page: X"
+  - "Entity: Y (QID)"
+you MAY name these verbatim in the "Sources & References" section.
+Do NOT add URLs.
+Do NOT paraphrase or infer new sources.
+
+
 You may:
 ✔ expand it narratively  
 ✔ create sensory atmosphere  
-✔ highlight symbolism implied by the frame  
+✔ highlight symbolism only if it is explicitly stated in the frame
 
 You may NOT:
 ✘ invent new facts  
@@ -302,6 +359,28 @@ You may NOT:
 ✘ import unrelated historical material  
 
 All factual grounding MUST come from the frame and nowhere else.
+
+NOTE: The factual research frame may include an appended section named "FACTPACK (ENRICHMENT)".
+Facts inside FACTPACK are allowed and are part of the same whitelist.
+
+---
+
+=====================================================================
+🔒 FACT WHITELIST (ABSOLUTE — NO NEW FACTS)
+=====================================================================
+You may ONLY state concrete facts (names, dates, numbers, locations, institutions, studies, “according to…”, “data shows…”) if they appear in the factual research frame EXACTLY.
+
+If a concrete detail is not explicitly present in the frame, you MUST:
+• remove it, and
+• replace it with uncertainty language (“it’s unclear…”, “records are incomplete…”, “researchers debate…”, “the evidence is mixed…”).
+
+ABSOLUTELY FORBIDDEN:
+• inventing statistics, percentages, counts, rankings
+• inventing study names, researchers, institutions, journals
+• inventing dates/years/locations not in the frame
+• inventing “sources say” style claims without explicit frame support
+
+If the frame is too thin to support a claim, keep it conceptual and explicitly uncertain.
 
 ---
 
@@ -341,7 +420,7 @@ Voice: factual + poetic, never fictional.
 - Anchor every image in **verifiable cultural or historical detail from the factual frame**.  
 - Reveal layers of meaning like a museum curator unveiling a hidden artifact.  
 - Use short, rhythmic sentences optimized for mobile reading.  
-- Deliver **at least one WOW-moment**: a rare, surprising cultural fact already present or implied in the factual frame.  
+- Deliver **at least one WOW-moment**: a rare, surprising cultural fact explicitly present in the factual frame
 - Maintain the rhythm:  
   **image → fact → meaning → wonder**  
 
@@ -403,10 +482,10 @@ End with a line that creates emotional tension or curiosity.
 <h2>[Generate a poetic, factual subheadline]</h2>  
 <p>
 Reveal the real cultural story entirely from the factual frame.  
-Include names, dates, objects, rituals, or movements only if they appear or are implied in the frame.  
+Include names, dates, objects, rituals, or movements only if they are explicitly present in the frame.
 Use sensory detail + factual precision.  
 Tie the story to a universal human theme (memory, identity, loss, rebirth).  
-Deliver the WOW-fact here — a surprising but verifiable cultural detail grounded in the frame.
+Deliver the WOW-fact here — a surprising cultural detail explicitly present in the frame.
 </p>
 
 3️⃣ **Modern Echo**  
@@ -421,7 +500,15 @@ End with poetic SEO-relevant wonder.
 4️⃣ **Did You Know?**  
 <h2>Did You Know?</h2>
 
-Create exactly **3 short, surprising, factual curiosities or fun facts** directly related to the article.
+Create exactly **3 short CurioNotes** directly related to the article.
+
+RULES (ANTI-HALLUCINATION):
+• Each CurioNote MUST be derived from the factual research frame.
+• If the frame does not contain enough distinct facts for 3 notes, you MUST write safe, clearly uncertain notes:
+  - no numbers, no dates, no named institutions, no “studies show”
+  - use “may”, “can”, “is often debated”, “remains unclear”
+• Do NOT add new factual claims to “fill space”.
+• It is preferred that each CurioNote introduce a factual detail NOT already stated explicitly in the main article body, or that it meaningfully build on already stated information by adding context, implications, or lesser-known aspects.
 
 The facts should be related to the main story — rediscoveries, exhibitions, rituals, or artistic echoes.  
 They should feel like *shareable fragments of truth* that deepen the reader’s fascination.  
@@ -457,10 +544,12 @@ End with this exact line:
 ---
 
 ### 🧠 REQUIREMENTS
-• Minimum 600–700 words (800 if natural and factual)  
-• One real cultural reference (artist, artifact, movement, museum, archive) ONLY if present in the factual frame  
-• All poetic elements must anchor in **verifiable reality**  
-• HTML only — no markdown  
+• Length: Minimum 600–700 words (aim for 800 if natural)  
+• NO invented facts, events, sources, names, dates, or numbers  
+• Proper nouns are OPTIONAL and ONLY allowed if present in the factual frame  
+• Quantifiable details (years, measurements, percentages) are OPTIONAL and ONLY allowed if present in the factual frame  
+• No markdown, no emojis, no links  
+• Maintain rhythm: **impact → truth → meaning → wonder**
 
 ---
 
@@ -527,6 +616,19 @@ Use the following frame as the **sole factual foundation** for the article:
 
 ${factualFrame}
 
+NOTE:
+The factual research frame may include an appended section named "FACTPACK (ENRICHMENT)".
+
+If present:
+• Facts inside FACTPACK are part of the same factual whitelist.
+• You may use them normally in the article body.
+• If FACTPACK includes entries like:
+  - "Canonical page: X"
+  - "Entity: Y (QID)"
+you MAY name these verbatim in the "Sources & References" section.
+Do NOT add URLs.
+Do NOT paraphrase or infer new sources.
+
 Rules:
 ✔ You may expand the frame narratively  
 ✔ You may describe sensory detail, mood, texture, conflict  
@@ -534,10 +636,32 @@ Rules:
 
 But you may NOT:
 ✘ introduce new historical facts  
-✘ name new inventors, dates, locations, materials not present or implied in the frame  
+✘ name new inventors, dates, locations, materials not explicitly present in the frame
 ✘ contradict the frame in any way  
 
 All factual content MUST come from the research frame.
+
+NOTE: The factual research frame may include an appended section named "FACTPACK (ENRICHMENT)".
+Facts inside FACTPACK are allowed and are part of the same whitelist.
+
+---
+
+=====================================================================
+🔒 FACT WHITELIST (ABSOLUTE — NO NEW FACTS)
+=====================================================================
+You may ONLY state concrete facts (names, dates, numbers, locations, institutions, studies, “according to…”, “data shows…”) if they appear in the factual research frame EXACTLY.
+
+If a concrete detail is not explicitly present in the frame, you MUST:
+• remove it, and
+• replace it with uncertainty language (“it’s unclear…”, “records are incomplete…”, “researchers debate…”, “the evidence is mixed…”).
+
+ABSOLUTELY FORBIDDEN:
+• inventing statistics, percentages, counts, rankings
+• inventing study names, researchers, institutions, journals
+• inventing dates/years/locations not in the frame
+• inventing “sources say” style claims without explicit frame support
+
+If the frame is too thin to support a claim, keep it conceptual and explicitly uncertain.
 
 ---
 
@@ -584,9 +708,9 @@ Voice: cinematic, factual, curiosity-driven — like *Wired* + *Atlas Obscura* +
 Every article must contain:
 • one **astonishing factual twist** grounded in the factual frame  
 • one **rarely discussed invention detail** from the frame  
-• one **human drama or coincidence** only if implied in the frame  
-• one **quantifiable detail** (year, model, measurement, patent number)  
-• one **modern echo** rooted in factual implications  
+• one **human drama or coincidence** only if explicitly present in the frame
+• Quantifiable details are OPTIONAL and ONLY allowed if explicitly present in the factual research frame.
+• A modern echo is OPTIONAL and must be conceptual unless the frame explicitly includes a modern example.
 
 Allow *debated interpretations* using safe phrasing:
 • “Some engineers argue…”  
@@ -599,7 +723,7 @@ Never fabricate facts.
 
 ### ⚡ WOW-FACTOR REQUIREMENT
 Mandatory:
-Include one **counterintuitive, surprising, or nearly forgotten truth** about the object or invention — already present, implied, or inferable from the factual frame.
+Include one **counterintuitive, surprising, or nearly forgotten truth** about the object or invention — explicitly present in the factual frame.
 
 Acceptable WOW directions:
 • accidental discoveries  
@@ -650,7 +774,7 @@ Use **valid HTML only** (<h2>, <p>).
 <h2>[cinematic subheadline — present → hint of mystery]</h2>  
 <p>
 Begin with a striking, modern image of the object that aligns with the factual frame.  
-Include one surprising measurable detail about its present influence or presence.  
+Include ONE concrete detail ONLY if it is explicitly present in the factual frame; otherwise keep the opening purely descriptive and non-numeric.
 End with a tension-building line (vary phrasing each time).
 </p>
 
@@ -660,13 +784,17 @@ End with a tension-building line (vary phrasing each time).
 <h2>[factual + dramatic subheadline]</h2>  
 <p>
 Reveal the origin story strictly from the factual frame.  
-Include:
-• at least one real inventor (if present in the frame)  
-• one real date  
-• one real location  
-• one measurable detail (material, patent number, prototype count)  
+Include ONLY if explicitly present in the factual research frame:
+• an inventor name  
+• a date or time marker  
+• a location  
+• a measurable detail (material, patent number, prototype count)
 
-Highlight conflict ONLY if implied:
+If any of these are NOT present in the frame, do NOT add them.
+Instead, write the origin story without those specifics and use uncertainty phrasing where needed.
+
+
+Highlight conflict ONLY if explicitly present in the factual research frame:
 • accidents  
 • failures  
 • disputed ideas  
@@ -681,7 +809,7 @@ Explain why this moment is astonishing or rarely known.
 <h2>[subheadline about meaning + influence]</h2>  
 <p>
 Explain why the invention still matters today.  
-Link past → present using only implications allowed by the factual frame.  
+Link past → present using only what is explicitly stated in the factual frame.
 End with a poetic but factual closing image.
 </p>
 
@@ -690,7 +818,15 @@ End with a poetic but factual closing image.
 4️⃣ **Did You Know?**  
 <h2>Did You Know?</h2>
 
-Create exactly **3 short, surprising, factual curiosities or fun facts** directly related to the product.
+Create exactly **3 short CurioNotes** directly related to the article.
+
+RULES (ANTI-HALLUCINATION):
+• Each CurioNote MUST be derived from the factual research frame.
+• If the frame does not contain enough distinct facts for 3 notes, you MUST write safe, clearly uncertain notes:
+  - no numbers, no dates, no named institutions, no “studies show”
+  - use “may”, “can”, “is often debated”, “remains unclear”
+• Do NOT add new factual claims to “fill space”.
+• It is preferred that each CurioNote introduce a factual detail NOT already stated explicitly in the main article body, or that it meaningfully build on already stated information by adding context, implications, or lesser-known aspects.
 
 The facts should relate to legacy, influence, rediscoveries, or modern echoes consistent with the frame.
 
@@ -728,11 +864,12 @@ At the very end of the article, include this line exactly:
 ---
 
 ### 🧠 REQUIREMENTS
-• Minimum 600–700 words (800 allowed if natural)  
-• Must include one real inventor, one real date, one real location — ONLY if present in the factual frame  
-• Zero marketing tone  
-• HTML only  
-• Rhythm: **present → past → insight → curiosities → closure**  
+• Length: Minimum 600–700 words (aim for 800 if natural)  
+• NO invented facts, events, sources, names, dates, or numbers  
+• Proper nouns are OPTIONAL and ONLY allowed if present in the factual frame  
+• Quantifiable details (years, measurements, percentages) are OPTIONAL and ONLY allowed if present in the factual frame  
+• No markdown, no emojis, no links  
+• Maintain rhythm: **impact → truth → meaning → wonder**
 
 ---
 
