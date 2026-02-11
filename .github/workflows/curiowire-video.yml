@@ -116,5 +116,42 @@ jobs:
         if: ${{ github.event_name == 'schedule' }}
         run: node scripts/scheduleSingleVideo.js
 
-      - name: 🎥 Generate & post single video
-        run: node scripts/runSingleVideoPipeline.js
+      # IMPORTANT:
+      # We treat "upload failed" as a job failure (so we can trigger artifact upload only then).
+      # We detect it by scanning the pipeline output for "success: false" from the poster.
+      - name: 🎥 Generate & post single video (fail job if upload fails)
+        id: pipeline
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p .cw_logs
+          LOG_FILE=".cw_logs/video-pipeline.log"
+
+          # Run pipeline and capture output
+          node scripts/runSingleVideoPipeline.js 2>&1 | tee "${LOG_FILE}"
+
+          # Detect upload failure (YouTube now, later TikTok etc.)
+          # Your poster currently logs: { youtube: { success: false, error: '...' } }
+          if grep -Eqi "success:\s*false" "${LOG_FILE}"; then
+            echo "UPLOAD_FAILED=1" >> "$GITHUB_ENV"
+            echo "❌ Detected upload failure in logs. Marking job as failed so artifacts can be saved."
+            exit 1
+          fi
+
+          echo "UPLOAD_FAILED=0" >> "$GITHUB_ENV"
+          echo "✅ Upload looks successful (no success:false found)."
+
+      # Save ONLY if upload failed (not if everything works)
+      - name: 📦 Upload generated video (only on upload failure)
+        if: ${{ failure() && env.UPLOAD_FAILED == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: curiowire-video-upload-failed-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            generated_videos/**/*.mp4
+            generated_videos/**/*.wav
+            generated_videos/**/*.ass
+            .cw_logs/**/*.log
