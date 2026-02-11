@@ -1,1014 +1,859 @@
+// ============================================================================
+// scripts/generate.js — CurioWire vNext (ALWAYS FACTCHECK + PREMISE SALVAGE)
+// One run = one article.
+// Flow:
+//   attempt 1: generate -> summary -> refine -> factcheck
+//   if FAIL_PREMISE -> salvage decider -> attempt 2 (full rerun)
+//   if attempt 2 FAIL_PREMISE -> stop + flag
+//   if pass -> generate scene prompt + select image -> save
+// ============================================================================
+
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
-// === LOCAL UTILS (unchanged paths) ===
-import { updateAndPingSearchEngines } from "../app/api/utils/seoTools.js";
-import { categories } from "../app/api/utils/categories.js";
-import { trimHeadline } from "../app/api/utils/textTools.js";
-import {
-  buildArticlePrompt,
-  buildCulturePrompt,
-  buildProductArticlePrompt,
-  affiliateAppendix,
-  naturalEnding,
-} from "../app/api/utils/prompts.js";
-
-import {
-  linkHistoricalStory,
-  summarizeTheme,
-} from "../app/api/utils/articleUtils.js";
-
-import {
-  resolveProductCategory,
-  findAffiliateProduct,
-} from "../app/api/utils/productUtils.js";
+import { buildPremiseGatePrompt } from "../app/api/utils/premiseGatePrompt.js";
+import { buildArticlePrompt } from "../app/api/utils/prompts.js";
+import { buildSummaryPrompt } from "../app/api/utils/summaryPrompt.js";
+import { buildRefinePackagePrompt } from "../app/api/utils/refinePackage.js";
+import { buildFactCheckPackagePrompt } from "../app/api/utils/factCheckPackage.js";
+import { buildPremiseSalvagePrompt } from "../app/api/utils/premiseSalvage.js";
+import { generateScenePrompt } from "../app/api/utils/scenePrompt.js";
 
 import { selectBestImage } from "../lib/imageSelector.js";
-import { cleanText } from "../app/api/utils/cleanText.js";
-import { refineArticle } from "../app/api/utils/refineTools.js";
-import { cleanWikimediaAttribution } from "../app/api/utils/cleanAttribution.js";
+import { updateAndPingSearchEngines } from "../app/api/utils/seoTools.js";
 
-import {
-  makeSummarySignature,
-  normalizeSummary,
-  summariesAreSimilar,
-} from "../lib/signatures/summarySignature.js";
+// ----------------------------------------------------------------------------
+// ENV
+// ----------------------------------------------------------------------------
+const {
+  OPENAI_API_KEY,
+  OPENAI_ORG_ID,
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
 
-import { extractSummaryObject } from "../lib/signatures/summaryExtractor.js";
+  // OpenAI models
+  ARTICLE_MODEL, // default: "gpt-4o-mini"
+} = process.env;
 
-import { markAnchorUsed } from "../lib/concepts/selectAnchors.js";
+if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY");
+if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
+if (!SUPABASE_SERVICE_ROLE_KEY)
+  throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 
-// ============================================================================
-// SIGNATURES
-// ============================================================================
-import {
-  buildCurioSignature,
-  checkCurioDuplicate,
-} from "../lib/signatures/curioSignature.js";
-
-import {
-  buildTopicSignature,
-  checkTopicDuplicate,
-} from "../lib/signatures/topicSignature.js";
-
-// ============================================================================
-// GPT CONCEPT GENERATOR
-// ============================================================================
-import { generateConceptSeeds } from "../lib/concepts/seedConceptGenerator.js";
-
-// ============================================================================
-// ENRICHMENT (Wikipedia/Wikidata)
-// ============================================================================
-import { isGenericArticle } from "../lib/enrichment/genericCheck.js";
-import { researchEnrich } from "../lib/enrichment/researchEnrich.js";
-
-// ============================================================================
-// FACT CHECKER
-// ============================================================================
-import {
-  factCheckArticle,
-  extractCorrectedVersion,
-  getFactCheckStatus,
-} from "../lib/factCheck.js";
-
-// ============================================================================
-// INIT OPENAI
-// ============================================================================
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  organization: process.env.OPENAI_ORG_ID,
+  apiKey: OPENAI_API_KEY,
+  organization: OPENAI_ORG_ID,
 });
 
-// ============================================================================
-// INIT SUPABASE (scripts MUST use Service Role)
-// ============================================================================
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-const supabaseUrl =
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+// ----------------------------------------------------------------------------
+// Config
+// ----------------------------------------------------------------------------
+const MAX_PREMISE_ATTEMPTS = 2; // 1 original + 1 salvage retry (hard stop after)
 
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// Hard fail: scripts/generate.js skal aldri kjøre med anon/public key
-if (!supabaseUrl) {
-  throw new Error(
-    "Missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) for scripts/generate.js"
-  );
+// ----------------------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------------------
+function nowIso() {
+  return new Date().toISOString();
 }
 
-if (!supabaseKey) {
-  throw new Error(
-    "Missing SUPABASE_SERVICE_ROLE_KEY for scripts/generate.js (required)"
-  );
+function safeStr(v, fallback = "") {
+  return typeof v === "string" && v.trim() ? v.trim() : fallback;
 }
 
-console.log("🧩 Supabase URL:", "✔️ Loaded");
-console.log("🔑 Supabase Key:", `✔️ Loaded (${supabaseKey.slice(0, 6)}...)`);
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// ============================================================================
-// SAFE SUPABASE WRAPPER
-// ============================================================================
-async function safeQuery(label, query) {
-  try {
-    const result = await query;
-    if (result?.error) {
-      console.error(`🚨 Supabase error (${label}):`, result.error.message);
-    }
-    return result;
-  } catch (err) {
-    console.error(`💥 Supabase fetch failed (${label}):`, err.message);
-    return { error: err };
-  }
+function stripH1(html) {
+  const m = String(html || "").match(/<h1>\s*([\s\S]*?)\s*<\/h1>/i);
+  return (m?.[1] || "").trim();
 }
 
-// ============================================================================
-// EMBEDDING HELPER
-// ============================================================================
-async function generateEmbedding(text) {
-  try {
-    const emb = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: text,
-    });
-    return emb.data[0].embedding;
-  } catch (err) {
-    console.warn("⚠️ Embedding failed:", err.message);
-    return null;
-  }
+function normalizeCategoryKey(key) {
+  const k = safeStr(key, "science").toLowerCase();
+  const allowed = new Set([
+    "space",
+    "science",
+    "history",
+    "world",
+    "nature",
+    "technology",
+    "culture",
+    "sports",
+    "products",
+    "health",
+    "mystery",
+    "crime",
+  ]);
+  return allowed.has(k) ? k : "science";
 }
 
-// ============================================================================
-// STANDARIZE FRAME HELPER
-// ============================================================================
-function buildBaseFrame(linkedStory) {
-  return `
-Field: ${linkedStory.field}
-Anchor: ${linkedStory.anchor}
-Note: ${linkedStory.note}
-Theme phrase: "${linkedStory.phrase}"
-`.trim();
+function changed(a, b) {
+  return safeStr(a) !== safeStr(b);
 }
 
-function buildEffectiveFrame(linkedStory, factPack = "") {
-  const base = buildBaseFrame(linkedStory);
-  return factPack?.trim() ? `${base}\n\n${factPack.trim()}`.trim() : base;
+function preview(s, n = 120) {
+  const t = safeStr(s, "");
+  return t.length > n ? t.slice(0, n) + "…" : t;
 }
 
-// ============================================================================
-// WOW-SCORING FOR CONCEPTS
-// ============================================================================
-async function scoreConceptWow(concept, category) {
-  const prompt = `
-You are scoring the VIRALITY and WOW-appeal of a short curiosity concept 
-for a platform called CurioWire.
+function splitPremiseGateOutput(text) {
+  const s = String(text || "");
 
-Category: ${category.toUpperCase()}
+  const verdict = (s.match(/Verdict:\s*([^\n\r]+)/i)?.[1] || "")
+    .toUpperCase()
+    .replace(/[^A-Z| ]/g, "")
+    .split(/\s|\|/)[0]
+    .trim();
 
-Concept:
-"${concept}"
+  const correctedSeed = (
+    s.match(/CorrectedSeed:\s*([\s\S]*?)\nReason:\s*/i)?.[1] || ""
+  ).trim();
 
-Score from 0 to 100 based ONLY on:
+  const reason = (s.match(/Reason:\s*([\s\S]*)$/i)?.[1] || "").trim();
 
-🔥 VIRALITY FACTORS (main weight)
-• How strongly it triggers instant curiosity in the first 2 seconds  
-• Whether the idea creates a vivid mental image  
-• Whether a general audience would feel “Wait… WHAT?!”  
-• How naturally it could be turned into a TikTok/YouTube Short hook  
-• How emotionally provocative, surprising, or visually dramatic it is  
-
-🚫 NEGATIVE WEIGHT (subtract points)
-• If it feels academic, technical, or niche  
-• If it depends on specialized knowledge  
-• If it sounds like a textbook or a scientific paper  
-• If it is too abstract or vague to visualize  
-• If it resembles common overused trivia  
-
-🎯 POSITIVE WEIGHT (bonus)
-• Universally understandable  
-• Strong contrast or reversal  
-• Feels fresh, unexpected, shareable  
-• Easy to retell verbally (“Did you know that…?”)  
-• Feels like something that would spread on social media  
-
-Return ONLY a single integer from 0 to 100.
-No words, no explanation, no extra characters.
-`;
-
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const raw = completion.choices?.[0]?.message?.content?.trim() || "";
-    const parsed = parseInt(raw.replace(/[^0-9]/g, ""), 10);
-
-    if (Number.isNaN(parsed)) {
-      console.warn("⚠️ WOW-score parse failed, got:", raw);
-      return 50;
-    }
-
-    return Math.max(0, Math.min(100, parsed));
-  } catch (err) {
-    console.warn("⚠️ WOW-scoring failed:", err.message);
-    return 50;
-  }
+  return { verdict, correctedSeed, reason };
 }
 
-// ============================================================================
-// INTERNAL: Generate one article draft (NO refine, NO fact-check yet)
-// ============================================================================
-async function generateArticleDraft({
-  key,
-  tone,
-  image,
-  topic,
-  topicSummary,
-  linkedStory,
-  curioSignature,
-  factualFrameOverride,
-}) {
-  // ==================================================================
-  // GENERATE ARTICLE (same behaviour as before, just wrapped)
-  // ==================================================================
-  const baseFrame = buildBaseFrame(linkedStory);
-  const factualFrame = (factualFrameOverride || baseFrame).trim();
-
-  let prompt;
-  if (key === "products") {
-    const prodCategory = await resolveProductCategory(
-      topic,
-      topicSummary,
-      linkedStory
-    );
-    prompt =
-      (await buildProductArticlePrompt(
-        `${topic} (${prodCategory})`,
-        key,
-        tone,
-        factualFrame
-      )) + affiliateAppendix;
-  } else if (key === "culture") {
-    prompt = buildCulturePrompt(topic, key, tone, factualFrame) + naturalEnding;
-  } else {
-    prompt = buildArticlePrompt(topic, key, tone, factualFrame) + naturalEnding;
-  }
-
-  //   // Bind artikkelen sterkt til valgt kuriositet
-  //   prompt += `
-  // Focus the story around this factual research frame:
-  // Field: ${linkedStory.field}
-  // Evidence: ${linkedStory.anchor}
-  // Note: ${linkedStory.note}
-  // Theme phrase: "${linkedStory.phrase}"
-  // `;
-
-  // INTERNAL STRUCTURAL ANCHOR — DO NOT DISPLAY IN ARTICLE
-  // (Do NOT appear in final output. For internal steering only.)
-  prompt += `
-You must implicitly follow this conceptual signature.
-Do not show or quote this text in the article.
-
-signature_core: "${curioSignature.signature}"
-signature_keywords: "${(curioSignature.keywords || []).join(", ")}"
-`;
-
-  console.log("✍️ Generating article draft…");
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
+// premiseGateCheck (swap chat.completions -> responses + web_search)
+async function premiseGateCheck({ curiosity, categoryKey }) {
+  const prompt = buildPremiseGatePrompt({
+    curiosity,
+    category: categoryKey,
   });
 
-  const raw = completion.choices?.[0]?.message?.content?.trim() || "";
-  if (!raw) {
-    console.error("❌ Empty article response from GPT.");
-    return null;
-  }
+  const resp = await openai.responses.create({
+    model:
+      process.env.PREMISE_GATE_MODEL || process.env.FACTCHECK_MODEL || "gpt-5",
+    tools: [{ type: "web_search" }],
+    tool_choice: "auto",
+    input: prompt,
+  });
 
-  const titleMatch = raw.match(/Headline:\s*(.+)/i);
-  const bodyMatch = raw.match(/Article:\s*([\s\S]+)/i);
+  const out = (resp.output_text || "").trim();
+  if (!out)
+    return { verdict: "FAIL", correctedSeed: "", reason: "Empty output" };
 
-  const rawTitle = titleMatch ? titleMatch[1].trim() : topic;
-  const title = trimHeadline(rawTitle);
+  return splitPremiseGateOutput(out);
+}
+// ----------------------------------------------------------------------------
+// Curiosity picking rules (STRICT)
+// ----------------------------------------------------------------------------
+async function fetchOneCuriositySuggestion() {
+  const { data, error } = await supabase.rpc("pick_curiosity_suggestion", {
+    p_category: null,
+  });
 
-  const articleRaw = bodyMatch ? bodyMatch[1].trim() : raw;
+  if (error) throw error;
+  if (!data) return null;
 
-  return { raw, title, articleRaw };
+  return { table: "curiosity_suggestions", row: data };
 }
 
-// ============================================================================
-// MAIN GENERATOR — 100% CONCEPT-DRIVEN + WOW-SELECTION + FACT-CHECK
-// ============================================================================
-export async function main() {
-  const start = Date.now();
-  console.log("🕒 Starting CurioWire generation (concept mode + WOW)…");
-  const results = [];
+async function markSuggestionFailed(sourceTable, id, reason) {
+  try {
+    await supabase
+      .from(sourceTable)
+      .update({
+        review_note: `GEN_FAIL: ${String(reason || "").slice(0, 400)}`,
+        updated_at: nowIso(),
+      })
+      .eq("id", id);
+  } catch (err) {
+    console.warn("⚠️ markSuggestionFailed failed:", err.message);
+  }
+}
+
+async function flagSuggestionAndMaybeFailCard({
+  suggestionId,
+  reason = "",
+  makeFailedCard = false,
+  failedCardPayload = null,
+}) {
+  const note = String(reason || "").slice(0, 400);
+
+  await supabase
+    .from("curiosity_suggestions")
+    .update({
+      status: "flagged",
+      review_note: `FACTCHECK_FAIL: ${note}`,
+      updated_at: nowIso(),
+    })
+    .eq("id", suggestionId);
+
+  if (makeFailedCard && failedCardPayload) {
+    await supabase.from(process.env.CARDS_TABLE || "curiosity_cards").insert({
+      ...failedCardPayload,
+      status: "failed",
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Generate article (raw)
+// ----------------------------------------------------------------------------
+async function generateArticleHtml({ topic, categoryKey, tone, factualFrame }) {
+  const prompt = buildArticlePrompt(topic, categoryKey, tone, factualFrame);
+
+  const resp = await openai.chat.completions.create({
+    model: ARTICLE_MODEL || "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.6,
+  });
+
+  const text = resp.choices[0]?.message?.content?.trim();
+  if (!text || text.length < 400)
+    throw new Error("Article generation returned too little text.");
+  return text;
+}
+
+// ----------------------------------------------------------------------------
+// Summary + FunFact (pre-refine, pre-factcheck)
+// ----------------------------------------------------------------------------
+function splitSummaryOutput(text) {
+  const out = { summary_normalized: null, fun_fact: null };
+
+  const s = String(text || "");
+
+  const sum = s.match(/Summary:\s*([\s\S]*?)\s*FunFact:\s*/i);
+  if (sum) out.summary_normalized = sum[1].trim();
+
+  const ff = s.match(/FunFact:\s*([\s\S]*)$/i);
+  if (ff) out.fun_fact = ff[1].trim();
+
+  if (out.summary_normalized && out.summary_normalized.length < 10)
+    out.summary_normalized = null;
+
+  if (out.fun_fact) {
+    let cleaned = out.fun_fact.trim();
+    cleaned = cleaned.replace(/^<p>\s*<\/p>\s*$/i, "").trim();
+    cleaned = cleaned.replace(/^<p>\s*([\s\S]*?)\s*<\/p>$/i, "$1").trim();
+    cleaned = cleaned.replace(/^\s*(none|null|n\/a)\s*$/i, "").trim();
+    out.fun_fact = cleaned ? `<p>${cleaned}</p>` : null;
+  }
+
+  return out;
+}
+
+async function generateSummaryAndFunFact({ cardText }) {
+  const prompt = buildSummaryPrompt(cardText);
+
+  const resp = await openai.chat.completions.create({
+    model: process.env.SUMMARY_MODEL || ARTICLE_MODEL || "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.3,
+  });
+
+  const text = resp.choices[0]?.message?.content?.trim();
+  if (!text) return { summary_normalized: null, fun_fact: null };
+
+  return splitSummaryOutput(text);
+}
+
+// ----------------------------------------------------------------------------
+// REFINE (light language polish)
+// ----------------------------------------------------------------------------
+function splitRefinePackageOutput(text) {
+  const s = String(text || "");
+
+  const get = (label, nextLabel) => {
+    const re = nextLabel
+      ? new RegExp(`${label}:\\s*([\\s\\S]*?)\\n${nextLabel}:\\s*`, "i")
+      : new RegExp(`${label}:\\s*([\\s\\S]*)$`, "i");
+    return (s.match(re)?.[1] || "").trim();
+  };
+
+  return {
+    title: get("Title", "Card"),
+    card_text: get("Card", "VideoScript"),
+    video_script: get("VideoScript", "Summary"),
+    summary_normalized: get("Summary", "FunFact"),
+    fun_fact: get("FunFact", null),
+  };
+}
+
+async function refinePackage({
+  title,
+  card_text,
+  video_script,
+  summary_normalized,
+  fun_fact,
+}) {
+  const prompt = buildRefinePackagePrompt({
+    title,
+    card_text,
+    video_script,
+    summary_normalized,
+    fun_fact,
+  });
+
+  const resp = await openai.chat.completions.create({
+    model: process.env.REFINE_MODEL || ARTICLE_MODEL || "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.2,
+  });
+
+  const out = resp.choices[0]?.message?.content?.trim();
+  if (!out) return null;
+
+  const parsed = splitRefinePackageOutput(out);
+
+  return {
+    title: parsed.title || title,
+    card_text: parsed.card_text || card_text,
+    video_script: parsed.video_script || video_script,
+    summary_normalized: parsed.summary_normalized || summary_normalized,
+    fun_fact: parsed.fun_fact || fun_fact,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// FACTCHECK (demonstrably-false + risky precision)
+// ----------------------------------------------------------------------------
+function splitFactCheckPackageOutput(text) {
+  const s = String(text || "");
+
+  const get = (label, nextLabel) => {
+    const re = nextLabel
+      ? new RegExp(`${label}:\\s*([\\s\\S]*?)\\n${nextLabel}:\\s*`, "i")
+      : new RegExp(`${label}:\\s*([\\s\\S]*)$`, "i");
+    return (s.match(re)?.[1] || "").trim();
+  };
+
+  return {
+    verdict: get("Verdict", "Reason"),
+    reason: get("Reason", "Title"),
+    title: get("Title", "Card"),
+    card_text: get("Card", "VideoScript"),
+    video_script: get("VideoScript", "Summary"),
+    summary_normalized: get("Summary", "FunFact"),
+    fun_fact: get("FunFact", null),
+  };
+}
+
+async function factCheckPackage({
+  title,
+  card_text,
+  video_script,
+  summary_normalized,
+  fun_fact,
+}) {
+  const prompt = buildFactCheckPackagePrompt({
+    title,
+    card_text,
+    video_script,
+    summary_normalized,
+    fun_fact,
+  });
+
+  const resp = await openai.responses.create({
+    model: process.env.FACTCHECK_MODEL || "gpt-5",
+    tools: [{ type: "web_search" }],
+    tool_choice: "auto",
+    input: prompt,
+  });
+
+  const out = (resp.output_text || "").trim();
+
+  if (!out) throw new Error("FactCheck returned empty output.");
+
+  const parsed = splitFactCheckPackageOutput(out);
+
+  const verdict = (parsed.verdict || "").trim().toUpperCase();
+  const isFailPremise = verdict.includes("FAIL_PREMISE");
+
+  return {
+    isFailPremise,
+    reason: parsed.reason || "",
+    verdict,
+    title: parsed.title || title,
+    card_text: parsed.card_text || card_text,
+    video_script: parsed.video_script || video_script,
+    summary_normalized: parsed.summary_normalized || summary_normalized,
+    fun_fact: parsed.fun_fact || fun_fact,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// PREMISE SALVAGE (only used after FAIL_PREMISE)
+// ----------------------------------------------------------------------------
+function splitPremiseSalvageOutput(text) {
+  const s = String(text || "");
+
+  const salvage = (s.match(/Salvage:\s*([^\n\r]+)/i)?.[1] || "").trim();
+  const replacementSeed = (
+    s.match(/ReplacementSeed:\s*([\s\S]*)$/i)?.[1] || ""
+  ).trim();
+
+  return {
+    salvageYes: salvage.toUpperCase().includes("YES"),
+    replacementSeed: replacementSeed || "",
+  };
+}
+
+async function premiseSalvageDecider({ title, card_text, reason }) {
+  const prompt = buildPremiseSalvagePrompt({ title, card_text, reason });
+
+  const resp = await openai.responses.create({
+    model: process.env.SALVAGE_MODEL || process.env.FACTCHECK_MODEL || "gpt-5",
+    tools: [{ type: "web_search" }],
+    tool_choice: "auto",
+    input: prompt,
+  });
+
+  const out = (resp.output_text || "").trim();
+  if (!out) return { salvageYes: false, replacementSeed: "" };
+
+  return splitPremiseSalvageOutput(out);
+}
+
+// ----------------------------------------------------------------------------
+// Parse generated output into { headline, cardText, videoScript, seoBlock, hashtags }
+// ----------------------------------------------------------------------------
+function splitGenerated(text) {
+  const out = {
+    headline: "",
+    cardText: "",
+    videoScript: "",
+    seoBlock: "",
+    hashtags: "",
+  };
+
+  const head = text.match(/Headline:\s*([\s\S]*?)\n(?:Card|Article):\s*/i);
+  if (head) out.headline = head[1].trim();
+
+  const card = text.match(/(?:Card|Article):\s*([\s\S]*?)\nVideoScript:\s*/i);
+  if (card) out.cardText = card[1].trim();
+
+  const vid = text.match(/VideoScript:\s*([\s\S]*?)\nSEO:\s*/i);
+  if (vid) out.videoScript = vid[1].trim();
+
+  const seo = text.match(/SEO:\s*([\s\S]*?)\nHashtags:\s*/i);
+  if (seo) out.seoBlock = seo[1].trim();
+
+  const hash = text.match(/Hashtags:\s*([\s\S]*)$/i);
+  if (hash) out.hashtags = hash[1].trim();
+
+  if (!out.cardText) out.cardText = text.trim();
+
+  return out;
+}
+
+// ----------------------------------------------------------------------------
+// Extract <title>, <description>, <keywords> from SEO block (best-effort)
+// ----------------------------------------------------------------------------
+function cleanTagValue(s) {
+  return String(s || "")
+    .replace(/<\/?(title|description|keywords)>\s*/gi, "")
+    .trim();
+}
+
+function grab(block, tag) {
+  const between = block.match(
+    new RegExp(`<${tag}>\\s*—?\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, "i"),
+  )?.[1];
+  if (between) return cleanTagValue(between);
+
+  const line = block.match(
+    new RegExp(`<${tag}>\\s*—?\\s*([^\\n\\r]*)`, "i"),
+  )?.[1];
+  return cleanTagValue(line || "");
+}
+
+function parseSeo(seoBlock) {
+  const block = String(seoBlock || "");
+  return {
+    title: grab(block, "title"),
+    description: grab(block, "description"),
+    keywords: grab(block, "keywords"),
+  };
+}
+
+// ----------------------------------------------------------------------------
+// One attempt: generate -> summary -> refine -> factcheck (returns everything)
+// ----------------------------------------------------------------------------
+async function generateRefineAndFactcheck({
+  topic,
+  categoryKey,
+  tone,
+  factualFrame,
+}) {
+  const raw = await generateArticleHtml({
+    topic,
+    categoryKey,
+    tone,
+    factualFrame,
+  });
+
+  const parts = splitGenerated(raw);
+
+  console.log(
+    `🧱 Generated raw: headline?=${Boolean(parts.headline)} cardLen=${(parts.cardText || "").length} videoLen=${(parts.videoScript || "").length}`,
+  );
+
+  const headlineRaw = parts.headline || "";
+  const headline = stripH1(headlineRaw) || safeStr(topic, "Untitled Curiosity");
+
+  const seo = parseSeo(parts.seoBlock);
+
+  const meta = await generateSummaryAndFunFact({ cardText: parts.cardText });
+
+  console.log(
+    `🧾 Summary: ${meta.summary_normalized ? "yes" : "no"} | FunFact: ${meta.fun_fact ? "yes" : "no"}`,
+  );
+
+  const refined = await refinePackage({
+    title: headline,
+    card_text: parts.cardText,
+    video_script: parts.videoScript || "<p></p>",
+    summary_normalized: meta.summary_normalized || "",
+    fun_fact: meta.fun_fact || "<p></p>",
+  });
+
+  if (refined) {
+    const titleChanged = changed(headline, refined.title);
+    const cardChanged = changed(parts.cardText, refined.card_text);
+    const videoChanged = changed(
+      parts.videoScript || "",
+      refined.video_script || "",
+    );
+    const sumChanged = changed(
+      meta.summary_normalized || "",
+      refined.summary_normalized || "",
+    );
+    const funChanged = changed(meta.fun_fact || "", refined.fun_fact || "");
+
+    console.log(
+      `🧼 Refine: title=${titleChanged ? "changed" : "same"} card=${cardChanged ? "changed" : "same"} video=${videoChanged ? "changed" : "same"} summary=${sumChanged ? "changed" : "same"} funFact=${funChanged ? "changed" : "same"}`,
+    );
+  } else {
+    console.log("🧼 Refine: skipped (no output)");
+  }
+
+  const finalTitle = refined?.title || headline;
+  const finalCardText = refined?.card_text || parts.cardText;
+  const finalVideoScript = refined?.video_script || parts.videoScript || null;
+  const finalSummary = refined?.summary_normalized || meta.summary_normalized;
+  const finalFunFact = refined?.fun_fact || meta.fun_fact;
+
+  const checked = await factCheckPackage({
+    title: finalTitle,
+    card_text: finalCardText,
+    video_script: finalVideoScript || "<p></p>",
+    summary_normalized: finalSummary || "",
+    fun_fact: finalFunFact || "<p></p>",
+  });
+
+  console.log(
+    `🧪 FactCheck: verdict=${checked.verdict} premiseFail=${checked.isFailPremise ? "YES" : "NO"} reason="${preview(checked.reason, 160)}"`,
+  );
+
+  return { parts, seo, checked };
+}
+
+// ----------------------------------------------------------------------------
+// MAIN
+// ----------------------------------------------------------------------------
+async function run() {
+  console.log("🧠 CurioWire generate.js (vNext) — starting");
+
+  const found = await fetchOneCuriositySuggestion();
+  if (!found) {
+    console.log("😴 No eligible curiosity suggestion found.");
+    return;
+  }
+
+  // const FORCE_SUGGESTION_ID = process.env.FORCE_SUGGESTION_ID || null;
+
+  // let found;
+
+  // if (FORCE_SUGGESTION_ID) {
+  //   const { data, error } = await supabase
+  //     .from("curiosity_suggestions")
+  //     .select("*")
+  //     .eq("id", FORCE_SUGGESTION_ID)
+  //     .single();
+
+  //   if (error || !data) {
+  //     throw new Error("Forced suggestion not found");
+  //   }
+
+  //   found = { table: "curiosity_suggestions", row: data };
+  //   console.log("🧪 FORCE MODE — using suggestion", FORCE_SUGGESTION_ID);
+  // } else {
+  //   found = await fetchOneCuriositySuggestion();
+  //   if (!found) {
+  //     console.log("😴 No eligible curiosity suggestion found.");
+  //     return;
+  //   }
+  // }
+
+  const { table: sourceTable, row } = found;
+
+  const suggestionId = row.id;
+  const topic = safeStr(row.curiosity, "Untitled Curiosity");
+  const categoryKey = normalizeCategoryKey(row.category);
+  const wowScoreFromSuggestion = Number.isFinite(Number(row.wow_score))
+    ? Number(row.wow_score)
+    : 50;
+
+  const tone = "neutral";
+  const factualFrame = "";
+
+  console.log(`🧩 Picked curiosity from "${sourceTable}" id=${suggestionId}`);
+  console.log(`   curiosity="${topic}" category="${categoryKey}"`);
+
+  // ✅ Premise gate — before spending tokens on full generation
+  let initialTopic = topic;
+
+  console.log("🧪 Premise gate — checking suggestion realism...");
+
+  const gate = await premiseGateCheck({
+    curiosity: topic,
+    categoryKey,
+  });
+
+  const okVerdicts = new Set(["PASS", "FIX", "FAIL"]);
+  if (!okVerdicts.has(gate.verdict)) {
+    console.log(
+      "⚠️ Premise gate returned unknown verdict — treating as FAIL:",
+      gate.verdict,
+    );
+    gate.verdict = "FAIL";
+  }
+
+  if (gate.verdict === "FIX" && !gate.correctedSeed) {
+    console.log("⚠️ Premise gate FIX without CorrectedSeed — treating as FAIL");
+    gate.verdict = "FAIL";
+  }
+
+  console.log(
+    `🧪 Premise gate verdict=${gate.verdict} ${
+      gate.correctedSeed ? " (has correction)" : ""
+    }`,
+  );
+
+  if (gate.verdict === "FAIL") {
+    console.log("🧯 Premise gate FAIL — flagging and stopping:", gate.reason);
+
+    await flagSuggestionAndMaybeFailCard({
+      suggestionId,
+      reason: `PREMISE_GATE_FAIL: ${gate.reason} | seed="${topic}"`,
+      makeFailedCard: true,
+      failedCardPayload: {
+        suggestion_id: suggestionId,
+        category: categoryKey,
+        title: safeStr(topic),
+        card_text: "",
+        video_script: null,
+        summary_normalized: null,
+        fun_fact: null,
+        scene_prompt: null,
+        seo_title: null,
+        seo_description: null,
+        seo_keywords: null,
+        hashtags: null,
+        wow_score: wowScoreFromSuggestion,
+      },
+    });
+
+    return;
+  }
+
+  if (gate.verdict === "FIX" && gate.correctedSeed) {
+    console.log("🛠️ Premise gate FIX — corrected seed:", gate.correctedSeed);
+    initialTopic = gate.correctedSeed;
+  }
+
+  let image_url = null;
+  let image_credit = null;
+  let image_source = null;
+  let image_prompt = null;
+  let scene_prompt = null;
 
   try {
-    // ======================================================================
-    // PROCESS EACH CATEGORY
-    // ======================================================================
-    for (const [key, { tone, image }] of Object.entries(categories)) {
-      console.log(`\n📰 Category: ${key}`);
+    // Always factcheck: do up to 2 attempts (original + salvage rebuild)
+    let currentTopic = initialTopic;
+    let finalPack = null;
+    let lastFailReason = "";
 
-      // ==============================================================
-      // STEP 1: Fetch concept seeds via GPT
-      // ==============================================================
-      console.log("🎯 Fetching WOW concepts…");
-      const { concepts, anchor, focusShift, lens } = await generateConceptSeeds(
-        key
+    for (let attempt = 1; attempt <= MAX_PREMISE_ATTEMPTS; attempt++) {
+      console.log(
+        `🧪 Attempt ${attempt}/${MAX_PREMISE_ATTEMPTS}: "${currentTopic}"`,
       );
 
-      if (!anchor || !focusShift || !lens) {
-        console.warn(`⚠️ Missing structural components for ${key}, skipping.`);
-        continue;
-      }
-
-      if (!concepts || !concepts.length) {
-        console.log(`❌ No concepts generated for ${key}, skipping.`);
-        continue;
-      }
-
-      console.log(`💡 Concepts received for ${key}: ${concepts.length}`);
-
-      // ==============================================================
-      // STEP 2: WOW-score all concepts and rank them (SAFE VERSION)
-      // ==============================================================
-      const scoredConcepts = [];
-
-      for (const item of concepts) {
-        // --- Hard guards først ---
-        if (!item?.concept || typeof item.concept !== "string") {
-          console.warn("⚠️ Skipping concept: missing or invalid concept text");
-          continue;
-        }
-
-        const conceptText = item.concept.trim();
-        if (!conceptText) continue;
-
-        // 1) Score først (WOW)
-        let score = 50;
-        try {
-          score = await scoreConceptWow(conceptText, key);
-        } catch (err) {
-          console.warn("⚠️ WOW-scoring failed, using fallback (50)");
-          score = 50;
-        }
-
-        // 2) Så plausibility penalty (normaliser verdict)
-        const verdict = String(item.plausibility_verdict || "UNCERTAIN")
-          .trim()
-          .toUpperCase();
-
-        // FAIL skal egentlig ikke forekomme (seedConceptGenerator filtrerer FAIL),
-        // men vi gjør det bombesikkert:
-        if (verdict === "FAIL") continue;
-
-        const penalty = verdict === "UNCERTAIN" ? 5 : 0;
-
-        // 3) Clamp etter penalty
-        score = Math.max(0, Math.min(100, score - penalty));
-
-        scoredConcepts.push({
-          concept: conceptText,
-          score,
-          verifier: item.verifier ?? null,
-          plausibility_verdict: verdict,
-        });
-      }
-
-      // Final sanity check
-      if (!scoredConcepts.length) {
-        console.warn(`⚠️ No valid scored concepts for category "${key}"`);
-        continue;
-      }
-
-      // Rank by WOW score (descending)
-      scoredConcepts.sort((a, b) => b.score - a.score);
-
-      // --------------------------------------------------------------
-      // STEP 2.5 — Pick single best concept (global winner)
-      // --------------------------------------------------------------
-      const bestConcepts = scoredConcepts.slice(0, scoredConcepts.length);
-
-      console.log("🏆 WOW-ranking for concepts:");
-      scoredConcepts.forEach(({ concept, score }, idx) => {
-        const preview =
-          concept.length > 120 ? concept.slice(0, 117) + "..." : concept;
-        console.log(`   ${idx + 1}. [${score}] ${preview}`);
+      const pack = await generateRefineAndFactcheck({
+        topic: currentTopic,
+        categoryKey,
+        tone,
+        factualFrame,
       });
 
-      // Vi behandler hvert konsept som "topic-like"
-      let topic = null;
-      let topicSummary = null; // nå bare direkte fra topic
-      let linkedStory = null;
-      let curioSignature = null;
-      let topicSig = null;
-      let selectedWowScore = null;
-      let selectedVerifier = null;
-
-      // ==============================================================
-      // STEP 3: Finn beste WOW-konsept som også passer dupe-sjekkene
-      // ==============================================================
-      for (const {
-        concept: candidateConcept,
-        score: wowScore,
-        verifier,
-      } of bestConcepts) {
-        console.log(
-          `\n🔎 Evaluating concept (WOW ${wowScore}): "${candidateConcept}"`
-        );
-
-        // 3A: Bygg topic-signatur
-        topicSig = await buildTopicSignature({
-          category: key,
-          topic: candidateConcept,
-        });
-
-        console.log(
-          `   🔧 TopicSignature → normalized="${topicSig.normalized}", short="${topicSig.shortSignature}"`
-        );
-
-        const topicDupe = await checkTopicDuplicate(topicSig);
-        console.log(
-          "   🔍 CHECK TOPIC DUPLICATE:",
-          `query: ${topicSig.normalized} | short: ${topicSig.shortSignature} | category: ${key}`
-        );
-
-        if (topicDupe.isDuplicate) {
-          console.log(
-            `   🚫 Topic duplicate (WOW ${wowScore}) → closest existing: "${topicDupe.closestTitle}"`
-          );
-          continue;
-        }
-
-        // 3B: Finn kuriositet direkte fra topic (uten analyzeTopic)
-        let candidateCurio;
-
-        try {
-          // Vi bruker selve topic-teksten som "modern topic" inn i linkHistoricalStory
-          candidateCurio = await linkHistoricalStory(candidateConcept, key);
-          if (
-            !candidateCurio ||
-            !candidateCurio.field ||
-            !candidateCurio.anchor ||
-            !candidateCurio.phrase
-          ) {
-            console.log(
-              `   ⚠️ Invalid curiosity structure for concept (WOW ${wowScore}), skipping.`
-            );
-            continue;
-          }
-        } catch (err) {
-          console.log(
-            `   ⚠️ Curiosity linking failed for concept (WOW ${wowScore}):`,
-            err.message
-          );
-          continue;
-        }
-
-        // 3C: Bygg curiosity-signatur
-        const candidateSig = await buildCurioSignature({
-          category: key,
-          topic: candidateConcept,
-          curiosity: `${candidateCurio.field} — ${candidateCurio.anchor} — ${candidateCurio.phrase}`,
-        });
-
-        const dupeInfo = await checkCurioDuplicate(candidateSig);
-        console.log(
-          "   🔍 CHECK CURIO DUPLICATE:",
-          `signature: ${candidateSig.signature} | category: ${key}`
-        );
-
-        if (dupeInfo.isDuplicate) {
-          console.log(
-            `   🚫 Curiosity duplicate (WOW ${wowScore}) → closest existing: "${dupeInfo.closestTitle}"`
-          );
-          continue;
-        }
-
-        // 3D: Vi fant et unikt, høy-WOW match!
-        topic = candidateConcept;
-        topicSummary = candidateConcept; // vi kan senere bytte til egen summarizer hvis ønskelig
-        linkedStory = candidateCurio;
-        curioSignature = candidateSig;
-        selectedWowScore = wowScore;
-        selectedVerifier = verifier ?? null;
-
-        console.log("🧠 PICKED FRAME", {
-          anchor_id: anchor.id,
-          focus_shift: focusShift,
-          lens,
-          wow: wowScore,
-          verifier: verifier ?? null,
-        });
-
-        console.log(`   ✅ Selected concept [WOW ${wowScore}] → "${topic}"`);
-        console.log(
-          `      Curiosity link → field="${linkedStory.field}", anchor="${linkedStory.anchor}"`
-        );
-
+      if (!pack.checked.isFailPremise) {
+        finalPack = pack;
         break;
       }
 
-      if (!topic) {
-        console.log(
-          `⚠️ No unique, non-duplicate concept found for ${key}, skipping…`
-        );
-        results.push({
-          category: key,
-          topic: null,
-          wow_score: null,
-          success: false,
-        });
-        continue;
-      }
+      lastFailReason = pack.checked.reason || "Premise demonstrably false";
+      console.log("🧯 FAIL_PREMISE —", lastFailReason);
 
-      // Utvid tematisk kortoppsummering (valgfri, failure er ikke kritisk)
-      try {
-        await summarizeTheme(topicSummary, linkedStory);
-      } catch (err) {
-        console.log(
-          "ℹ️ summarizeTheme failed or was skipped:",
-          err?.message || "unknown error"
-        );
-      }
+      if (attempt === MAX_PREMISE_ATTEMPTS) break;
 
-      // ==================================================================
-      // STEP 4: ARTICLE GENERATION + FACT-CHECK LOOP
-      // ==================================================================
-      const maxAttempts = 2;
-      let finalDraft = null;
-
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        console.log(
-          `\n🧪 Article generation attempt ${attempt} for category "${key}"…`
-        );
-
-        const draft = await generateArticleDraft({
-          key,
-          tone,
-          image,
-          topic,
-          topicSummary,
-          linkedStory,
-          curioSignature,
-        });
-
-        if (!draft) {
-          console.warn("⚠️ Draft generation failed, aborting attempts.");
-          break;
-        }
-
-        let { raw, title, articleRaw } = draft;
-
-        // ==================================================================
-        // ENRICHMENT (only if generic)
-        // ==================================================================
-        let factPack = "";
-        let effectiveFrame = buildBaseFrame(linkedStory); // ✅ alltid samme format
-
-        if (isGenericArticle(articleRaw)) {
-          console.log(
-            "🧪 Generic article detected → running Wikipedia/Wikidata enrichment…"
-          );
-
-          try {
-            // topic + anchor-hint
-            factPack = await researchEnrich(topic, linkedStory?.anchor);
-
-            if (factPack && factPack.trim().length > 50) {
-              effectiveFrame = buildEffectiveFrame(linkedStory, factPack);
-
-              console.log(
-                "📦 FactPack added. Regenerating article with enriched factual frame…"
-              );
-
-              const enrichedDraft = await generateArticleDraft({
-                key,
-                tone,
-                image,
-                topic,
-                topicSummary,
-                linkedStory,
-                curioSignature,
-                factualFrameOverride: effectiveFrame,
-              });
-
-              if (enrichedDraft?.articleRaw) {
-                console.log("✅ Enriched regeneration complete.");
-
-                raw = enrichedDraft.raw;
-                title = enrichedDraft.title;
-                articleRaw = enrichedDraft.articleRaw;
-
-                // valgfritt: hold draft i sync
-                draft.raw = raw;
-                draft.title = title;
-                draft.articleRaw = articleRaw;
-              } else {
-                console.warn(
-                  "⚠️ Enriched regeneration failed → continuing with original draft."
-                );
-              }
-            } else {
-              console.warn(
-                "⚠️ FactPack empty/too small → continuing with original draft."
-              );
-            }
-          } catch (err) {
-            console.warn("⚠️ Enrichment failed:", err?.message || err);
-          }
-        }
-
-        console.log("🔎 Running fact-check on article draft…");
-        const factResult = await factCheckArticle(
-          articleRaw,
-          title,
-          effectiveFrame
-        );
-
-        console.log(
-          "📎 FULL FACT RESULT:",
-          JSON.stringify(factResult, null, 2)
-        );
-
-        const status = getFactCheckStatus(factResult);
-
-        console.log(`📊 Fact-check status: ${status}`);
-
-        // ==============================================================
-        // ACCEPT PATH: OK + UNCERTAIN
-        // ==============================================================
-        if (status === "OK" || status === "UNCERTAIN") {
-          console.log(
-            status === "OK"
-              ? "✅ Fact-check OK — using original article."
-              : "⚪ Fact-check UNCERTAIN — accepted due to cautious/ambiguous topic."
-          );
-
-          finalDraft = {
-            ...draft,
-            articleForRefine: articleRaw,
-            effectiveFrame,
-          };
-
-          break;
-        }
-
-        // ==============================================================
-        // MINOR FIX PATH: ISSUES (use corrected article if provided)
-        // ==============================================================
-        if (status === "ISSUES") {
-          const corrected = extractCorrectedVersion(factResult);
-          if (corrected) {
-            console.log(
-              "✅ Fact-check found minor issues — using corrected article version."
-            );
-            finalDraft = {
-              ...draft,
-              articleForRefine: corrected,
-              effectiveFrame,
-            };
-            break;
-          } else {
-            console.warn(
-              "⚠️ ISSUES FOUND but no corrected article present — treating as MAJOR."
-            );
-            // fall through to regeneration if attempt < maxAttempts
-          }
-        }
-
-        // ==============================================================
-        // REGEN PATH: MAJOR / UNKNOWN
-        // ==============================================================
-        if (status === "MAJOR" || status === "UNKNOWN") {
-          if (attempt < maxAttempts) {
-            console.warn(
-              `⚠️ Fact-check result "${status}" — regenerating article (attempt ${
-                attempt + 1
-              } of ${maxAttempts})…`
-            );
-          } else {
-            console.error(
-              `❌ Fact-check result "${status}" after ${maxAttempts} attempts — skipping category "${key}".`
-            );
-          }
-        }
-      }
-
-      if (!finalDraft) {
-        results.push({
-          category: key,
-          topic,
-          wow_score: selectedWowScore,
-          success: false,
-          reason: "fact-check-failed",
-        });
-        continue;
-      }
-
-      const { raw, title, articleForRefine, effectiveFrame } = finalDraft;
-
-      // ==================================================================
-      // STEP 5: REFINE ARTICLE (language, summary, sources)
-      // ==================================================================
-      const refined = await refineArticle(
-        articleForRefine,
-        title,
-        effectiveFrame
-      );
-
-      // ==================================================================
-      // SEO
-      // ==================================================================
-      const seoTitleMatch = raw.match(/<title>\s*([^<]+)\s*/i);
-      const seoDescMatch = raw.match(/<description>\s*([^<]+)\s*/i);
-      const seoKeywordsMatch = raw.match(/<keywords>\s*([^<]+)\s*/i);
-      const hashtagsMatch = raw.match(/Hashtags:\s*([#\w\s]+)/i);
-
-      const seo_title = seoTitleMatch ? seoTitleMatch[1].trim() : title;
-      const seo_description = seoDescMatch
-        ? seoDescMatch[1].trim()
-        : cleanText(refined.slice(0, 155));
-
-      const seo_keywords = seoKeywordsMatch
-        ? seoKeywordsMatch[1].trim()
-        : `${key}, curiosity, history, CurioWire`;
-
-      let hashtags = "";
-      if (hashtagsMatch) {
-        const rawTags = hashtagsMatch[1]
-          .trim()
-          .split(/\s+/)
-          .filter((t) => t.startsWith("#"));
-        hashtags = [...new Set(rawTags)].join(" ");
-      }
-
-      // ==================================================================
-      // PRODUCTS
-      // ==================================================================
-      let source_url = null;
-      if (key === "products") {
-        const nameMatch = raw.match(/\[Product Name\]:\s*(.+)/i);
-        const productName = nameMatch ? nameMatch[1].trim() : null;
-        const productResult = await findAffiliateProduct(
-          title,
-          topic,
-          refined,
-          productName
-        );
-        source_url = productResult.source_url;
-      }
-
-      // Clean article text
-      const cleanedArticle = refined
-        .replace(/```html|```/gi, "")
-        .replace(/\[Product Name\]:\s*.+/i, "")
-        .replace(/SEO:[\s\S]*$/i, "")
-        .trim();
-
-      const summaryMatch = cleanedArticle.match(
-        /<span\s+data-summary-what[^>]*>(.*?)<\/span>/s
-      );
-      const summaryWhat = summaryMatch ? cleanText(summaryMatch[1].trim()) : "";
-      if (summaryWhat) {
-        console.log(`   🧾 SummaryWhat extracted: "${summaryWhat}"`);
-      }
-
-      // ==================================================================
-      // === SUMMARY SIGNATURE ===
-      // ==================================================================
-      const summaryObject = extractSummaryObject(cleanedArticle);
-
-      let summary_normalized = null;
-      let summary_signature = null;
-
-      if (!summaryObject) {
-        console.warn(
-          "⚠️ No valid Quick Summary extracted — article will be blocked."
-        );
-        console.log("⛔ Skipping article due to missing Quick Summary.");
-        continue;
-      }
-
-      summary_normalized = normalizeSummary(summaryObject);
-      summary_signature = makeSummarySignature(summaryObject);
-
-      // ==================================================================
-      // EMBEDDING + UNIFIED SEMANTIC SIGNATURE (CURIOSITY-ONLY)
-      // ==================================================================
-      const embedding = await generateEmbedding(`${title}\n${cleanedArticle}`);
-
-      // Keywords basert KUN på curiosity-signaturen
-      const curioKeywords = (curioSignature?.keywords || []).map((k) =>
-        k.toLowerCase()
-      );
-      const uniqueKeywords = [...new Set(curioKeywords)];
-
-      // Kjerne basert kun på curiosity-signaturen
-      let semanticCore =
-        curioSignature?.signature ||
-        curioSignature?.normalized ||
-        `${linkedStory.field} — ${linkedStory.anchor} — ${linkedStory.phrase}` ||
-        title;
-
-      const semanticSignature = [
-        semanticCore,
-        uniqueKeywords.length ? `keywords: ${uniqueKeywords.join(", ")}` : null,
-      ]
-        .filter(Boolean)
-        .join(" — ");
-
-      // ==================================================================
-      // IMAGE
-      // ==================================================================
-      const imagePref = image === "photo" ? "photo" : "dalle";
-
-      const {
-        imageUrl,
-        source,
-        score: bestScore,
-        attribution, // 👈 ADD THIS
-      } = await selectBestImage(
-        title,
-        cleanedArticle,
-        key,
-        imagePref,
-        summaryWhat
-      );
-
-      const imageCredit =
-        source === "Wikimedia"
-          ? cleanWikimediaAttribution(attribution)
-          : source === "Pexels"
-          ? "Image courtesy of Pexels"
-          : source === "Unsplash"
-          ? "Image courtesy of Unsplash"
-          : source === "DALL·E"
-          ? "Illustration by DALL·E 3"
-          : "Image source unknown";
-
-      console.log(
-        `🖼️ Image selected for ${key}: source=${source}, score=${
-          bestScore ?? "n/a"
-        }`
-      );
-
-      // ==================================================================
-      // SUMMARY DUPLICATE CHECK
-      // ==================================================================
-
-      if (summary_signature) {
-        const { data: existingSummaries } = await supabase
-          .from("articles")
-          .select("id, title, summary_signature, summary_normalized");
-
-        let isSummaryDuplicate = false;
-
-        for (const row of existingSummaries || []) {
-          const sigSame = row.summary_signature === summary_signature;
-          const fuzzySame =
-            row.summary_normalized &&
-            summariesAreSimilar(row.summary_normalized, summary_normalized);
-
-          if (sigSame || fuzzySame) {
-            console.log(
-              `⚠️ BLOCKED — Summary duplicate detected vs article ${row.id}: "${row.title}"`
-            );
-            isSummaryDuplicate = true;
-            break;
-          }
-        }
-
-        if (isSummaryDuplicate) {
-          console.log("⛔ Skipping article due to SUMMARY DUPLICATE.");
-          continue; // hopper til neste kategori
-        }
-      }
-
-      // ==================================================================
-      // STRUCTURAL SAFETY CHECK (belt + suspenders)
-      // ==================================================================
-      if (!anchor?.id || !focusShift || !lens || selectedWowScore == null) {
-        console.warn("⚠️ Structural mismatch detected, aborting save", {
-          anchor_id: anchor?.id,
-          focus_shift: focusShift,
-          lens,
-        });
-        continue;
-      }
-
-      // ==================================================================
-      // SAVE ARTICLE
-      // ==================================================================
-      const insertResult = await safeQuery(
-        `insert article for ${key}`,
-        supabase.from("articles").insert([
-          {
-            category: key,
-            title,
-            excerpt: cleanedArticle,
-            image_url: imageUrl,
-            source_url,
-            image_credit: imageCredit,
-            seo_title,
-            seo_description,
-            seo_keywords,
-            hashtags,
-            embedding,
-            semantic_signature: semanticSignature,
-            curio_signature_text: curioSignature?.signature || null,
-            topic_signature_text: topicSig?.signature || null,
-            short_curio_signature: curioSignature?.shortSignature || null,
-            short_topic_signature: topicSig?.shortSignature || null,
-            anchor_id: anchor.id,
-            focus_shift: focusShift, // NY kolonne hvis du legger til
-            lens_text: lens, // NY kolonne hvis du legger til
-            concept_verifier: selectedVerifier ?? null,
-            wow_score: selectedWowScore ?? 0,
-            summary_signature,
-            summary_normalized,
-          },
-        ])
-      );
-
-      if (insertResult?.error) {
-        throw insertResult.error;
-      }
-
-      // ==================================================================
-      // MARK STRUCTURE AS USED — ONLY AFTER SUCCESSFUL SAVE
-      // ==================================================================
-      if (anchor?.id) {
-        await markAnchorUsed(anchor.id);
-      }
-
-      // ✅ LOG SUCCESS FOR THIS CATEGORY
-      results.push({
-        category: key,
-        topic,
-        wow_score: selectedWowScore,
-        success: true,
+      const salvage = await premiseSalvageDecider({
+        title: pack.checked.title,
+        card_text: pack.checked.card_text,
+        reason: lastFailReason,
       });
+
+      if (!salvage.salvageYes || !salvage.replacementSeed) {
+        console.log("🚫 Salvage NO — stopping.");
+        break;
+      }
+
+      console.log("🛟 Salvage YES — rebuilding on:", salvage.replacementSeed);
+      currentTopic = salvage.replacementSeed;
     }
 
-    // ==================================================================
-    // SEO PING + LOGGING
-    // ==================================================================
-    await updateAndPingSearchEngines();
-    console.log("🎉 Generation completed successfully.");
+    if (!finalPack) {
+      console.log("🧯 Premise could not be salvaged — flagging and stopping.");
 
-    const duration = ((Date.now() - start) / 1000).toFixed(1);
+      await flagSuggestionAndMaybeFailCard({
+        suggestionId,
+        reason: lastFailReason || "Premise false; no salvage",
+        makeFailedCard: true,
+        failedCardPayload: {
+          suggestion_id: suggestionId,
+          category: categoryKey,
+          title: safeStr(topic),
+          card_text: "",
+          video_script: null,
+          summary_normalized: null,
+          fun_fact: null,
+          scene_prompt: null,
+          seo_title: null,
+          seo_description: null,
+          seo_keywords: null,
+          hashtags: null,
+          wow_score: wowScoreFromSuggestion,
+        },
+      });
 
-    await safeQuery(
-      "insert cron_log",
-      supabase.from("cron_logs").insert({
-        run_at: new Date().toISOString(),
-        duration_seconds: duration,
-        status: "success",
-        message: "Generation completed",
-        details: { results },
-      })
-    );
+      return;
+    }
 
-    console.log(`🕓 Logged run: ${duration}s`);
+    const { parts, seo, checked } = finalPack;
 
-    const { data: logs } = await safeQuery(
-      "fetch cron_logs",
-      supabase
-        .from("cron_logs")
-        .select("id")
-        .order("run_at", { ascending: false })
-    );
+    const fcTitle = checked.title;
+    const fcCardText = checked.card_text;
+    const fcVideoScript = checked.video_script || null;
+    const fcSummary = checked.summary_normalized;
+    const fcFunFact = checked.fun_fact;
 
-    if (logs && logs.length > 3) {
-      const oldIds = logs.slice(3).map((l) => l.id);
-      await safeQuery(
-        "delete old logs",
-        supabase.from("cron_logs").delete().in("id", oldIds)
+    // Scene prompt (GPT) — after pass
+    try {
+      scene_prompt = await generateScenePrompt({
+        openai,
+        title: fcTitle,
+        category: categoryKey,
+        video_script: fcVideoScript || "",
+        card_text: fcCardText || "",
+      });
+      scene_prompt = (scene_prompt || "").trim() || null;
+    } catch (e) {
+      console.warn("⚠️ Scene prompt generation failed:", e.message);
+      scene_prompt = null;
+    }
+
+    const seoTitle = seo.title || fcTitle || null;
+    const description = seo.description || null;
+    const keywords = seo.keywords || null;
+
+    // Image selection — after pass
+    try {
+      const img = await selectBestImage(
+        fcTitle,
+        fcCardText,
+        categoryKey,
+        null,
+        fcSummary || "",
       );
-      console.log(`🧹 Deleted ${oldIds.length} old cron log(s)`);
+
+      if (img?.imageUrl) {
+        image_url = img.imageUrl;
+        image_source = img.source || img.provider || null;
+
+        image_credit =
+          img.attribution ||
+          (img.provider
+            ? `Image source: ${img.provider}${
+                img.license ? ` (${img.license})` : ""
+              }`
+            : null);
+
+        if (img.source === "DALL·E") {
+          image_prompt = img.prompt || null;
+        }
+      }
+
+      console.log("🖼️ Image:", image_url ? "selected" : "none");
+    } catch (e) {
+      console.warn("⚠️ Image selection failed:", e.message);
     }
+
+    // Save article
+    const cardsTable = process.env.CARDS_TABLE || "curiosity_cards";
+
+    const insertPayload = {
+      suggestion_id: suggestionId,
+      category: categoryKey,
+
+      title: fcTitle,
+      card_text: fcCardText,
+      video_script: fcVideoScript,
+
+      summary_normalized: fcSummary,
+      fun_fact: fcFunFact,
+
+      seo_title: seoTitle,
+      seo_description: description,
+      seo_keywords: keywords,
+      hashtags: parts.hashtags || null,
+
+      wow_score: wowScoreFromSuggestion,
+
+      image_url,
+      image_credit,
+      image_source,
+      image_prompt,
+      scene_prompt,
+
+      status: "published",
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    };
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from(cardsTable)
+      .insert(insertPayload)
+      .select("id")
+      .single();
+
+    if (insertErr) throw insertErr;
+
+    console.log(`📝 Card saved to "${cardsTable}" id=${inserted?.id}`);
+
+    await updateAndPingSearchEngines();
+
+    console.log("✅ Done");
   } catch (err) {
-    console.error("❌ Fatal error:", err);
-
-    await safeQuery(
-      "fatal log",
-      supabase.from("cron_logs").insert({
-        run_at: new Date().toISOString(),
-        status: "error",
-        message: err.message,
-      })
-    );
-
-    process.exit(1);
+    console.error("❌ generate.js failed:", err.message);
+    await markSuggestionFailed(sourceTable, suggestionId, err.message);
+    process.exitCode = 1;
   }
 }
 
-// ============================================================================
-// START
-// ============================================================================
-main().then(() => process.exit(0));
+run();

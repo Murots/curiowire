@@ -7,6 +7,13 @@ on:
         description: "Queue a new video job before running (true/false)"
         required: true
         default: "false"
+      provider:
+        description: "Video provider (kling or pika)"
+        required: true
+        default: "kling"
+  # schedule:
+  #   # 🎬 Videos: twice per day (00:05 and 12:05 UTC)
+  #   - cron: "5 0,12 * * *"
 
 concurrency:
   group: curiowire-video-only
@@ -19,31 +26,58 @@ jobs:
     environment: Production
 
     env:
-      # Core
+      # =============================
+      # CORE
+      # =============================
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
 
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
-      # Media APIs
+      # =============================
+      # VIDEO PROVIDER CONTROL
+      # =============================
+      # If schedule trigger: use secrets.VIDEO_PROVIDER (stable)
+      # If manual trigger: use input provider
+      VIDEO_PROVIDER: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.provider || secrets.VIDEO_PROVIDER }}
+      VIDEO_PRESET: "text" # Kling uses text. Pika text fallback also safe.
+
+      # =============================
+      # FAL
+      # =============================
       FAL_KEY: ${{ secrets.FAL_KEY }}
+
+      # -----------------------------
+      # KLING (primary)
+      # -----------------------------
+      KLING_TEXT_MODEL: ${{ secrets.KLING_TEXT_MODEL }}
+      KLING_CFG_SCALE: ${{ secrets.KLING_CFG_SCALE }}
+
+      # -----------------------------
+      # PIKA (fallbacks)
+      # -----------------------------
+      PIKA_SCENES_MODEL: ${{ secrets.PIKA_SCENES_MODEL }}
+      PIKA_TEXT_MODEL: ${{ secrets.PIKA_TEXT_MODEL }}
       PIKA_IMAGE_MODEL: ${{ secrets.PIKA_IMAGE_MODEL }}
       PIKA_IMAGE_MODEL_FALLBACK: ${{ secrets.PIKA_IMAGE_MODEL_FALLBACK }}
-      PIKA_TEXT_MODEL: ${{ secrets.PIKA_TEXT_MODEL }}
 
-      # Social (YouTube first)
+      # =============================
+      # SOCIAL
+      # =============================
       YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
       YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
       YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
 
-      # (Keep the rest if you want, harmless even if not used yet)
       TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
       INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
       INSTAGRAM_BUSINESS_ID: ${{ secrets.INSTAGRAM_BUSINESS_ID }}
       FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
       FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
 
+      # =============================
+      # OPTIONAL / SAFE
+      # =============================
       NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
       NEXT_PUBLIC_UNSPLASH_ACCESS_KEY: ${{ secrets.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY }}
       NEXT_PUBLIC_PEXELS_API_KEY: ${{ secrets.NEXT_PUBLIC_PEXELS_API_KEY }}
@@ -62,11 +96,25 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      # Optional: queue a job
+      - name: 🔍 Log provider config
+        run: |
+          echo "EVENT=${{ github.event_name }}"
+          echo "VIDEO_PROVIDER=${VIDEO_PROVIDER}"
+          echo "VIDEO_PRESET=${VIDEO_PRESET}"
+          echo "KLING_TEXT_MODEL=${KLING_TEXT_MODEL}"
+          echo "KLING_CFG_SCALE=${KLING_CFG_SCALE}"
+          echo "PIKA_SCENES_MODEL=${PIKA_SCENES_MODEL}"
+          echo "PIKA_TEXT_MODEL=${PIKA_TEXT_MODEL}"
+
+      # Optional: queue a job (manual only)
       - name: 🎬 Schedule single video
-        if: ${{ github.event.inputs.schedule == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.schedule == 'true' }}
         run: node scripts/scheduleSingleVideo.js
 
-      # Run pipeline (will pick oldest queued)
+      # On cron runs: always schedule then run (so it actually does something)
+      - name: 🎬 Schedule single video (cron)
+        if: ${{ github.event_name == 'schedule' }}
+        run: node scripts/scheduleSingleVideo.js
+
       - name: 🎥 Generate & post single video
         run: node scripts/runSingleVideoPipeline.js

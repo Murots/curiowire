@@ -1,107 +1,8 @@
-// // ============================================================================
-// // runSingleVideoPipeline.js
-// // Runs ONE queued video job: generate → post (stub)
-// // ============================================================================
-
-// import dotenv from "dotenv";
-// import { createClient } from "@supabase/supabase-js";
-// import { generateVideo } from "../lib/video/videoGenerator.js";
-// import { postVideoToPlatforms } from "../lib/video/videoPoster.js";
-
-// dotenv.config({ path: ".env.local" });
-
-// // ============================================================================
-// // Supabase client
-// // ============================================================================
-// const supabase = createClient(
-//   process.env.SUPABASE_URL,
-//   process.env.SUPABASE_SERVICE_ROLE_KEY
-// );
-
-// // ============================================================================
-// // MAIN
-// // ============================================================================
-// async function run() {
-//   console.log("🎬 Looking for queued video job...");
-
-//   // --------------------------------------------------------------------------
-//   // 1) Fetch ONE queued video job
-//   // --------------------------------------------------------------------------
-//   const { data: jobs, error } = await supabase
-//     .from("videos")
-//     .select("*")
-//     .eq("status", "queued")
-//     .order("created_at", { ascending: true })
-//     .limit(1);
-
-//   if (error) {
-//     throw new Error("Failed to fetch video jobs: " + error.message);
-//   }
-
-//   if (!jobs || jobs.length === 0) {
-//     console.log("ℹ️ No queued video jobs.");
-//     return;
-//   }
-
-//   const job = jobs[0];
-
-//   console.log(
-//     `🎥 Processing video job ${job.id} for article ${job.article_id} (WOW ${job.wow_score})`
-//   );
-
-//   // --------------------------------------------------------------------------
-//   // 2) Load article from articles-table (SOURCE OF TRUTH)
-//   // --------------------------------------------------------------------------
-//   const { data: article, error: articleError } = await supabase
-//     .from("articles")
-//     .select("*")
-//     .eq("id", job.article_id)
-//     .single();
-
-//   if (articleError || !article) {
-//     throw new Error(
-//       `Failed to load article ${job.article_id}: ${articleError?.message}`
-//     );
-//   }
-
-//   // --------------------------------------------------------------------------
-//   // 3) Generate video (FULL AI)
-//   // --------------------------------------------------------------------------
-//   const videoPath = await generateVideo({
-//     ...job,
-//     article, // ✅ injected explicitly
-//     mode: "full", // force full-AI
-//   });
-
-//   if (!videoPath) {
-//     console.log("⚠️ Video generation failed, aborting posting.");
-//     return;
-//   }
-
-//   // --------------------------------------------------------------------------
-//   // 4) Post video to platforms (currently stub)
-//   // --------------------------------------------------------------------------
-//   await postVideoToPlatforms({
-//     ...job,
-//     article, // ✅ same article object
-//     video_path: videoPath,
-//   });
-
-//   console.log("✅ Video generated and (stub) posted successfully");
-// }
-
-// // ============================================================================
-// // Entrypoint
-// // ============================================================================
-// run().catch((err) => {
-//   console.error("❌ Video pipeline failed:", err.message);
-//   process.exit(1);
-// });
-
 // ============================================================================
 // runSingleVideoPipeline.js
 // Runs ONE queued video job: generate → post (stub)
-// Now reuses existing video_path if present locally.
+// Now uses curiosity_cards instead of articles.
+// Reuses existing video_path if present locally.
 // ============================================================================
 
 import dotenv from "dotenv";
@@ -118,7 +19,7 @@ dotenv.config({ path: ".env.local" });
 // ============================================================================
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
 // ============================================================================
@@ -149,21 +50,21 @@ async function run() {
   const job = jobs[0];
 
   console.log(
-    `🎥 Processing video job ${job.id} for article ${job.article_id} (WOW ${job.wow_score})`
+    `🎥 Processing video job ${job.id} for card ${job.article_id} (WOW ${job.wow_score})`,
   );
 
   // --------------------------------------------------------------------------
-  // 2) Load article from articles-table (SOURCE OF TRUTH)
+  // 2) Load card from curiosity_cards (SOURCE OF TRUTH)
   // --------------------------------------------------------------------------
-  const { data: article, error: articleError } = await supabase
-    .from("articles")
+  const { data: article, error: cardError } = await supabase
+    .from("curiosity_cards")
     .select("*")
     .eq("id", job.article_id)
     .single();
 
-  if (articleError || !article) {
+  if (cardError || !article) {
     throw new Error(
-      `Failed to load article ${job.article_id}: ${articleError?.message}`
+      `Failed to load curiosity_card ${job.article_id}: ${cardError?.message}`,
     );
   }
 
@@ -179,7 +80,7 @@ async function run() {
       videoPath = job.video_path;
     } else {
       console.log(
-        `ℹ️ video_path is set but file not found locally: ${job.video_path}`
+        `ℹ️ video_path is set but file not found locally: ${job.video_path}`,
       );
     }
   }
@@ -187,8 +88,9 @@ async function run() {
   if (!videoPath) {
     videoPath = await generateVideo({
       ...job,
-      article, // ✅ injected explicitly
-      mode: "full", // force full-AI
+      article, // ✅ inject card explicitly
+      mode: "full", // force full-AI (keeps backward compat with older generator logic)
+      is_full_ai: true,
     });
   }
 
@@ -197,7 +99,7 @@ async function run() {
     return;
   }
 
-  // (Optional but recommended) persist the new path if we generated a new one
+  // Persist new path if needed
   if (videoPath !== job.video_path) {
     await supabase
       .from("videos")
@@ -210,7 +112,7 @@ async function run() {
   // --------------------------------------------------------------------------
   await postVideoToPlatforms({
     ...job,
-    article, // ✅ same article object
+    article, // ✅ same card object
     video_path: videoPath,
   });
 

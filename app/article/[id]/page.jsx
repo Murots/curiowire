@@ -1,237 +1,118 @@
-// app/article/[id]/page.jsx
-import { supabase } from "@/lib/supabaseClient";
-import ArticlePage from "@/components/ArticlePage/ArticlePage";
+import { supabaseServer } from "@/lib/supabaseServer";
+import ArticlePageClient from "@/components/ArticlePage/ArticlePageClient";
 import Script from "next/script";
+import { notFound } from "next/navigation";
 
-/* === 🧠 SERVER-SIDE METADATA (SEO + Discover) === */
-export async function generateMetadata({ params }) {
-  const { id } = await params;
+export const revalidate = 900;
 
-  const { data: article } = await supabase
-    .from("articles")
+async function getId(params) {
+  const p = await Promise.resolve(params); // ✅ tåler object, promise-ish, undefined
+  return p?.id;
+}
+
+async function fetchCard(id) {
+  const sb = supabaseServer();
+  const { data, error } = await sb
+    .from("curiosity_cards")
     .select("*")
     .eq("id", id)
+    .eq("status", "published")
     .single();
 
-  if (!article) {
-    return {
-      title: "Article not found — CurioWire",
-      description: "The requested curiosity could not be found.",
-      robots: "noindex,follow",
-    };
-  }
+  if (error) return null;
+  return data || null;
+}
 
-  const baseUrl = "https://curiowire.com";
-  const url = `${baseUrl}/article/${id}`;
-  const image = article.image_url || `${baseUrl}/icon.png`;
-  const category = article.category || "General";
-
-  const cleanTitle = (
-    article.seo_title ||
-    article.title ||
-    "Untitled — CurioWire"
-  )
-    .replace(/\*/g, "")
+function cleanInlineText(s) {
+  return String(s || "")
+    .replace(/&lt;\/?[^&]+&gt;/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
     .trim();
+}
 
+export async function generateMetadata({ params }) {
+  const baseUrl = "https://curiowire.com";
+  const id = await getId(params);
+  if (!id) return {};
+
+  const card = await fetchCard(id);
+  if (!card)
+    return {
+      title: { absolute: "Not found — CurioWire" },
+      robots: "noindex,nofollow",
+    };
+
+  const title = cleanInlineText(card.seo_title || card.title) || "CurioWire";
   const description =
-    article.seo_description ||
-    "AI-generated curiosity from CurioWire — explore hidden stories in science, history, nature, culture and more.";
+    cleanInlineText(card.seo_description || card.summary_normalized) ||
+    "CurioWire curiosity";
 
-  const keywords = article.seo_keywords
-    ? article.seo_keywords.split(",").map((k) => k.trim())
-    : [];
+  const url = `${baseUrl}/article/${card.id}`;
+  const image = card.image_url || `${baseUrl}/icon.png`;
 
   return {
-    title: cleanTitle,
+    title: { absolute: title },
     description,
     alternates: { canonical: url },
     openGraph: {
-      title: cleanTitle,
+      type: "article",
+      title,
       description,
       url,
-      type: "article",
       siteName: "CurioWire",
-      locale: "en_US",
-      images: [
-        {
-          url: image,
-          width: 1200,
-          height: 630,
-          alt: cleanTitle,
-        },
-      ],
+      images: [image],
     },
     twitter: {
       card: "summary_large_image",
-      title: cleanTitle,
+      title,
       description,
       images: [image],
     },
-    other: {
-      robots: "max-image-preview:large",
-      "article:section": category,
-      "og:image:alt": cleanTitle,
-      "theme-color": "#95010e",
-      keywords: keywords.join(", "),
-    },
+    other: { robots: "index,follow", "theme-color": "#95010e" },
   };
 }
 
-/* === 📰 SERVER COMPONENT === */
-export default async function Page({ params }) {
-  const { id } = await params; // 👈 viktig endring!
+export default async function ArticlePage({ params }) {
+  const id = await getId(params);
+  if (!id) notFound();
+
+  const card = await fetchCard(id);
+  if (!card) notFound();
+
   const baseUrl = "https://curiowire.com";
+  const url = `${baseUrl}/article/${card.id}`;
 
-  // 📰 Hent artikkel
-  const { data: article, error } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error || !article) {
-    console.error("❌ Error fetching article:", error?.message);
-    return <p style={{ padding: "40px" }}>Article not found.</p>;
-  }
-
-  const url = `${baseUrl}/article/${id}`;
-  const cleanTitle = (article.title || "Untitled — CurioWire")
-    .replace(/\*/g, "")
-    .trim();
-  const category = article.category || "General";
-  const image = article.image_url || `${baseUrl}/icon.png`;
-
-  const rawExcerpt =
-    article.excerpt?.replace(/\s+/g, " ").trim() ||
-    "Explore unique, AI-generated curiosities on CurioWire.";
-  const trimmedExcerpt =
-    rawExcerpt.length > 155
-      ? rawExcerpt.slice(0, 155).replace(/\s+\S*$/, "") + "…"
-      : rawExcerpt;
-  const description = `${trimmedExcerpt} Discover more →`;
-
-  /* === 🧩 STRUKTURERT DATA (nå injisert fysisk via <Script>) === */
-
-  // 📰 A. NewsArticle
-  const newsArticleData = {
+  const articleJsonLd = {
     "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    headline: cleanTitle,
-    description,
-    image: [image],
-    keywords: [category, "AI journalism", "CurioWire", "hidden histories"],
-    articleSection: category,
+    "@type": "Article",
+    headline: cleanInlineText(card.seo_title || card.title),
+    description: cleanInlineText(
+      card.seo_description || card.summary_normalized
+    ),
+    mainEntityOfPage: url,
     url,
+    datePublished: card.created_at,
+    image: [card.image_url || `${baseUrl}/icon.png`],
+    author: { "@type": "Organization", name: "CurioWire" },
+    publisher: {
+      "@type": "Organization",
+      name: "CurioWire",
+      logo: { "@type": "ImageObject", url: `${baseUrl}/icon.png` },
+    },
     inLanguage: "en",
-    author: {
-      "@type": "Organization",
-      name: "CurioWire Editorial",
-      url: baseUrl,
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-      logo: {
-        "@type": "ImageObject",
-        url: `${baseUrl}/icon.png`,
-      },
-    },
-    datePublished: article.created_at,
-    dateModified: article.updated_at || article.created_at,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": url,
-    },
-    potentialAction: {
-      "@type": "ReadAction",
-      target: url,
-    },
+    articleSection: card.category || "curiosities",
   };
 
-  // 🧭 B. BreadcrumbList
-  const breadcrumbList = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: `${baseUrl}/`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: category,
-        item: `${baseUrl}/${category}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: cleanTitle,
-        item: url,
-      },
-    ],
-  };
-
-  // 🌐 C. WebSite
-  const websiteData = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "CurioWire",
-    url: baseUrl,
-    description:
-      "AI-generated stories and curiosities exploring science, history, nature, culture, and technology — updated daily.",
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      logo: {
-        "@type": "ImageObject",
-        url: `${baseUrl}/icon.png`,
-      },
-    },
-  };
-
-  const allStructuredData = [newsArticleData, breadcrumbList, websiteData];
-
-  // ➡️ Finn neste artikkel (sirkulær logikk)
-  const { data: nextData } = await supabase
-    .from("articles")
-    .select("id, title")
-    .eq("category", article.category)
-    .gt("created_at", article.created_at)
-    .order("created_at", { ascending: true })
-    .limit(1);
-
-  let nextArticle = nextData?.[0] || null;
-
-  if (!nextArticle) {
-    const { data: first } = await supabase
-      .from("articles")
-      .select("id, title")
-      .eq("category", article.category)
-      .order("created_at", { ascending: true })
-      .limit(1);
-    nextArticle = first?.[0] || null;
-  }
-
-  /* === 🧩 RETURNER SIDE === */
   return (
     <>
-      {/* ✅ Faktisk structured data (Google leser dette) */}
       <Script
-        id="structured-data-article"
+        id={`structured-data-article-${card.id}`}
         type="application/ld+json"
         strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(allStructuredData),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
       />
-
-      {/* 📰 Selve artikkelkomponenten */}
-      <ArticlePage article={article} nextArticle={nextArticle} />
+      <ArticlePageClient card={card} />
     </>
   );
 }

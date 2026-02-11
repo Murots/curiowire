@@ -65,7 +65,7 @@ export const GlobalStyle = createGlobalStyle`
   }
 
   main {
-    padding: 4rem 15% 6rem 15%;
+    padding: 3rem 15% 6rem 15%;
     max-width: 1600px;
     margin: 0 auto;
   

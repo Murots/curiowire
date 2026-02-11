@@ -1,12 +1,15 @@
 // === app/api/sitemap/route.js ===
-// 📄 Dynamisk sitemap generator for CurioWire
+// 📄 Dynamisk sitemap.xml generator for CurioWire (curiosity_cards)
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// ✅ Server-only (anbefalt). Hvis du ikke vil: bruk NEXT_PUBLIC_* som før,
+// men da avhenger du av RLS/policies.
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
@@ -15,13 +18,17 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
 
 export async function GET() {
   try {
-    const { data: articles, error } = await supabase
-      .from("articles")
-      .select("id, category, created_at, title")
+    const { data: cards, error } = await supabase
+      .from("curiosity_cards")
+      .select("id, created_at, updated_at")
+      .eq("status", "published")
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("❌ Failed to fetch articles for sitemap:", error.message);
+      console.error(
+        "❌ Failed to fetch curiosity_cards for sitemap:",
+        error.message
+      );
       return NextResponse.json(
         { error: "Failed to generate sitemap" },
         { status: 500 }
@@ -30,16 +37,17 @@ export async function GET() {
 
     const now = new Date().toISOString();
 
-    const urls = articles
-      .map(
-        (a) => `
+    const urls = (cards || [])
+      .map((c) => {
+        const lastmod = new Date(c.updated_at || c.created_at).toISOString();
+        return `
         <url>
-          <loc>${BASE_URL}/article/${a.id}</loc>
-          <lastmod>${new Date(a.created_at).toISOString()}</lastmod>
+          <loc>${BASE_URL}/article/${c.id}</loc>
+          <lastmod>${lastmod}</lastmod>
           <changefreq>weekly</changefreq>
           <priority>0.7</priority>
-        </url>`
-      )
+        </url>`;
+      })
       .join("");
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

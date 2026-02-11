@@ -3,70 +3,84 @@ import HomeContent from "./HomeContent";
 import { supabase } from "@/lib/supabaseClient";
 import Script from "next/script";
 
-export const revalidate = 900; // 15 minutes
+const PAGE_SIZE = 30;
 
-/* === 🧠 SERVER-SIDE METADATA (standard meta) === */
+export const revalidate = 900; // 15 min
+
+// Minimal HTML strip + safety clean for titles used in JSON-LD / metadata
+function cleanInlineText(s) {
+  return (
+    String(s || "")
+      // 1) strip escaped tags like &lt;/title&gt;
+      .replace(/&lt;\/?[^&]+&gt;/gi, "")
+      // 2) strip real tags like </title>
+      .replace(/<[^>]*>/g, "")
+      // 3) normalize whitespace
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
 export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
-  const title = "CurioWire — AI-Generated Stories & Hidden Histories";
+
+  // ✅ Use absolute to avoid layout title template adding " — CurioWire"
+  const absoluteTitle = "CurioWire — All about curiosities";
+
   const description =
-    "Explore remarkable, AI-generated stories about science, technology, nature, space, history, and culture. CurioWire uncovers hidden histories and curiosities from the human record — updated daily.";
+    "Fresh, short curiosities in science, history, nature, technology and more — published daily";
 
   return {
-    title,
+    title: { absolute: absoluteTitle },
     description,
     alternates: { canonical: baseUrl },
+
     openGraph: {
       type: "website",
-      title,
+      locale: "en_US",
+      title: absoluteTitle,
       description,
       url: baseUrl,
       siteName: "CurioWire",
       images: [`${baseUrl}/icon.png`],
     },
+
     twitter: {
       card: "summary_large_image",
-      title,
+      title: absoluteTitle,
       description,
       images: [`${baseUrl}/icon.png`],
     },
-    other: { robots: "index,follow", "theme-color": "#95010e" },
+
+    other: {
+      robots: "index,follow",
+      "theme-color": "#95010e",
+    },
   };
 }
 
-/* === 📰 SERVER COMPONENT === */
 export default async function HomePage() {
   const baseUrl = "https://curiowire.com";
 
-  let { data: articles, error } = await supabase
-    .from("weekly_top_articles")
-    .select("*")
-    .order("view_count", { ascending: false })
-    .limit(10);
+  const { data: cards } = await supabase
+    .from("curiosity_cards")
+    .select(
+      "id, category, title, summary_normalized, image_url, created_at, wow_score, seo_title, seo_description"
+    )
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(PAGE_SIZE);
 
-  if (error || !articles?.length) {
-    const { data: fallback } = await supabase
-      .from("articles")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    articles = fallback || [];
-  }
+  const list = Array.isArray(cards) ? cards : [];
 
-  console.log(
-    `✅ Toplist fetched at ${new Date().toISOString()} — ${
-      articles.length
-    } items`
-  );
-
-  // === 💡 Bygg structured data manuelt ===
   const webSiteData = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "CurioWire",
     url: baseUrl,
+    inLanguage: "en",
     description:
-      "Explore remarkable, AI-generated stories about science, technology, nature, space, history, culture and more.",
+      "Fresh, short curiosities in science, history, nature, technology and more — published daily",
     publisher: {
       "@type": "Organization",
       name: "CurioWire",
@@ -75,7 +89,7 @@ export default async function HomePage() {
     },
     potentialAction: {
       "@type": "SearchAction",
-      target: `${baseUrl}/search?q={search_term_string}`,
+      target: `${baseUrl}/?q={search_term_string}`,
       "query-input": "required name=search_term_string",
     },
   };
@@ -83,49 +97,27 @@ export default async function HomePage() {
   const itemListData = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: "Trending Curiosities — CurioWire",
-    description:
-      "The top AI-generated stories trending this week across science, history, nature, technology and more.",
-    numberOfItems: articles.length,
-    itemListElement: articles.map((a, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      url: `${baseUrl}/article/${a.id}`,
-      name: a.title,
-      image: a.image_url,
-      datePublished: a.created_at,
-    })),
+    inLanguage: "en",
+    name: "CurioWire Feed",
+    description: "Latest curiosities on CurioWire.",
+    numberOfItems: list.length,
+    itemListElement: list.map((a, index) => {
+      const safeName = cleanInlineText(a?.seo_title || a?.title);
+      return {
+        "@type": "ListItem",
+        position: index + 1,
+        url: `${baseUrl}/article/${a.id}`,
+        name: safeName || "CurioWire curiosity",
+        image: a?.image_url || `${baseUrl}/icon.png`,
+        datePublished: a?.created_at,
+      };
+    }),
   };
 
-  const newsArticlesData = articles.slice(0, 3).map((a) => ({
-    "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    headline: a.seo_title || a.title,
-    description:
-      a.seo_description ||
-      `Trending curiosity from the category ${a.category}.`,
-    image: [a.image_url || `${baseUrl}/icon.png`],
-    articleSection: a.category || "General",
-    url: `${baseUrl}/article/${a.id}`,
-    author: { "@type": "Organization", name: "CurioWire", url: baseUrl },
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      logo: { "@type": "ImageObject", url: `${baseUrl}/icon.png` },
-    },
-    datePublished: a.created_at,
-    dateModified: a.updated_at || a.created_at,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `${baseUrl}/article/${a.id}`,
-    },
-  }));
-
-  const allStructuredData = [webSiteData, itemListData, ...newsArticlesData];
+  const allStructuredData = [webSiteData, itemListData];
 
   return (
     <>
-      {/* ✅ Google Rich Results JSON-LD */}
       <Script
         id="structured-data-home"
         type="application/ld+json"
@@ -134,7 +126,8 @@ export default async function HomePage() {
           __html: JSON.stringify(allStructuredData),
         }}
       />
-      <HomeContent articles={articles} />
+
+      <HomeContent initialCards={list} />
     </>
   );
 }

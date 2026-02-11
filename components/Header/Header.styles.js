@@ -1,23 +1,30 @@
+// components/Header/Header.styles.js
 import styled from "styled-components";
-import Link from "next/link";
 
 export const HeaderWrapper = styled.header`
   width: 100%;
   background: ${({ theme }) => theme.colors.bgAlt || "#e9e9e9"};
-
-  padding: 16px 24px 12px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
   position: sticky;
   top: 0;
   z-index: 50;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+`;
+
+export const Inner = styled.div`
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  position: relative;
 `;
 
 export const Logo = styled.div`
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 
@@ -40,110 +47,183 @@ export const Logo = styled.div`
   }
 `;
 
-export const NavLink = styled(Link)`
+export const DesktopSearchWrap = styled.div`
+  margin-left: auto;
   position: relative;
-  font-family: "Inter", sans-serif;
-  font-size: 0.8rem;
-  text-transform: capitalize;
-  text-decoration: none;
-  color: ${({ theme }) => theme.colors.text};
-  font-weight: 500;
-  padding-bottom: 4px;
-  transition: color 0.2s ease;
+  width: min(350px, 100%);
 
-  &::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    bottom: 2px;
-    width: 0%;
-    height: 2px;
-    background-color: ${({ theme }) => theme.colors.accent};
-    transition: width 0.25s ease;
-  }
-
-  &:hover {
-    color: ${({ theme }) => theme.colors.accent};
-  }
-
-  &:hover::after {
-    width: 100%;
-  }
-
-  &.active {
-    color: ${({ theme }) => theme.colors.accent};
-  }
-
-  &.active::after {
-    width: 100%;
+  @media (max-width: 770px) {
+    display: none;
   }
 `;
 
-export const Hamburger = styled.button`
-  display: none;
-  background: none;
-  border: none;
-  font-size: 1.4rem;
+export const SearchInput = styled.input`
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 18px;
+  padding: 8px 38px 8px 12px;
+
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
+  font-size: 0.85rem;
   color: ${({ theme }) => theme.colors.text};
-  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(0, 0, 0, 0.22);
+    background: rgba(255, 255, 255, 0.8);
+  }
+`;
+
+export const ClearButton = styled.button`
   position: absolute;
-  left: 20px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 60;
+
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.75);
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.12);
+  }
+`;
+
+export const FilterButton = styled.button`
+  display: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  color: ${({ theme }) => theme.colors.text};
+  padding: 6px;
+  border-radius: 10px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
 
   @media (max-width: 770px) {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    /* header should show logo + filter icon */
+    margin-left: auto;
   }
 `;
 
 export const MobileMenu = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 100%;
-  background: rgba(249, 249, 251, 0.95);
-  backdrop-filter: blur(10px);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  z-index: 80;
+
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  z-index: 55;
-  animation: slideInLeft 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  justify-content: flex-end;
+`;
 
-  @keyframes slideInLeft {
-    0% {
-      opacity: 0;
-      transform: translateX(-100%);
+export const MobilePanel = styled.div`
+  width: min(520px, 92vw);
+  height: 100vh;
+  background: rgba(249, 249, 251, 0.98);
+
+  padding: 18px;
+  position: relative;
+
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.25);
+
+  animation: cwSlideInRight 220ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  @keyframes cwSlideInRight {
+    from {
+      transform: translateX(18px);
+      opacity: 0.85;
     }
-    100% {
-      opacity: 1;
+    to {
       transform: translateX(0);
+      opacity: 1;
     }
-  }
-
-  a {
-    font-size: 1.2rem;
-    color: ${({ theme }) => theme.colors.text};
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  a:hover {
-    color: ${({ theme }) => theme.colors.accent};
   }
 `;
 
-// Gjør desktop-nav synlig bare på større skjermer
-export const Nav = styled.nav`
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 18px;
+export const CloseMobile = styled.button`
+  position: absolute;
+  right: 14px;
+  top: 14px;
 
-  @media (max-width: 770px) {
-    display: none;
+  border: 0;
+  background: rgba(0, 0, 0, 0.08);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.12);
+  }
+`;
+
+export const MobileTitle = styled.div`
+  font-family: "Playfair Display", serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 6px 0 14px;
+`;
+
+export const MobileSearchWrap = styled.div`
+  position: relative;
+  margin: 10px 0 18px;
+`;
+
+export const MobileRow = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+`;
+
+export const MobileLabel = styled.div`
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.62);
+  letter-spacing: 0.02em;
+`;
+
+export const MobileSelect = styled.select`
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  color: ${({ theme }) => theme.colors.text};
+
+  padding: 11px 42px 11px 12px;
+  border-radius: 6px;
+
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+    sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(0, 0, 0, 0.22);
   }
 `;

@@ -1,62 +1,10 @@
-# name: CurioWire Auto Article Generator
-
-# on:
-#   # schedule:
-#   #   - cron: "0 */12 * * *" # hver 12. time
-#   workflow_dispatch: # kan kjøres manuelt fra GitHub UI
-
-# jobs:
-#   generate:
-#     runs-on: ubuntu-latest
-#     environment: Production
-#     steps:
-#       - name: 📦 Checkout repo
-#         uses: actions/checkout@v4
-
-#       - name: 🧰 Set up Node
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version: 20
-
-#       - name: 📦 Install dependencies
-#         run: npm ci
-
-#       - name: 🚀 Run CurioWire generator
-#         env:
-#           # === 🧠 OpenAI ===
-#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-#           OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
-
-#           # === 🔐 Supabase (skrivetilgang) ===
-#           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-#           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
-#           # === 🖼️ Image APIs ===
-#           NEXT_PUBLIC_UNSPLASH_ACCESS_KEY: ${{ secrets.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY }}
-#           NEXT_PUBLIC_PEXELS_API_KEY: ${{ secrets.NEXT_PUBLIC_PEXELS_API_KEY }}
-
-#           # === 🌐 Base URL (for sitemap/SEO-ping) ===
-#           NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
-
-#           # === 🤖 Reddit Feeds ===
-#           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-#           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-#           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-
-#         run: node scripts/generate.js
-
-#       - name: 🎬 Schedule single video
-#         run: node scripts/scheduleSingleVideo.js
-
-#       - name: 🎥 Generate & post single video
-#         run: node scripts/runSingleVideoPipeline.js
-
 name: CurioWire Auto Article Generator
 
 on:
   workflow_dispatch:
   # schedule:
-  #   - cron: "0 */12 * * *"
+  #   # 📰 Articles: every 2 hours (12/day)
+  #   - cron: "0 */2 * * *"
 
 concurrency:
   group: curiowire-production
@@ -69,37 +17,32 @@ jobs:
     environment: Production
 
     env:
+      # === OpenAI ===
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
 
+      # Your article-check models
+      PREMISE_GATE_MODEL: ${{ secrets.PREMISE_GATE_MODEL }}
+      FACTCHECK_MODEL: ${{ secrets.FACTCHECK_MODEL }}
+      SALVAGE_MODEL: ${{ secrets.SALVAGE_MODEL }}
+
+      # === Supabase ===
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
-      FAL_KEY: ${{ secrets.FAL_KEY }}
-
-      PIKA_IMAGE_MODEL: ${{ secrets.PIKA_IMAGE_MODEL }}
-      PIKA_IMAGE_MODEL_FALLBACK: ${{ secrets.PIKA_IMAGE_MODEL_FALLBACK }}
-      PIKA_TEXT_MODEL: ${{ secrets.PIKA_TEXT_MODEL }}
-
+      # === Media APIs ===
       NEXT_PUBLIC_UNSPLASH_ACCESS_KEY: ${{ secrets.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY }}
       NEXT_PUBLIC_PEXELS_API_KEY: ${{ secrets.NEXT_PUBLIC_PEXELS_API_KEY }}
       NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
 
+      # === Reddit ===
       REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
       REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
       REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
 
-      TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
-      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-      INSTAGRAM_BUSINESS_ID: ${{ secrets.INSTAGRAM_BUSINESS_ID }}
-      YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-      YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-      YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
-      FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -108,9 +51,3 @@ jobs:
 
       - name: 📰 Generate articles
         run: node scripts/generate.js
-
-      - name: 🎬 Schedule single video
-        run: node scripts/scheduleSingleVideo.js
-
-      - name: 🎥 Generate & post single video
-        run: node scripts/runSingleVideoPipeline.js

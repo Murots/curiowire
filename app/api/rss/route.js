@@ -1,51 +1,88 @@
 // === app/api/rss/route.js ===
-// 📰 Dynamisk RSS-feed generator for CurioWire
+// 📰 Dynamisk RSS-feed generator for CurioWire (curiosity_cards)
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 const BASE_URL = "https://curiowire.com";
 
 function stripHtml(html = "") {
-  return html
-    .replace(/<[^>]+>/g, "")
+  return String(html || "")
+    .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
+// RSS-safe text (avoid broken XML if someone stores weird chars)
+function xmlEscape(s = "") {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function pickDescription(row) {
+  // Prefer explicit SEO description
+  if (row?.seo_description) return stripHtml(row.seo_description);
+
+  // Then summary_normalized (contains HTML)
+  if (row?.summary_normalized) return stripHtml(row.summary_normalized);
+
+  // Then fallback: strip card_text and truncate
+  const raw = stripHtml(row?.card_text || "");
+  if (raw) return raw;
+
+  return "CurioWire curiosity.";
+}
+
 export async function GET() {
   try {
-    const { data: articles, error } = await supabase
-      .from("articles")
+    const { data: cards, error } = await supabase
+      .from("curiosity_cards")
       .select(
-        "id, title, seo_description, excerpt, category, created_at, image_url"
+        "id, category, title, seo_title, seo_description, summary_normalized, card_text, created_at, image_url"
       )
+      .eq("status", "published")
       .order("created_at", { ascending: false })
       .limit(30);
 
     if (error) throw error;
 
-    const items = articles
-      .map(
-        (a) => `
+    const items = (cards || [])
+      .map((c) => {
+        const title = c.seo_title || c.title || "CurioWire curiosity";
+        const link = `${BASE_URL}/article/${c.id}`;
+        const desc = pickDescription(c);
+
+        // RSS wants RFC-822 date string
+        const pubDate = c.created_at
+          ? new Date(c.created_at).toUTCString()
+          : new Date().toUTCString();
+
+        // NOTE:
+        // - Keep title + description in CDATA to avoid edge-case escapes
+        // - guid should be stable (id-based link is perfect)
+        return `
 <item>
-  <title><![CDATA[${a.title}]]></title>
-  <link>${BASE_URL}/article/${a.id}</link>
-  <guid>${BASE_URL}/article/${a.id}</guid>
-  <category>${a.category}</category>
-  <pubDate>${new Date(a.created_at).toUTCString()}</pubDate>
-  <description><![CDATA[${
-    a.seo_description ||
-    stripHtml(a.excerpt?.slice(0, 200) || "CurioWire curiosity.")
-  }]]></description>
-  ${a.image_url ? `<enclosure url="${a.image_url}" type="image/jpeg" />` : ""}
-</item>`
-      )
+  <title><![CDATA[${title}]]></title>
+  <link>${link}</link>
+  <guid isPermaLink="true">${link}</guid>
+  <category>${xmlEscape(c.category || "curiosities")}</category>
+  <pubDate>${pubDate}</pubDate>
+  <description><![CDATA[${desc.slice(0, 500)}]]></description>
+  ${
+    c.image_url
+      ? `<enclosure url="${xmlEscape(c.image_url)}" type="image/jpeg" />`
+      : ""
+  }
+</item>`;
+      })
       .join("");
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -55,7 +92,7 @@ export async function GET() {
 <channel>
   <title>CurioWire — Automated Curiosity Newspaper</title>
   <link>${BASE_URL}</link>
-  <description>AI-generated stories and hidden histories — updated daily.</description>
+  <description>Fresh, short curiosities — updated daily.</description>
   <language>en</language>
   <atom:link href="${BASE_URL}/api/rss" rel="self" type="application/rss+xml"/>
   <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
@@ -70,7 +107,7 @@ export async function GET() {
       },
     });
   } catch (err) {
-    console.error("❌ RSS generation failed:", err.message);
+    console.error("❌ RSS generation failed:", err?.message || err);
     return NextResponse.json(
       { error: "Failed to generate RSS" },
       { status: 500 }

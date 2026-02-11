@@ -1,56 +1,53 @@
+// app/api/logView/route.js
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const runtime = "nodejs";
+
 export async function POST(req) {
   try {
-    const { articleId } = await req.json();
-    if (!articleId) {
-      return NextResponse.json({ error: "Missing articleId" }, { status: 400 });
-    }
+    const body = await req.json().catch(() => null);
+    const id = Number(body?.cardId ?? body?.articleId);
 
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-
-    const parsedId = Number(articleId);
-    if (isNaN(parsedId)) {
-      return NextResponse.json({ error: "Invalid articleId" }, { status: 400 });
-    }
-
-    // 🔹 1) Logg visningen
-    const { error: insertError } = await supabase
-      .from("article_views")
-      .insert([{ article_id: parsedId }]);
-
-    if (insertError) {
-      console.error("❌ Supabase insert error:", insertError.message);
+    if (!Number.isFinite(id) || id <= 0) {
       return NextResponse.json(
-        { error: insertError.message || "Insert failed" },
+        { ok: false, error: "Missing/invalid cardId" },
+        { status: 400 }
+      );
+    }
+
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!SUPABASE_URL || !SERVICE_KEY) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Server misconfigured (missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)",
+        },
         { status: 500 }
       );
     }
 
-    // 🔹 2) Oppdater totalvisninger
-    const { error: updateError } = await supabase.rpc(
-      "increment_article_views",
-      {
-        article_id: parsedId,
-      }
-    );
+    const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    if (updateError) {
-      console.warn(
-        "⚠️ Could not increment views via RPC:",
-        updateError.message
+    // ✅ HER skal den ligge:
+    const { error } = await supabase.rpc("log_card_view", { p_card_id: id });
+
+    if (error) {
+      console.error("logView rpc error:", error);
+      return NextResponse.json(
+        { ok: false, error: "RPC failed" },
+        { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {
-    console.error("❌ /api/logView fatal error:", err.message);
+    console.error("logView error:", err);
     return NextResponse.json(
-      { error: err.message || "Server error" },
+      { ok: false, error: "Server error" },
       { status: 500 }
     );
   }

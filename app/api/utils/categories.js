@@ -1,74 +1,3 @@
-// // === CATEGORY CONFIG ===
-// // Styrer tone og bildeflyt for hver hovedkategori.
-// // -------------------------------------------------------------
-// // • image: "photo"  → Foto-først (Wikimedia → Pexels → Unsplash → DALL·E fallback)
-// // • image: "dalle"  → AI-først (DALL·E 3 → fallback til fotosøk hvis feiler)
-// // -------------------------------------------------------------
-// // Oppdatert for balansert visuell dekning:
-// //   - Foto-først: realistiske, dokumentariske og nyhetsbaserte kategorier
-// //   - AI-først: abstrakte, kreative og konseptuelle kategorier
-// // -------------------------------------------------------------
-
-// export const categories = {
-//   // 🌌 Vitenskap og teknologi
-//   science: {
-//     tone: "scientific and intriguing discovery",
-//     image: "photo", // realistisk vitenskapelig illustrasjon eller mikroskopbilde
-//   },
-//   technology: {
-//     tone: "cutting-edge invention or digital phenomenon",
-//     image: "photo", // ekte miljøer, kontor, utvikling, roboter osv.
-//   },
-
-//   // 🚀 Rom og univers – konseptuelt
-//   space: {
-//     tone: "astronomical or cosmic curiosity",
-//     image: "photo", // DALL·E gir spektakulære og konsistente romillustrasjoner
-//   },
-
-//   // 🌿 Natur og miljø
-//   nature: {
-//     tone: "environmental or wildlife phenomenon",
-//     image: "photo", // ekte dyre- og naturbilder
-//   },
-
-//   // 🧬 Helse og psykologi
-//   health: {
-//     tone: "psychological or medical curiosity",
-//     image: "photo", // laboratorier, forskere, medisinsk miljø
-//   },
-
-//   // 🏺 Historie og arkeologi
-//   history: {
-//     tone: "archaeological or historical rediscovery",
-//     image: "photo", // foto-først — arkeologi, ruiner, funn, dokumenter
-//   },
-
-//   // 🎨 Kunst og kultur
-//   culture: {
-//     tone: "artistic or cultural oddity",
-//     image: "photo", // DALL·E 3 lager gode kunstneriske og surrealistiske bilder
-//   },
-
-//   // 🏃 Sport og utholdenhet
-//   sports: {
-//     tone: "athletic or human endurance story",
-//     image: "photo", // ekte sports- og menneskebilder
-//   },
-
-//   // 💡 Produkter og trender
-//   products: {
-//     tone: "modern consumer trend or lifestyle insight",
-//     image: "photo", // visuelle komposisjoner fungerer best med AI
-//   },
-
-//   // 🌍 Verden og politikk
-//   world: {
-//     tone: "geopolitical or global social phenomenon",
-//     image: "photo", // foto-først — nyhetsrelevante hendelser, konflikter, miljø
-//   },
-// };
-
 // === CATEGORY CONFIG — CurioWire v4.0 ⚡ Frontier Realism Edition ===
 // Tonene er nå optimalisert for:
 // • frontier realism
@@ -135,6 +64,18 @@ export const categories = {
   // 🌍 World — geopolitikkens merkelige historier og skjulte prosesser
   world: {
     tone: "global curiosity — surprising borders, micro-conflicts, secret negotiations, forgotten treaties, demographic shocks, or geopolitical events that feel unbelievable yet true",
+    image: "photo",
+  },
+
+  // 🕯️ Crime — rare saker, uforklarlige spor, etterforskningens merkelige detaljer
+  crime: {
+    tone: "true-crime curiosity — strange cases, overlooked clues, forensic anomalies, improbable investigations, and real-world criminal events told with careful, factual suspense",
+    image: "photo",
+  },
+
+  // 🧩 Mystery — uforklarte fenomener, historiske gåter, uvanlige sammenhenger (men fortsatt sant)
+  mystery: {
+    tone: "mystery realism — unresolved anomalies, baffling historical puzzles, unexplained patterns, and strange-but-true events presented with restraint, clarity, and wonder",
     image: "photo",
   },
 };

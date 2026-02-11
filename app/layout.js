@@ -1,56 +1,46 @@
-"use client";
-
+// app/layout.js
 import { Suspense } from "react";
 import Script from "next/script";
-import dynamic from "next/dynamic";
 import ThemeRegistry from "./ThemeRegistry";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import AnalyticsTracker from "../components/Analytics/AnalyticsTracker";
-
-// 🧩 Importer EzoicScripts som *client-only* for å hindre SSR mismatch
-const EzoicScripts = dynamic(() => import("../components/EzoicScripts"), {
-  ssr: false,
-});
+import EzoicScripts from "../components/EzoicScripts";
 
 export const runtime = "nodejs";
 
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+export const metadata = {
+  metadataBase: new URL("https://curiowire.com"),
+  title: {
+    default: "CurioWire",
+    template: "%s — CurioWire",
+  },
+  description:
+    "A living feed of AI-generated curiosities across science, history, nature, technology and more — updated daily.",
+  alternates: {
+    canonical: "https://curiowire.com",
+    types: {
+      "application/rss+xml": "https://curiowire.com/api/rss",
+    },
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
+};
 
-export default function RootLayout({ children }) {
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const isProd = process.env.NODE_ENV === "production";
+
+export default function RootLayout({ children, modal }) {
   return (
     <html lang="en">
-      <head>
-        {/* 📰 RSS Feed for crawlers and readers */}
-        <link
-          rel="alternate"
-          type="application/rss+xml"
-          title="CurioWire RSS Feed"
-          href="https://curiowire.com/api/rss"
-        />
+      <body>
+        {/* Ezoic/CMP: only in production (avoid localhost console noise) */}
+        {isProd ? <EzoicScripts /> : null}
 
-        {/* 🧩 EZOIC SCRIPTS – lastes kun i klient, men fremdeles tidlig */}
-        <EzoicScripts />
-
-        {/* 💨 Fontoptimalisering (etter Ezoic for å unngå blokkering) */}
-        <link
-          rel="preconnect"
-          href="https://fonts.googleapis.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Playfair+Display:wght@700&display=swap"
-          rel="stylesheet"
-        />
-
-        {/* ✅ Google Analytics – etter fonts for lavere blocking */}
-        {GA_ID && (
+        {/* GA: ok in layout body */}
+        {GA_ID ? (
           <>
             <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
@@ -65,17 +55,18 @@ export default function RootLayout({ children }) {
               `}
             </Script>
           </>
-        )}
-      </head>
+        ) : null}
 
-      <body>
         <ThemeRegistry>
           <Header />
           <main>{children}</main>
+
+          {/* Modal-slot */}
+          {modal}
+
           <Footer />
         </ThemeRegistry>
 
-        {/* 📈 Analytics Tracker */}
         <Suspense fallback={null}>
           <AnalyticsTracker GA_ID={GA_ID} />
         </Suspense>

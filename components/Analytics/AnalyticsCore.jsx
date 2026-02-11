@@ -1,17 +1,26 @@
+// components/Analytics/AnalyticsCore.jsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 export default function AnalyticsCore({ GA_ID }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const url = useMemo(() => {
+    const qs = searchParams?.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  }, [pathname, searchParams]);
+
   useEffect(() => {
     if (!GA_ID) return;
-    const url = `${pathname}${searchParams ? `?${searchParams}` : ""}`;
+    if (typeof window === "undefined") return;
+    if (typeof window.gtag !== "function") return;
+
+    // ✅ single, stable pageview per url change
     window.gtag("config", GA_ID, { page_path: url });
-  }, [pathname, searchParams, GA_ID]);
+  }, [GA_ID, url]);
 
   return null;
 }

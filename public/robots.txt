@@ -4,24 +4,9 @@
 # ===========================================
 
 User-agent: *
-Disallow:
 Allow: /
 
-# Allow all bots to index all content, including dynamic routes
-# Important for traffic generation via Google Discover & News
-
-# Sitemap reference (auto-generated & updated after each /api/generate run)
 Sitemap: https://curiowire.com/api/sitemap
 
-# Crawl-delay for polite indexing (in seconds)
+# Optional: Bing may respect crawl-delay; Google ignores it.
 Crawl-delay: 1
-
-# Preferred language targeting (EN)
-Host: curiowire.com
-
-# ===========================================
-# Notes:
-# - Googlebot, Bingbot, and other major crawlers will follow this.
-# - Sitemap is updated automatically after new article generation.
-# - No restrictions are applied since CurioWire depends on visibility.
-# ===========================================
