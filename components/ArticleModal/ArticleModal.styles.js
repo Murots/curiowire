@@ -105,7 +105,7 @@ export const CloseWrap = styled.div`
 export const Close = styled.button`
   position: absolute;
   right: 14px;
-  top: 14px;
+  top: 27px;
 
   pointer-events: auto;
 
