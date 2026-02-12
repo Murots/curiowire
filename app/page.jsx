@@ -110,12 +110,37 @@ function normalizeQ(input) {
     .slice(0, 120);
 }
 
+// ✅ Robust getter for Next searchParams (object, promise-ish, URLSearchParams-ish)
+function getSP(sp, key) {
+  if (!sp) return undefined;
+
+  // URLSearchParams-ish (has get())
+  try {
+    if (typeof sp.get === "function") return sp.get(key) ?? undefined;
+  } catch {}
+
+  // Plain object
+  try {
+    return sp[key];
+  } catch {
+    return undefined;
+  }
+}
+
 export default async function HomePage({ searchParams }) {
   const baseUrl = "https://curiowire.com";
 
-  const categoryQ = normalizeCategory(searchParams?.category);
-  const sortQ = normalizeSort(searchParams?.sort);
-  const q = normalizeQ(searchParams?.q);
+  // ✅ Next can hand searchParams as a thenable/proxy — always resolve first
+  let spResolved = null;
+  try {
+    spResolved = await Promise.resolve(searchParams);
+  } catch {
+    spResolved = null;
+  }
+
+  const categoryQ = normalizeCategory(getSP(spResolved, "category"));
+  const sortQ = normalizeSort(getSP(spResolved, "sort"));
+  const q = normalizeQ(getSP(spResolved, "q"));
 
   // We SSR "newest" and "wow" with DB ordering.
   // "trending" is computed client-side (via /api/trending), but we still SSR a
@@ -134,7 +159,9 @@ export default async function HomePage({ searchParams }) {
   // Optional SSR search (keeps SEO coherent for search result URLs too)
   if (q) {
     // Note: PostgREST "or" filter string. Keep it tight (no spaces).
-    qy = qy.or(`title.ilike.%${q}%,summary_normalized.ilike.%${q}%`);
+    // Escape single quotes to avoid breaking the filter string.
+    const safeQ = q.replace(/'/g, "''");
+    qy = qy.or(`title.ilike.%${safeQ}%,summary_normalized.ilike.%${safeQ}%`);
   }
 
   if (ssrSort === "newest") qy = qy.order("created_at", { ascending: false });

@@ -1,3 +1,4 @@
+// components/ArticlePage/ArticlePageClient.jsx
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
@@ -26,61 +27,86 @@ const TopBack = styled.button`
 export default function ArticlePageClient({ card }) {
   const router = useRouter();
 
+  // ✅ Nav state (stable on SSR, filled client-side)
+  const [nav, setNav] = useState(() => ({
+    prevId: null,
+    nextId: null,
+    positionText: "",
+    returnHref: "/",
+  }));
+
   const [relatedArticles, setRelatedArticles] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
 
-  // “feed ctx” nav (samme som modal)
-  const { prevId, nextId, positionText, returnHref } = useMemo(() => {
+  // ✅ Read feed context AFTER mount (avoids hydration mismatch)
+  useEffect(() => {
     try {
       const raw = sessionStorage.getItem("cw_feed_ctx");
-      if (!raw)
-        return {
+      if (!raw) {
+        setNav({
           prevId: null,
           nextId: null,
           positionText: "",
           returnHref: "/",
-        };
+        });
+        return;
+      }
 
       const ctx = JSON.parse(raw);
+
       const ids = Array.isArray(ctx?.ids)
         ? ctx.ids.map(Number).filter(Boolean)
         : [];
+
       const idx = ids.indexOf(Number(card.id));
 
       const prev = idx > 0 ? ids[idx - 1] : null;
       const next = idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null;
+
       const pos = idx >= 0 && ids.length ? `${idx + 1} / ${ids.length}` : "";
 
       const cat = String(ctx?.category || "");
       const sort = String(ctx?.sort || "");
+
       const params = new URLSearchParams();
       if (cat && cat !== "all") params.set("category", cat);
       if (sort && sort !== "newest") params.set("sort", sort);
+
       const qs = params.toString();
       const ret = qs ? `/?${qs}` : "/";
 
-      return { prevId: prev, nextId: next, positionText: pos, returnHref: ret };
+      setNav({
+        prevId: prev,
+        nextId: next,
+        positionText: pos,
+        returnHref: ret,
+      });
     } catch {
-      return { prevId: null, nextId: null, positionText: "", returnHref: "/" };
+      setNav({
+        prevId: null,
+        nextId: null,
+        positionText: "",
+        returnHref: "/",
+      });
     }
   }, [card.id]);
 
   const onPrev = useCallback(() => {
-    if (!prevId) return;
-    router.push(`/article/${prevId}`, { scroll: false });
-  }, [router, prevId]);
+    if (!nav.prevId) return;
+    router.push(`/article/${nav.prevId}`, { scroll: false });
+  }, [router, nav.prevId]);
 
   const onNext = useCallback(() => {
-    if (!nextId) return;
-    router.push(`/article/${nextId}`, { scroll: false });
-  }, [router, nextId]);
+    if (!nav.nextId) return;
+    router.push(`/article/${nav.nextId}`, { scroll: false });
+  }, [router, nav.nextId]);
 
   const onOpenRelated = useCallback(
     (id) => {
       if (!id) return;
       router.push(`/article/${id}`, { scroll: false });
     },
-    [router]
+    [router],
   );
 
   // log view
@@ -103,6 +129,7 @@ export default function ArticlePageClient({ card }) {
     if (!cat || !id) return;
 
     let alive = true;
+
     async function loadRelated() {
       setRelatedLoading(true);
       try {
@@ -117,11 +144,16 @@ export default function ArticlePageClient({ card }) {
 
         if (!alive) return;
         if (!error) setRelatedArticles(Array.isArray(data) ? data : []);
+      } catch {
+        if (!alive) return;
+        setRelatedArticles([]);
       } finally {
         if (alive) setRelatedLoading(false);
       }
     }
+
     loadRelated();
+
     return () => {
       alive = false;
     };
@@ -130,7 +162,7 @@ export default function ArticlePageClient({ card }) {
   return (
     <PageWrap>
       <TopBack
-        onClick={() => router.push(returnHref || "/", { scroll: false })}
+        onClick={() => router.push(nav.returnHref || "/", { scroll: false })}
       >
         ← Back to feed
       </TopBack>
@@ -138,9 +170,9 @@ export default function ArticlePageClient({ card }) {
       <ArticleView
         variant="page"
         card={card}
-        prevId={prevId}
-        nextId={nextId}
-        positionText={positionText}
+        prevId={nav.prevId}
+        nextId={nav.nextId}
+        positionText={nav.positionText}
         onPrev={onPrev}
         onNext={onNext}
         relatedArticles={relatedArticles}
