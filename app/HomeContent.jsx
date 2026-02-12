@@ -1,8 +1,8 @@
 // app/HomeContent.jsx
 "use client";
 
-import React, { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import CurioCard from "@/components/CurioCard/CurioCard";
 import {
@@ -61,26 +61,79 @@ function normalizeQ(input) {
     .slice(0, 120);
 }
 
-function HomeContentInner({ initialCards, initialQuery }) {
-  const router = useRouter();
-  const sp = useSearchParams();
+function buildUrlFromQuery(nextQuery) {
+  const params = new URLSearchParams();
 
-  const categoryQ = normalizeCategory(
-    sp.get("category") || initialQuery?.category,
+  const cat = normalizeCategory(nextQuery?.category);
+  const sort = normalizeSort(nextQuery?.sort);
+  const q = normalizeQ(nextQuery?.q);
+
+  if (cat && cat !== "all") params.set("category", cat);
+  if (sort && sort !== "newest") params.set("sort", sort);
+  if (q) params.set("q", q);
+
+  const qs = params.toString();
+  return qs ? `/?${qs}` : `/`;
+}
+
+function readQueryFromLocation(fallback) {
+  try {
+    if (typeof window === "undefined") return fallback;
+
+    const sp = new URLSearchParams(window.location.search);
+
+    return {
+      category: normalizeCategory(sp.get("category") ?? fallback?.category),
+      sort: normalizeSort(sp.get("sort") ?? fallback?.sort),
+      q: normalizeQ(sp.get("q") ?? fallback?.q ?? ""),
+    };
+  } catch {
+    return {
+      category: normalizeCategory(fallback?.category),
+      sort: normalizeSort(fallback?.sort),
+      q: normalizeQ(fallback?.q ?? ""),
+    };
+  }
+}
+
+function sameQuery(a, b) {
+  return (
+    normalizeCategory(a?.category) === normalizeCategory(b?.category) &&
+    normalizeSort(a?.sort) === normalizeSort(b?.sort) &&
+    normalizeQ(a?.q) === normalizeQ(b?.q)
   );
-  const sortQ = normalizeSort(sp.get("sort") || initialQuery?.sort);
-  const q = normalizeQ(sp.get("q") ?? initialQuery?.q ?? "");
+}
+
+export default function HomeContent({ initialCards, initialQuery }) {
+  const router = useRouter();
+
+  const normalizedInitialQuery = useMemo(
+    () => ({
+      category: normalizeCategory(initialQuery?.category),
+      sort: normalizeSort(initialQuery?.sort),
+      q: normalizeQ(initialQuery?.q),
+    }),
+    [initialQuery],
+  );
+
+  // ✅ No useSearchParams (prevents CSR bailout in View Source)
+  const [query, setQueryState] = useState(normalizedInitialQuery);
+
+  const categoryQ = query.category;
+  const sortQ = query.sort;
+  const q = query.q;
 
   const [cards, setCards] = useState(initialCards || []);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(
+    (initialCards || []).length === PAGE_SIZE,
+  );
 
   // hydration guard (prevents SSR/CSR mismatch for 🔥, etc.)
   const [hydrated, setHydrated] = useState(false);
 
   // tracks whether we have evaluated the current query at least once
-  // (prevents "No matches" flashing on first paint and during transitions)
   const [didInit, setDidInit] = useState(false);
 
   // trending
@@ -107,14 +160,24 @@ function HomeContentInner({ initialCards, initialQuery }) {
     [],
   );
 
-  function setQuery(next) {
-    const params = new URLSearchParams(sp.toString());
-    Object.entries(next).forEach(([k, v]) => {
-      if (!v || v === "all") params.delete(k);
-      else params.set(k, v);
-    });
-    const qs = params.toString();
-    router.push(qs ? `/?${qs}` : `/`, { scroll: false });
+  function pushQuery(nextPartial) {
+    const next = {
+      ...query,
+      ...nextPartial,
+    };
+
+    const normalizedNext = {
+      category: normalizeCategory(next.category),
+      sort: normalizeSort(next.sort),
+      q: normalizeQ(next.q),
+    };
+
+    setQueryState(normalizedNext);
+    setPage(1);
+    setDidInit(false);
+
+    const url = buildUrlFromQuery(normalizedNext);
+    router.push(url, { scroll: false });
   }
 
   function rememberFeedContext(openedId) {
@@ -135,11 +198,29 @@ function HomeContentInner({ initialCards, initialQuery }) {
     setHydrated(true);
   }, []);
 
-  // reset paging + init flag when filters change (not when "page" changes via load more)
+  // ✅ Sync query from URL on mount + back/forward (without useSearchParams)
   useEffect(() => {
-    setPage(1);
-    setDidInit(false);
-  }, [categoryQ, sortQ, q]);
+    const fromUrl = readQueryFromLocation(normalizedInitialQuery);
+    if (!sameQuery(fromUrl, query)) {
+      setQueryState(fromUrl);
+      setPage(1);
+      setDidInit(false);
+    } else {
+      // If SSR already matches, mark init quickly
+      setDidInit(true);
+    }
+
+    const onPop = () => {
+      const q2 = readQueryFromLocation(normalizedInitialQuery);
+      setQueryState(q2);
+      setPage(1);
+      setDidInit(false);
+    };
+
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalizedInitialQuery]);
 
   // --- Trending fetch (ids + list), refresh hourly ---
   useEffect(() => {
@@ -176,17 +257,19 @@ function HomeContentInner({ initialCards, initialQuery }) {
   }, []);
 
   // ----------------------------
-  // Data loading (Newest/Wow)
+  // Data loading (Newest/Wow/Search/Category)
   // ----------------------------
   useEffect(() => {
     let alive = true;
 
-    const isDefault =
-      categoryQ === "all" && sortQ === "newest" && page === 1 && !q;
+    const isTrendingMode = sortQ === "trending";
 
-    // ✅ default SSR hydration (no fetch)
-    // NOTE: This now relies on server rendering the correct default list.
-    if (isDefault) {
+    // ✅ If the current query equals the SSR query and we're on page 1,
+    // use SSR data without refetch.
+    const isSSRHydration =
+      page === 1 && !isTrendingMode && sameQuery(query, normalizedInitialQuery);
+
+    if (isSSRHydration) {
       setCards(initialCards || []);
       setHasMore((initialCards || []).length === PAGE_SIZE);
       setLoading(false);
@@ -197,15 +280,13 @@ function HomeContentInner({ initialCards, initialQuery }) {
     }
 
     // ✅ TRENDING handled in separate effect below
-    if (sortQ === "trending") {
-      // do nothing here
+    if (isTrendingMode) {
       return () => {
         alive = false;
       };
     }
 
     async function fetchCards() {
-      // show loading state for query/page transitions
       setLoading(true);
 
       try {
@@ -218,10 +299,8 @@ function HomeContentInner({ initialCards, initialQuery }) {
 
         if (categoryQ !== "all") qy = qy.eq("category", categoryQ);
 
-        // ✅ Search
         if (q) {
           const safe = escapeLike(q);
-          // Note: PostgREST "or" filter string. Keep it tight (no spaces).
           qy = qy.or(
             `title.ilike.%${safe}%,summary_normalized.ilike.%${safe}%`,
           );
@@ -268,7 +347,7 @@ function HomeContentInner({ initialCards, initialQuery }) {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryQ, sortQ, q, page, initialCards]);
+  }, [categoryQ, sortQ, q, page, query, normalizedInitialQuery, initialCards]);
 
   // ----------------------------
   // TRENDING mode (pure client filter of trendingList)
@@ -282,7 +361,7 @@ function HomeContentInner({ initialCards, initialQuery }) {
       return;
     }
 
-    const qLower = q.toLowerCase();
+    const qLower = (q || "").toLowerCase();
 
     const filteredByCat =
       categoryQ === "all"
@@ -304,7 +383,6 @@ function HomeContentInner({ initialCards, initialQuery }) {
     setCards(filteredBySearch);
     setHasMore(false);
 
-    // When trending list is ready (or finished trying), mark evaluated
     if (!trendingLoading) setDidInit(true);
   }, [sortQ, categoryQ, q, trendingList, trendingLoading]);
 
@@ -314,12 +392,10 @@ function HomeContentInner({ initialCards, initialQuery }) {
   const isTrendingMode = sortQ === "trending";
   const isCurrentlyLoading = isTrendingMode ? trendingLoading : loading;
 
-  // If we haven't evaluated the query yet, show loading (prevents "no matches" flash)
   if (!didInit) {
     return <Loader>Loading curiosities…</Loader>;
   }
 
-  // When loading for subsequent query changes, show loading
   if (isCurrentlyLoading) {
     return (
       <Loader>
@@ -330,7 +406,6 @@ function HomeContentInner({ initialCards, initialQuery }) {
     );
   }
 
-  // After evaluation + not loading: show empty-result message if nothing to show
   if (!cards || cards.length === 0) {
     const hasSearch = !!q;
     const hasCategory = categoryQ !== "all";
@@ -370,7 +445,7 @@ function HomeContentInner({ initialCards, initialQuery }) {
         <Controls>
           <Select
             value={categoryQ}
-            onChange={(e) => setQuery({ category: e.target.value })}
+            onChange={(e) => pushQuery({ category: e.target.value })}
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -381,7 +456,7 @@ function HomeContentInner({ initialCards, initialQuery }) {
 
           <Select
             value={sortQ}
-            onChange={(e) => setQuery({ sort: e.target.value })}
+            onChange={(e) => pushQuery({ sort: e.target.value })}
           >
             <option value="newest">Newest</option>
             <option value="trending">Trending</option>
@@ -409,14 +484,5 @@ function HomeContentInner({ initialCards, initialQuery }) {
         </LoadMore>
       )}
     </Wrapper>
-  );
-}
-
-export default function HomeContent(props) {
-  // ✅ Next requires useSearchParams to be inside a Suspense boundary
-  return (
-    <Suspense fallback={<Loader>Loading…</Loader>}>
-      <HomeContentInner {...props} />
-    </Suspense>
   );
 }

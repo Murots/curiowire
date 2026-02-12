@@ -133,7 +133,6 @@ export default async function HomePage({ searchParams }) {
 
   // Optional SSR search (keeps SEO coherent for search result URLs too)
   if (q) {
-    // Keep it simple server-side (no LIKE escaping needed beyond trimming/limit)
     // Note: PostgREST "or" filter string. Keep it tight (no spaces).
     qy = qy.or(`title.ilike.%${q}%,summary_normalized.ilike.%${q}%`);
   }
@@ -208,7 +207,7 @@ export default async function HomePage({ searchParams }) {
         }}
       />
 
-      {/* ✅ Single feed: SSR first, then client continues (no hidden duplicate feed) */}
+      {/* ✅ SSR feed first, then client continues */}
       <HomeContent
         initialCards={list}
         initialQuery={{
