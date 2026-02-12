@@ -308,7 +308,10 @@ const TRENDING_LIMIT = 10;
 const TRENDING_REFRESH_MS = 60 * 60 * 1000; // 1 hour
 
 function escapeLike(s) {
-  return String(s || "").replace(/[%_]/g, "\\$&");
+  // Escape backslash first, then wildcard chars for LIKE
+  return String(s || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/[%_]/g, "\\$&");
 }
 
 function HomeContentInner({ initialCards }) {
@@ -316,7 +319,7 @@ function HomeContentInner({ initialCards }) {
   const sp = useSearchParams();
 
   const categoryQ = sp.get("category") || "all";
-  const sortQ = sp.get("sort") || "newest"; // newest | trending | wow (if you add later)
+  const sortQ = sp.get("sort") || "newest"; // newest | trending | wow (optional)
   const qRaw = sp.get("q") || "";
   const q = String(qRaw || "").trim();
 
@@ -329,7 +332,7 @@ function HomeContentInner({ initialCards }) {
   const [hydrated, setHydrated] = useState(false);
 
   // tracks whether we have evaluated the current query at least once
-  // (prevents "No matches" flashing on first paint)
+  // (prevents "No matches" flashing on first paint and during transitions)
   const [didInit, setDidInit] = useState(false);
 
   // trending
@@ -392,9 +395,10 @@ function HomeContentInner({ initialCards }) {
     setHydrated(true);
   }, []);
 
-  // reset paging when filters change
+  // reset paging + init flag when filters change (not when "page" changes via load more)
   useEffect(() => {
     setPage(1);
+    setDidInit(false);
   }, [categoryQ, sortQ, q]);
 
   // --- Trending fetch (ids + list), refresh hourly ---
@@ -431,9 +435,12 @@ function HomeContentInner({ initialCards }) {
     };
   }, []);
 
-  const queryKey = `${categoryQ}:${sortQ}:${q}:${page}`;
-
+  // ----------------------------
+  // Data loading (Newest/Wow)
+  // ----------------------------
   useEffect(() => {
+    let alive = true;
+
     const isDefault =
       categoryQ === "all" && sortQ === "newest" && page === 1 && !q;
 
@@ -443,94 +450,127 @@ function HomeContentInner({ initialCards }) {
       setHasMore((initialCards || []).length === PAGE_SIZE);
       setLoading(false);
       setDidInit(true);
-      return;
+      return () => {
+        alive = false;
+      };
     }
 
-    // ✅ TRENDING sort: use API list (top N) + client filter
+    // ✅ TRENDING handled in separate effect below
     if (sortQ === "trending") {
-      const qLower = q.toLowerCase();
-
-      const filteredByCat =
-        categoryQ === "all"
-          ? trendingList
-          : trendingList.filter(
-              (x) =>
-                String(x?.category || "").toLowerCase() ===
-                String(categoryQ || "").toLowerCase(),
-            );
-
-      const filteredBySearch = qLower
-        ? filteredByCat.filter((x) =>
-            String(x?.title || "")
-              .toLowerCase()
-              .includes(qLower),
-          )
-        : filteredByCat;
-
-      setCards(filteredBySearch);
-      setHasMore(false);
-
-      // For trending we consider the "query evaluated" once trending list is available OR finished loading.
-      // Avoid flashing "no results" while trending is still loading.
-      if (!trendingLoading) setDidInit(true);
-
-      return;
+      // do nothing here
+      return () => {
+        alive = false;
+      };
     }
 
-    const fetchCards = async () => {
+    async function fetchCards() {
+      // show loading state for query/page transitions
       setLoading(true);
 
-      let qy = supabase
-        .from("curiosity_cards")
-        .select(
-          "id, category, title, summary_normalized, image_url, created_at, wow_score",
-        )
-        .eq("status", "published");
+      try {
+        let qy = supabase
+          .from("curiosity_cards")
+          .select(
+            "id, category, title, summary_normalized, image_url, created_at, wow_score",
+          )
+          .eq("status", "published");
 
-      if (categoryQ !== "all") qy = qy.eq("category", categoryQ);
+        if (categoryQ !== "all") qy = qy.eq("category", categoryQ);
 
-      // ✅ Search
-      if (q) {
-        const safe = escapeLike(q);
-        qy = qy.or(`title.ilike.%${safe}%,summary_normalized.ilike.%${safe}%`);
-      }
+        // ✅ Search
+        if (q) {
+          const safe = escapeLike(q);
+          // Note: PostgREST "or" filter string. Keep it tight (no spaces).
+          qy = qy.or(
+            `title.ilike.%${safe}%,summary_normalized.ilike.%${safe}%`,
+          );
+        }
 
-      if (sortQ === "newest") qy = qy.order("created_at", { ascending: false });
+        if (sortQ === "newest")
+          qy = qy.order("created_at", { ascending: false });
 
-      if (sortQ === "wow")
-        qy = qy
-          .order("wow_score", { ascending: false })
-          .order("created_at", { ascending: false });
+        if (sortQ === "wow")
+          qy = qy
+            .order("wow_score", { ascending: false })
+            .order("created_at", { ascending: false });
 
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+        const from = (page - 1) * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
 
-      const { data, error } = await qy.range(from, to);
+        const { data, error } = await qy.range(from, to);
 
-      if (!error) {
-        setCards(
-          page === 1 ? data || [] : (prev) => [...prev, ...(data || [])],
-        );
-        setHasMore((data || []).length === PAGE_SIZE);
-      } else {
-        // On error, treat as no results (but avoid infinite "loading")
+        if (!alive) return;
+
+        if (!error) {
+          if (page === 1) setCards(data || []);
+          else setCards((prev) => [...(prev || []), ...(data || [])]);
+
+          setHasMore((data || []).length === PAGE_SIZE);
+        } else {
+          if (page === 1) setCards([]);
+          setHasMore(false);
+        }
+      } catch {
+        if (!alive) return;
         if (page === 1) setCards([]);
         setHasMore(false);
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+        setDidInit(true);
       }
-
-      setLoading(false);
-      setDidInit(true);
-    };
+    }
 
     fetchCards();
+
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryKey, trendingList, trendingLoading, initialCards]);
+  }, [categoryQ, sortQ, q, page, initialCards]);
+
+  // ----------------------------
+  // TRENDING mode (pure client filter of trendingList)
+  // ----------------------------
+  useEffect(() => {
+    if (sortQ !== "trending") return;
+
+    // While trending is loading AND we have no list yet, keep "not initialized"
+    if (trendingLoading && (!trendingList || trendingList.length === 0)) {
+      setDidInit(false);
+      return;
+    }
+
+    const qLower = q.toLowerCase();
+
+    const filteredByCat =
+      categoryQ === "all"
+        ? trendingList
+        : trendingList.filter(
+            (x) =>
+              String(x?.category || "").toLowerCase() ===
+              String(categoryQ || "").toLowerCase(),
+          );
+
+    const filteredBySearch = qLower
+      ? filteredByCat.filter((x) =>
+          String(x?.title || "")
+            .toLowerCase()
+            .includes(qLower),
+        )
+      : filteredByCat;
+
+    setCards(filteredBySearch);
+    setHasMore(false);
+
+    // When trending list is ready (or finished trying), mark evaluated
+    if (!trendingLoading) setDidInit(true);
+  }, [sortQ, categoryQ, q, trendingList, trendingLoading]);
 
   // ----------------------------
   // Empty / Loading states
   // ----------------------------
   const isTrendingMode = sortQ === "trending";
-
   const isCurrentlyLoading = isTrendingMode ? trendingLoading : loading;
 
   // If we haven't evaluated the query yet, show loading (prevents "no matches" flash)
@@ -619,7 +659,7 @@ function HomeContentInner({ initialCards }) {
         ))}
       </Grid>
 
-      {hasMore && (
+      {hasMore && !isTrendingMode && (
         <LoadMore onClick={() => setPage((p) => p + 1)} disabled={loading}>
           {loading ? "Loading…" : "Load more"}
         </LoadMore>

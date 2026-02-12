@@ -285,7 +285,7 @@ export default async function HomePage() {
         }}
       />
 
-      {/* ✅ SSR feed for SEO (hidden after hydration via CSS/data-attr) */}
+      {/* ✅ SSR feed for SEO (hidden after hydration via JS in HomeContent) */}
       <ul
         className="cw-ssr-feed"
         style={{ listStyle: "none", padding: 0, margin: 0 }}
