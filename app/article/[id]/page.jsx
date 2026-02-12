@@ -151,7 +151,7 @@ export default async function ArticlePage({ params }) {
   // Added ImageObject width/height for consistency.
   const articleJsonLd = {
     "@context": "https://schema.org",
-    "@type": "NewsArticle",
+    "@type": "Article",
     headline,
     description: desc,
     mainEntityOfPage: {

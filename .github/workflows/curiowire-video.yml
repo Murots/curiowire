@@ -11,9 +11,9 @@ on:
         description: "Video provider (kling or pika)"
         required: true
         default: "kling"
-  # schedule:
-  #   # 🎬 Videos: twice per day (00:05 and 12:05 UTC)
-  #   - cron: "5 0,12 * * *"
+  schedule:
+    # 🎬 Videos: twice per day (00:05 and 12:05 UTC)
+    - cron: "5 0,12 * * *"
 
 concurrency:
   group: curiowire-video-only
