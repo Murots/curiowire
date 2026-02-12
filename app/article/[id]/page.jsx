@@ -183,7 +183,17 @@ export async function generateMetadata({ params }) {
     "CurioWire curiosity";
 
   const url = `${baseUrl}/article/${card.id}`;
-  const image = card.image_url || `${baseUrl}/icon.png`;
+
+  const hasHero = Boolean(card.image_url);
+  const imageUrl = hasHero ? card.image_url : `${baseUrl}/icon.png`;
+
+  // ✅ Best-practice OG declared size:
+  // - Use 1200x630 for article hero images (standard share aspect).
+  // - Use 512x512 only for the logo fallback.
+  const ogWidth = hasHero ? 1200 : 512;
+  const ogHeight = hasHero ? 630 : 512;
+
+  const ogAlt = title;
 
   return {
     title: { absolute: title },
@@ -209,14 +219,26 @@ export async function generateMetadata({ params }) {
       description,
       url,
       siteName: "CurioWire",
-      images: [{ url: image }],
+      images: [
+        {
+          url: imageUrl,
+          width: ogWidth,
+          height: ogHeight,
+          alt: ogAlt,
+        },
+      ],
     },
 
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [image],
+      images: [
+        {
+          url: imageUrl,
+          alt: ogAlt,
+        },
+      ],
     },
   };
 }
@@ -234,14 +256,21 @@ export default async function ArticlePage({ params }) {
   const published = card.created_at;
   const modified = card.updated_at || card.created_at;
 
+  const headline = cleanInlineText(card.seo_title || card.title);
+  const desc = cleanInlineText(card.seo_description || card.summary_normalized);
+
+  const hasHero = Boolean(card.image_url);
+  const imageUrl = hasHero ? card.image_url : `${baseUrl}/icon.png`;
+  const imgWidth = hasHero ? 1200 : 512;
+  const imgHeight = hasHero ? 630 : 512;
+
   // ✅ Structured data: NewsArticle + dateModified + WebPage/@id
+  // Added ImageObject width/height for consistency.
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
-    headline: cleanInlineText(card.seo_title || card.title),
-    description: cleanInlineText(
-      card.seo_description || card.summary_normalized,
-    ),
+    headline,
+    description: desc,
     mainEntityOfPage: {
       "@type": "WebPage",
       "@id": url,
@@ -249,7 +278,14 @@ export default async function ArticlePage({ params }) {
     url,
     datePublished: published,
     dateModified: modified,
-    image: [card.image_url || `${baseUrl}/icon.png`],
+    image: [
+      {
+        "@type": "ImageObject",
+        url: imageUrl,
+        width: imgWidth,
+        height: imgHeight,
+      },
+    ],
     author: {
       "@type": "Organization",
       name: "CurioWire",
