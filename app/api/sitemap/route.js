@@ -4,17 +4,20 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ Server-only (anbefalt). Hvis du ikke vil: bruk NEXT_PUBLIC_* som før,
-// men da avhenger du av RLS/policies.
+// ✅ Server-only Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 );
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
+// 🔒 Force canonical non-www base URL
+const rawBase = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
   ? process.env.NEXT_PUBLIC_BASE_URL
   : "https://curiowire.com";
+
+// Remove www + trailing slash
+const BASE_URL = rawBase.replace("://www.", "://").replace(/\/$/, "");
 
 export async function GET() {
   try {
@@ -27,11 +30,11 @@ export async function GET() {
     if (error) {
       console.error(
         "❌ Failed to fetch curiosity_cards for sitemap:",
-        error.message
+        error.message,
       );
       return NextResponse.json(
         { error: "Failed to generate sitemap" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -41,12 +44,12 @@ export async function GET() {
       .map((c) => {
         const lastmod = new Date(c.updated_at || c.created_at).toISOString();
         return `
-        <url>
-          <loc>${BASE_URL}/article/${c.id}</loc>
-          <lastmod>${lastmod}</lastmod>
-          <changefreq>weekly</changefreq>
-          <priority>0.7</priority>
-        </url>`;
+  <url>
+    <loc>${BASE_URL}/article/${c.id}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
       })
       .join("");
 
