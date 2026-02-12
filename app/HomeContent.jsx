@@ -379,6 +379,14 @@ function HomeContentInner({ initialCards }) {
     } catch {}
   }
 
+  // ✅ Hide SSR feed after hydration (so you get SEO + only one visible feed)
+  useEffect(() => {
+    try {
+      const el = document.querySelector(".cw-ssr-feed");
+      if (el) el.setAttribute("hidden", "true");
+    } catch {}
+  }, []);
+
   // mark hydrated after first client paint
   useEffect(() => {
     setHydrated(true);
@@ -546,7 +554,6 @@ function HomeContentInner({ initialCards }) {
     const hasSearch = !!q;
     const hasCategory = categoryQ !== "all";
 
-    // You can tweak copy here:
     const message = hasSearch
       ? `No curiosities matched “${q}”.`
       : hasCategory

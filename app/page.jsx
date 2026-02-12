@@ -136,6 +136,7 @@
 import HomeContent from "./HomeContent";
 import { supabase } from "@/lib/supabaseClient";
 import Script from "next/script";
+import ServerCurioCard from "@/components/CurioCard/ServerCurioCard";
 
 const PAGE_SIZE = 30;
 
@@ -283,6 +284,16 @@ export default async function HomePage() {
           __html: JSON.stringify(allStructuredData),
         }}
       />
+
+      {/* ✅ SSR feed for SEO (hidden after hydration via CSS/data-attr) */}
+      <ul
+        className="cw-ssr-feed"
+        style={{ listStyle: "none", padding: 0, margin: 0 }}
+      >
+        {list.map((card) => (
+          <ServerCurioCard key={card.id} card={card} />
+        ))}
+      </ul>
 
       <HomeContent initialCards={list} />
     </>
