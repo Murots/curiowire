@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useMemo } from "react";
-import Link from "next/link";
 import {
+  CardLink,
   Card,
   ImageWrapper,
   Image,
@@ -22,14 +22,17 @@ import { cleanText } from "@/app/api/utils/cleanText";
 function extractSummaryWhatSSR(html) {
   const s = String(html || "");
   // Match: <span data-summary-what> ... </span>
+  // Allow attributes and whitespace/newlines
   const m = s.match(/<span[^>]*data-summary-what[^>]*>([\s\S]*?)<\/span>/i);
   if (!m) return "";
 
+  // Strip any nested tags inside the span + decode common entities lightly
   const raw = m[1]
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
+  // Optional: very small entity decode (avoid heavy libs)
   return raw
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
@@ -87,22 +90,21 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
     [summary_normalized],
   );
 
-  function handleOpen() {
+  const handleOpen = () => {
     try {
       onOpen?.(Number(id));
     } catch {}
-  }
+  };
 
   return (
-    <Link
+    <CardLink
       href={href}
-      scroll={false}
-      prefetch={true}
+      $wide={isWide}
       aria-label={`Open: ${cleanText(title)}`}
       onClick={handleOpen}
-      style={{ textDecoration: "none" }}
+      prefetch
     >
-      <Card $wide={isWide} as="article">
+      <Card>
         <ImageWrapper>
           {image_url ? (
             <Image
@@ -116,7 +118,7 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
           {/* 🔥 trending icon (top-right) */}
           {isTrending ? <FireBadge aria-label="Trending">🔥</FireBadge> : null}
 
-          {/* ✅ MetaRow over image, bottom aligned */}
+          {/* ✅ MetaRow over bildet, i bunn */}
           <MetaRow>
             <CategoryBadge $category={category}>{category}</CategoryBadge>
             <span className="date">{formattedDate}</span>
@@ -126,12 +128,12 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
         <Content>
           <Title>{cleanText(title)}</Title>
 
-          {/* ✅ Only the "What" part as ingress */}
+          {/* ✅ Bare "What"-delen som ingress, uten "What:" */}
           {ingressText ? <Ingress>{ingressText}</Ingress> : null}
 
           <ReadMore>Read more →</ReadMore>
         </Content>
       </Card>
-    </Link>
+    </CardLink>
   );
 }
