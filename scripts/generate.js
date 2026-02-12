@@ -447,9 +447,16 @@ function splitGenerated(text) {
 // Extract <title>, <description>, <keywords> from SEO block (best-effort)
 // ----------------------------------------------------------------------------
 function cleanTagValue(s) {
-  return String(s || "")
-    .replace(/<\/?(title|description|keywords)>\s*/gi, "")
-    .trim();
+  return (
+    String(s || "")
+      // remove any <title>...</title> wrappers AND stray closing/opening tags
+      .replace(/<\/?\s*title\s*>/gi, "")
+      .replace(/<\/?\s*description\s*>/gi, "")
+      .replace(/<\/?\s*keywords\s*>/gi, "")
+      // also strip any remaining angle-bracket tags just in case
+      .replace(/<[^>]*>/g, "")
+      .trim()
+  );
 }
 
 function grab(block, tag) {
