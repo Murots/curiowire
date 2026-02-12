@@ -18,15 +18,44 @@ const categoryColors = {
   mystery: "#00d6d6", // cyan med litt demping
 };
 
+// export const Card = styled.article`
+//   position: relative;
+//   width: 100%;
+//   display: flex;
+//   flex-direction: column;
+
+//   height: 100%;
+
+//   /* feed grid */
+//   grid-column: ${({ $wide }) => ($wide ? "span 12" : "span 6")};
+
+//   border-radius: 6px;
+//   overflow: hidden;
+//   background: rgba(255, 255, 255, 0.55);
+//   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+
+//   cursor: pointer;
+//   transition:
+//     transform 0.25s ease,
+//     box-shadow 0.25s ease;
+
+//   &:hover {
+//     transform: translateY(-3px);
+//     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.1);
+//   }
+
+//   @media (max-width: 780px) {
+//     grid-column: span 12;
+//   }
+// `;
+
 export const Card = styled.article`
   position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;
-
   height: 100%;
 
-  /* feed grid */
   grid-column: ${({ $wide }) => ($wide ? "span 12" : "span 6")};
 
   border-radius: 6px;
@@ -34,7 +63,7 @@ export const Card = styled.article`
   background: rgba(255, 255, 255, 0.55);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
 
-  cursor: pointer;
+  /* cursor: pointer;  <-- valgfritt. Jeg ville fjernet når Link wrapper */
   transition:
     transform 0.25s ease,
     box-shadow 0.25s ease;
@@ -42,6 +71,12 @@ export const Card = styled.article`
   &:hover {
     transform: translateY(-3px);
     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ✅ keyboard focus (Link wrapper fokuseres -> focus-within her) */
+  &:focus-within {
+    outline: 2px solid rgba(149, 1, 14, 0.6);
+    outline-offset: 2px;
   }
 
   @media (max-width: 780px) {

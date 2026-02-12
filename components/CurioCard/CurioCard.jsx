@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Card,
   ImageWrapper,
@@ -22,17 +22,14 @@ import { cleanText } from "@/app/api/utils/cleanText";
 function extractSummaryWhatSSR(html) {
   const s = String(html || "");
   // Match: <span data-summary-what> ... </span>
-  // Allow attributes and whitespace/newlines
   const m = s.match(/<span[^>]*data-summary-what[^>]*>([\s\S]*?)<\/span>/i);
   if (!m) return "";
 
-  // Strip any nested tags inside the span + decode common entities lightly
   const raw = m[1]
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Optional: very small entity decode (avoid heavy libs)
   return raw
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
@@ -70,8 +67,6 @@ function formatDateUTC(dateInput) {
 }
 
 export default function CurioCard({ card, isTrending = false, onOpen }) {
-  const router = useRouter();
-
   const {
     id,
     category,
@@ -83,7 +78,6 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
   } = card;
 
   const isWide = Number(wow_score) >= 90;
-
   const href = `/article/${id}`;
 
   const formattedDate = useMemo(() => formatDateUTC(created_at), [created_at]);
@@ -93,56 +87,51 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
     [summary_normalized],
   );
 
-  const open = () => {
+  function handleOpen() {
     try {
       onOpen?.(Number(id));
     } catch {}
-    router.push(href, { scroll: false });
-  };
+  }
 
   return (
-    <Card
-      $wide={isWide}
-      role="link"
-      tabIndex={0}
-      onMouseEnter={() => router.prefetch(href)}
-      onClick={open}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          open();
-        }
-      }}
+    <Link
+      href={href}
+      scroll={false}
+      prefetch={true}
       aria-label={`Open: ${cleanText(title)}`}
+      onClick={handleOpen}
+      style={{ textDecoration: "none" }}
     >
-      <ImageWrapper>
-        {image_url ? (
-          <Image
-            src={`${image_url}?width=900&quality=70&format=webp`}
-            alt={cleanText(title)}
-            loading="lazy"
-            decoding="async"
-          />
-        ) : null}
+      <Card $wide={isWide} as="article">
+        <ImageWrapper>
+          {image_url ? (
+            <Image
+              src={`${image_url}?width=900&quality=70&format=webp`}
+              alt={cleanText(title)}
+              loading="lazy"
+              decoding="async"
+            />
+          ) : null}
 
-        {/* 🔥 trending icon (top-right) */}
-        {isTrending ? <FireBadge aria-label="Trending">🔥</FireBadge> : null}
+          {/* 🔥 trending icon (top-right) */}
+          {isTrending ? <FireBadge aria-label="Trending">🔥</FireBadge> : null}
 
-        {/* ✅ MetaRow over bildet, i bunn */}
-        <MetaRow>
-          <CategoryBadge $category={category}>{category}</CategoryBadge>
-          <span className="date">{formattedDate}</span>
-        </MetaRow>
-      </ImageWrapper>
+          {/* ✅ MetaRow over image, bottom aligned */}
+          <MetaRow>
+            <CategoryBadge $category={category}>{category}</CategoryBadge>
+            <span className="date">{formattedDate}</span>
+          </MetaRow>
+        </ImageWrapper>
 
-      <Content>
-        <Title>{cleanText(title)}</Title>
+        <Content>
+          <Title>{cleanText(title)}</Title>
 
-        {/* ✅ Bare "What"-delen som ingress, uten "What:" */}
-        {ingressText ? <Ingress>{ingressText}</Ingress> : null}
+          {/* ✅ Only the "What" part as ingress */}
+          {ingressText ? <Ingress>{ingressText}</Ingress> : null}
 
-        <ReadMore>Read more →</ReadMore>
-      </Content>
-    </Card>
+          <ReadMore>Read more →</ReadMore>
+        </Content>
+      </Card>
+    </Link>
   );
 }
