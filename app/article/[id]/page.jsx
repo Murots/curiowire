@@ -66,13 +66,12 @@ export async function generateMetadata({ params }) {
   const url = `${baseUrl}/article/${card.id}`;
 
   const hasHero = Boolean(card.image_url);
-  const imageUrl = hasHero ? card.image_url : `${baseUrl}/icon.png`;
+  const fallbackOg = `${baseUrl}/OGImage.png`;
+  const imageUrl = hasHero ? card.image_url : fallbackOg;
 
-  // ✅ Best-practice OG declared size:
-  // - Use 1200x630 for article hero images (standard share aspect).
-  // - Use 512x512 only for the logo fallback.
-  const ogWidth = hasHero ? 1200 : 512;
-  const ogHeight = hasHero ? 630 : 512;
+  // Always declare standard share size
+  const ogWidth = 1200;
+  const ogHeight = 630;
 
   const ogAlt = title;
 
@@ -141,9 +140,12 @@ export default async function ArticlePage({ params }) {
   const desc = cleanInlineText(card.seo_description || card.summary_normalized);
 
   const hasHero = Boolean(card.image_url);
-  const imageUrl = hasHero ? card.image_url : `${baseUrl}/icon.png`;
-  const imgWidth = hasHero ? 1200 : 512;
-  const imgHeight = hasHero ? 630 : 512;
+  const fallbackOg = `${baseUrl}/OGImage.png`;
+  const imageUrl = hasHero ? card.image_url : fallbackOg;
+
+  // Declare standard share size
+  const imgWidth = 1200;
+  const imgHeight = 630;
 
   // ✅ Structured data: NewsArticle + dateModified + WebPage/@id
   // Added ImageObject width/height for consistency.

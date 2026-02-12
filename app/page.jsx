@@ -29,7 +29,7 @@ export async function generateMetadata() {
   const description =
     "Fresh, short curiosities in science, history, nature, technology and more — published daily";
 
-  const image = `${baseUrl}/icon.png`;
+  const image = `${baseUrl}/OGImage.png`;
 
   return {
     title: { absolute: absoluteTitle },
@@ -61,9 +61,9 @@ export async function generateMetadata() {
       images: [
         {
           url: image,
-          width: 512,
-          height: 512,
-          alt: "CurioWire Logo",
+          width: 1200,
+          height: 630,
+          alt: "CurioWire",
         },
       ],
     },
