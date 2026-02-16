@@ -144,6 +144,13 @@ export default function ArticleModalClient({ card }) {
 
   const close = useCallback(() => {
     router.replace(nav.returnHref || "/", { scroll: false });
+
+    // ✅ router.replace doesn't trigger popstate — tell feed to restore
+    try {
+      setTimeout(() => {
+        window.dispatchEvent(new Event("cw:restore-scroll"));
+      }, 0);
+    } catch {}
   }, [router, nav.returnHref]);
 
   const goPrev = useCallback(() => {

@@ -92,6 +92,11 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
 
   const handleOpen = () => {
     try {
+      // ✅ Save feed scroll before opening modal/article route
+      sessionStorage.setItem("cw_scroll_y", String(window.scrollY || 0));
+    } catch {}
+
+    try {
       onOpen?.(Number(id));
     } catch {}
   };

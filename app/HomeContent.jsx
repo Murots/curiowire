@@ -136,6 +136,27 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const [trendingList, setTrendingList] = useState([]); // for "trending" sort
   const [trendingLoading, setTrendingLoading] = useState(false);
 
+  // ✅ Restore scroll helper (used when closing modal / back nav)
+  function restoreFeedScroll() {
+    try {
+      const raw = sessionStorage.getItem("cw_scroll_y");
+      if (!raw) return;
+
+      const y = Number(raw);
+      if (!Number.isFinite(y) || y < 0) return;
+
+      // remove first so it doesn't re-trigger
+      sessionStorage.removeItem("cw_scroll_y");
+
+      // wait 1–2 frames so layout is ready
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, y);
+        });
+      });
+    } catch {}
+  }
+
   function setQuery(next) {
     // Build next query based on current
     const merged = {
@@ -172,9 +193,21 @@ export default function HomeContent({ initialCards, initialQuery }) {
     } catch {}
   }
 
-  // mark hydrated after first client paint
+  // ✅ mark hydrated after first client paint + hook up restore-scroll event
   useEffect(() => {
     setHydrated(true);
+
+    // restore scroll if we have it
+    restoreFeedScroll();
+
+    // router.replace doesn't trigger popstate — modal close dispatches this
+    const onRestore = () => restoreFeedScroll();
+    window.addEventListener("cw:restore-scroll", onRestore);
+
+    return () => {
+      window.removeEventListener("cw:restore-scroll", onRestore);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ✅ sync query from URL on mount + on back/forward navigation
@@ -186,6 +219,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
         q: initialQuery?.q,
       });
       setQueryState(next);
+
+      // if we're coming back via back/forward, restore scroll too
+      restoreFeedScroll();
     }
 
     syncFromUrl();
