@@ -66,8 +66,11 @@ export async function GET() {
 
     return new NextResponse(xml, {
       headers: {
-        "Content-Type": "application/xml",
+        // Sitemap is XML; include charset for safety
+        "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+        // Optional but safe: prevents sitemap itself from being treated as a "search result page"
+        "X-Robots-Tag": "noindex",
       },
     });
   } catch (err) {

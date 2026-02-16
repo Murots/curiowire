@@ -7,10 +7,16 @@ import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 );
 
-const BASE_URL = "https://curiowire.com";
+// 🔒 Force canonical non-www base URL (matches your domain setup)
+const rawBase = process.env.NEXT_PUBLIC_BASE_URL?.startsWith("http")
+  ? process.env.NEXT_PUBLIC_BASE_URL
+  : "https://curiowire.com";
+
+// Remove www + trailing slash
+const BASE_URL = rawBase.replace("://www.", "://").replace(/\/$/, "");
 
 function stripHtml(html = "") {
   return String(html || "")
@@ -46,7 +52,7 @@ export async function GET() {
     const { data: cards, error } = await supabase
       .from("curiosity_cards")
       .select(
-        "id, category, title, seo_title, seo_description, summary_normalized, card_text, created_at, image_url"
+        "id, category, title, seo_title, seo_description, summary_normalized, card_text, created_at, image_url",
       )
       .eq("status", "published")
       .order("created_at", { ascending: false })
@@ -104,13 +110,15 @@ export async function GET() {
       headers: {
         "Content-Type": "application/rss+xml; charset=utf-8",
         "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
+        // RSS should not be indexed as a "page" in Google
+        "X-Robots-Tag": "noindex",
       },
     });
   } catch (err) {
     console.error("❌ RSS generation failed:", err?.message || err);
     return NextResponse.json(
       { error: "Failed to generate RSS" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
