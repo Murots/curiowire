@@ -322,11 +322,15 @@ export const NavBar = styled.div`
   justify-content: space-between;
   align-items: center;
 
-  padding: 8px 16px 21px 16px;
+  padding: 8px 16px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(255, 255, 255, 0.98);
 
   backdrop-filter: blur(6px);
+
+  @media (max-width: 900px) {
+    padding: 8px 16px 30px 8px;
+  }
 `;
 
 export const NavButton = styled.button`
