@@ -801,7 +801,17 @@ async function run() {
               }`
             : null);
 
-        if (img.source === "DALL·E") {
+        // ✅ Force credit for DALL·E when attribution is missing
+        const src = String(img.source || img.provider || "").toUpperCase();
+        if (
+          !image_credit &&
+          (src === "DALL·E" || src === "DALLE" || src === "DALL-E")
+        ) {
+          image_credit = "Image source: DALL·E (AI-generated)";
+          image_source = "DALL·E";
+        }
+
+        if (src === "DALL·E" || src === "DALLE" || src === "DALL-E") {
           image_prompt = img.prompt || null;
         }
       }
