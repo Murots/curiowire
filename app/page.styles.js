@@ -114,12 +114,14 @@ export const Grid = styled.div`
 `;
 
 export const LoadMore = styled.button`
-  display: inline-flex;
+  display: flex; /* ⬅️ bytt fra inline-flex */
   align-items: center;
   justify-content: center;
   gap: 10px;
 
-  margin: 22px auto 0;
+  width: fit-content; /* ⬅️ gjør at den blir “så bred som innholdet” */
+  margin: 22px auto 0; /* ⬅️ auto på sidene = midtstilt */
+
   padding: 12px 18px;
   border-radius: 12px;
 
