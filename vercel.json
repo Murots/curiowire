@@ -4,6 +4,12 @@
       "source": "/ads.txt",
       "destination": "https://srv.adstxtmanager.com/80066/curiowire.com",
       "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.curiowire.com" }],
+      "destination": "https://curiowire.com/$1",
+      "permanent": true
     }
   ],
   "headers": [
