@@ -215,7 +215,7 @@ export default function ArticleView({
             </RelatedTitle>
             <Divider />
             <RelatedGrid>
-              {relatedArticles.map((a) => (
+              {relatedArticles.slice(0, 3).map((a) => (
                 <RelatedCard
                   key={a.id}
                   href={`/article/${a.id}`}

@@ -140,7 +140,7 @@ export default function ArticlePageClient({ card }) {
           .eq("category", cat)
           .neq("id", id)
           .order("created_at", { ascending: false })
-          .limit(6);
+          .limit(3); // ✅ max 3 cards
 
         if (!alive) return;
         if (!error) setRelatedArticles(Array.isArray(data) ? data : []);
