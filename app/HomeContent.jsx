@@ -223,6 +223,43 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const [loading, setLoading] = useState(false);
 
   // ----------------------------
+  // ✅ NEW: Sync local query state when SSR props change (fixes mobile Header push)
+  // ----------------------------
+  useEffect(() => {
+    const next = {
+      category: normalizeCategory(initialQuery?.category),
+      sort: normalizeSort(initialQuery?.sort),
+      q: normalizeQ(initialQuery?.q),
+    };
+
+    if (sameQuery(query, next)) return;
+
+    // Treat as a “real” query change coming from navigation (Header router.push)
+    restoredRef.current = false;
+
+    // Reset paging (same behavior as when changing via UI)
+    setPage(1);
+
+    // Clear cached feed state to avoid restoring wrong list after a header-driven nav
+    try {
+      sessionStorage.removeItem(FEED_STATE_KEY);
+      sessionStorage.removeItem(SCROLL_KEY);
+    } catch {}
+
+    setQueryState(next);
+
+    // Keep SSR cards in sync as well (category/search changes SSR list; trending SSR is newest)
+    setCards(dedupeById(initialCards || []));
+    setHasMore((initialCards || []).length === PAGE_SIZE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    initialQuery?.category,
+    initialQuery?.sort,
+    initialQuery?.q,
+    initialCards,
+  ]);
+
+  // ----------------------------
   // Query setter
   // ----------------------------
   const setQuery = useCallback(

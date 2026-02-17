@@ -85,6 +85,13 @@ function HeaderInner() {
     });
 
     const qs = params.toString();
+
+    // ✅ Drop cached feed/scroll state når header endrer query (samme som HomeContent)
+    try {
+      sessionStorage.removeItem("cw_feed_state_v1");
+      sessionStorage.removeItem("cw_scroll_y");
+    } catch {}
+
     router.push(qs ? `/?${qs}` : `/`, { scroll: false });
   }
 
