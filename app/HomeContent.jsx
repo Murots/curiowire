@@ -26,6 +26,7 @@ import {
 const PAGE_SIZE = 30;
 const TRENDING_LIMIT = 10;
 const TRENDING_REFRESH_MS = 60 * 60 * 1000; // 1 hour
+const RANDOM_LIMIT = 10;
 
 const FEED_STATE_KEY = "cw_feed_state_v1";
 const SCROLL_KEY = "cw_scroll_y";
@@ -43,6 +44,7 @@ function escapeLike(s) {
 function normalizeSort(input) {
   const v = String(input || "newest").toLowerCase();
   if (v === "trending") return "trending";
+  if (v === "random") return "random";
   if (v === "wow") return "wow";
   return "newest";
 }
@@ -212,6 +214,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const [trendingList, setTrendingList] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
 
+  // ✅ Random state
+  const [randomLoading, setRandomLoading] = useState(false);
+
   // ✅ Feed state
   // Start med SSR, men prøv å hente cached state hvis det matcher query i URL
   const restoredRef = useRef(false);
@@ -223,7 +228,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const [loading, setLoading] = useState(false);
 
   // ----------------------------
-  // ✅ NEW: Sync local query state when SSR props change (fixes mobile Header push)
+  // ✅ Sync local query state when SSR props change (fixes mobile Header push)
   // ----------------------------
   useEffect(() => {
     const next = {
@@ -248,7 +253,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
     setQueryState(next);
 
-    // Keep SSR cards in sync as well (category/search changes SSR list; trending SSR is newest)
+    // Keep SSR cards in sync as well (category/search changes SSR list; trending/random SSR is newest)
     setCards(dedupeById(initialCards || []));
     setHasMore((initialCards || []).length === PAGE_SIZE);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -467,7 +472,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
       };
     }
 
-    if (sortQ === "trending") {
+    if (sortQ === "trending" || sortQ === "random") {
       return () => {
         alive = false;
       };
@@ -576,10 +581,64 @@ export default function HomeContent({ initialCards, initialQuery }) {
   }, [sortQ, categoryQ, q, trendingList, trendingLoading]);
 
   // ----------------------------
+  // RANDOM mode (RPC -> 10 random rows)
+  // ----------------------------
+  useEffect(() => {
+    if (sortQ !== "random") return;
+
+    let alive = true;
+
+    async function loadRandom() {
+      setRandomLoading(true);
+      setDidInit(false);
+
+      try {
+        const catArg = categoryQ && categoryQ !== "all" ? categoryQ : null;
+
+        const { data, error } = await supabase.rpc("get_random_curiosities", {
+          cat: catArg,
+          lim: RANDOM_LIMIT,
+        });
+
+        if (!alive) return;
+
+        if (!error) {
+          setCards(dedupeById(data || []));
+          setHasMore(false);
+        } else {
+          setCards([]);
+          setHasMore(false);
+        }
+      } catch {
+        if (!alive) return;
+        setCards([]);
+        setHasMore(false);
+      } finally {
+        if (!alive) return;
+        setRandomLoading(false);
+        setDidInit(true);
+        restoredRef.current = false;
+      }
+    }
+
+    loadRandom();
+
+    return () => {
+      alive = false;
+    };
+  }, [sortQ, categoryQ]);
+
+  // ----------------------------
   // Empty / Loading states
   // ----------------------------
   const isTrendingMode = sortQ === "trending";
-  const isCurrentlyLoading = isTrendingMode ? trendingLoading : loading;
+  const isRandomMode = sortQ === "random";
+
+  const isCurrentlyLoading = isTrendingMode
+    ? trendingLoading
+    : isRandomMode
+      ? randomLoading
+      : loading;
 
   if (!didInit) {
     return <Loader>Loading curiosities…</Loader>;
@@ -593,12 +652,14 @@ export default function HomeContent({ initialCards, initialQuery }) {
       <Loader>
         {isTrendingMode
           ? "Loading trending curiosities…"
-          : "Loading curiosities…"}
+          : isRandomMode
+            ? "Loading random curiosities…"
+            : "Loading curiosities…"}
       </Loader>
     );
   }
 
-  // ✅ NEW: Empty message/hint computed but DO NOT early-return (keep TopBar visible)
+  // ✅ Empty message/hint computed but DO NOT early-return (keep TopBar visible)
   const isEmpty = !cards || cards.length === 0;
 
   const hasSearch = !!q;
@@ -610,7 +671,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
       ? `No curiosities found in “${categoryQ}” yet.`
       : isTrendingMode
         ? "No trending curiosities right now."
-        : "No curiosities found.";
+        : isRandomMode
+          ? "No random curiosities right now."
+          : "No curiosities found.";
 
   const emptyHint =
     hasSearch || hasCategory
@@ -646,6 +709,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
           >
             <option value="newest">Newest</option>
             <option value="trending">Trending</option>
+            <option value="random">Random</option>
           </Select>
         </Controls>
       </TopBar>
@@ -667,7 +731,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
         </Grid>
       )}
 
-      {!isEmpty && hasMore && !isTrendingMode && (
+      {!isEmpty && hasMore && !isTrendingMode && !isRandomMode && (
         <LoadMore onClick={() => setPage((p) => p + 1)} disabled={loading}>
           {loading ? "Loading…" : "Load more"}
         </LoadMore>

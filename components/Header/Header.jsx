@@ -216,6 +216,7 @@ function HeaderInner() {
               >
                 <option value="newest">Newest</option>
                 <option value="trending">Trending</option>
+                <option value="random">Random</option>
               </MobileSelect>
             </MobileRow>
           </MobilePanel>

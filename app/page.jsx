@@ -80,6 +80,7 @@ export async function generateMetadata() {
 function normalizeSort(input) {
   const v = String(input || "newest").toLowerCase();
   if (v === "trending") return "trending";
+  if (v === "random") return "random";
   if (v === "wow") return "wow";
   return "newest";
 }
