@@ -12,8 +12,12 @@ on:
         required: true
         default: "kling"
   schedule:
-    # 🎬 Videos: twice per day (00:05 and 12:05 UTC)
-    - cron: "5 0,12 * * *"
+    # 🎬 Videos: twice per day (01:05 and 13:05 UTC)
+    - cron: "5 1,13 * * *"
+
+  # schedule:
+  #   # 🎬 Videos: twice per day (00:05 and 12:05 UTC) - tidligere klokkeslett
+  #   - cron: "5 0,12 * * *"
 
 concurrency:
   group: curiowire-video-only
