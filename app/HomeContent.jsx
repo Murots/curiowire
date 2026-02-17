@@ -598,29 +598,24 @@ export default function HomeContent({ initialCards, initialQuery }) {
     );
   }
 
-  if (!cards || cards.length === 0) {
-    const hasSearch = !!q;
-    const hasCategory = categoryQ !== "all";
+  // ✅ NEW: Empty message/hint computed but DO NOT early-return (keep TopBar visible)
+  const isEmpty = !cards || cards.length === 0;
 
-    const message = hasSearch
-      ? `No curiosities matched “${q}”.`
-      : hasCategory
-        ? `No curiosities found in “${categoryQ}” yet.`
-        : isTrendingMode
-          ? "No trending curiosities right now."
-          : "No curiosities found.";
+  const hasSearch = !!q;
+  const hasCategory = categoryQ !== "all";
 
-    const hint =
-      hasSearch || hasCategory
-        ? "Try a different category, remove filters, or broaden your search."
-        : "Check back soon — new stories are published daily.";
+  const emptyMessage = hasSearch
+    ? `No curiosities matched “${q}”.`
+    : hasCategory
+      ? `No curiosities found in “${categoryQ}” yet.`
+      : isTrendingMode
+        ? "No trending curiosities right now."
+        : "No curiosities found.";
 
-    return (
-      <Loader>
-        {message} <span style={{ opacity: 0.7 }}>{hint}</span>
-      </Loader>
-    );
-  }
+  const emptyHint =
+    hasSearch || hasCategory
+      ? "Try a different category, remove filters, or broaden your search."
+      : "Check back soon — new stories are published daily.";
 
   // ----------------------------
   // Render
@@ -655,18 +650,24 @@ export default function HomeContent({ initialCards, initialQuery }) {
         </Controls>
       </TopBar>
 
-      <Grid>
-        {cards.map((c) => (
-          <CurioCard
-            key={c.id}
-            card={c}
-            isTrending={hydrated && trendingIds.has(Number(c.id))}
-            onOpen={rememberFeedContext}
-          />
-        ))}
-      </Grid>
+      {isEmpty ? (
+        <Loader>
+          {emptyMessage} <span style={{ opacity: 0.7 }}>{emptyHint}</span>
+        </Loader>
+      ) : (
+        <Grid>
+          {cards.map((c) => (
+            <CurioCard
+              key={c.id}
+              card={c}
+              isTrending={hydrated && trendingIds.has(Number(c.id))}
+              onOpen={rememberFeedContext}
+            />
+          ))}
+        </Grid>
+      )}
 
-      {hasMore && !isTrendingMode && (
+      {!isEmpty && hasMore && !isTrendingMode && (
         <LoadMore onClick={() => setPage((p) => p + 1)} disabled={loading}>
           {loading ? "Loading…" : "Load more"}
         </LoadMore>
