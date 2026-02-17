@@ -48,7 +48,7 @@ GLOBAL RULES
 - Do NOT include any claim or fact that is demonstrably false.
 - If information is uncertain/contested/legendary, say it plainly and fast: "allegedly", "claimed", "unconfirmed", "no definitive proof".
 - Include time marker and/or place marker and/or names if available, natural and fitting. 
-- Do NOT end with “next time you…” (or any variation telling the reader what to do next time).
+- The ending/final paragraph must NOT tell the reader what to do “next time” (avoid “next time you” / “so, next time you” / “so next time you” / “so, the next time you” / “so the next time you” and variations).
 
 GLOBAL FORMAT RULES (STRICT)
 - Return ONLY the required sections. No extra text.

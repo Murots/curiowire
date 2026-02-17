@@ -34,6 +34,7 @@ ${safe(fun_fact)}
 
 YOUR TASK
 - Fix ONLY: awkward phrasing, grammar, spelling, punctuation, clarity, and flow.
+- If the LAST paragraph ends with “next time you” / “so, next time you” / “so next time you” / “so, the next time you” / “so the next time you” (any casing/punctuation), rephrase that sentence to remove this framing while keeping the same meaning and claims and without adding new facts.
 - Keep the SAME meaning, SAME claims, SAME uncertainty markers (allegedly/claimed/unconfirmed/no definitive proof).
 - Do NOT add new facts, numbers, dates, names, locations, or explanations.
 - Do NOT remove claims either. If a sentence is unclear, rewrite it minimally.
