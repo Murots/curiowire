@@ -120,7 +120,7 @@ function HeaderInner() {
       <Inner>
         <Logo>
           <Link href="/" aria-label="CurioWire home">
-            <img src="/logo.svg" alt="CurioWire" />
+            <img src="/logo.svg" alt="CurioWire" width="140" height="32" />
           </Link>
         </Logo>
 
@@ -235,7 +235,7 @@ export default function Header() {
           <Inner>
             <Logo>
               <Link href="/" aria-label="CurioWire home">
-                <img src="/logo.svg" alt="CurioWire" />
+                <img src="/logo.svg" alt="CurioWire" width="140" height="32" />
               </Link>
             </Logo>
           </Inner>

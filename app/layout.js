@@ -1,3 +1,115 @@
+// // app/layout.js
+// import { Suspense } from "react";
+// import Script from "next/script";
+// import ThemeRegistry from "./ThemeRegistry";
+// import Header from "../components/Header/Header";
+// import Footer from "../components/Footer/Footer";
+// import AnalyticsTracker from "../components/Analytics/AnalyticsTracker";
+// import EzoicScripts from "../components/EzoicScripts";
+
+// export const runtime = "nodejs";
+
+// // ✅ Next.js 16: themeColor must live in `viewport`, not `metadata.other`
+// export const viewport = {
+//   themeColor: "#95010e",
+//   colorScheme: "light",
+// };
+
+// export const metadata = {
+//   metadataBase: new URL("https://curiowire.com"),
+//   title: {
+//     default: "CurioWire",
+//     template: "%s — CurioWire",
+//   },
+//   description:
+//     "A living feed of AI-generated curiosities across science, history, nature, technology and more — updated daily.",
+//   alternates: {
+//     canonical: "https://curiowire.com",
+//     types: {
+//       "application/rss+xml": "https://curiowire.com/api/rss",
+//     },
+//   },
+//   icons: {
+//     icon: [
+//       { url: "/favicon.svg", type: "image/svg+xml" },
+//       { url: "/favicon.ico", type: "image/x-icon" },
+//     ],
+//     apple: [{ url: "/apple-icon.png" }],
+//   },
+
+//   // ✅ Default OG/Twitter image (used for homepage + any page that doesn't override)
+//   openGraph: {
+//     type: "website",
+//     siteName: "CurioWire",
+//     url: "https://curiowire.com",
+//     title: "CurioWire",
+//     description:
+//       "A living feed of AI-generated curiosities across science, history, nature, technology and more — updated daily.",
+//     images: [
+//       {
+//         url: "/OGImage.png",
+//         width: 1200,
+//         height: 630,
+//         alt: "CurioWire",
+//       },
+//     ],
+//   },
+
+//   twitter: {
+//     card: "summary_large_image",
+//     title: "CurioWire",
+//     description:
+//       "A living feed of AI-generated curiosities across science, history, nature, technology and more — updated daily.",
+//     images: ["/OGImage.png"],
+//   },
+// };
+
+// const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+// const isProd = process.env.NODE_ENV === "production";
+
+// export default function RootLayout({ children, modal }) {
+//   return (
+//     <html lang="en">
+//       <body>
+//         {/* Ezoic/CMP: only in production (avoid localhost console noise) */}
+//         {isProd ? <EzoicScripts /> : null}
+
+//         {/* GA: ok in layout body */}
+//         {GA_ID ? (
+//           <>
+//             <Script
+//               src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+//               strategy="afterInteractive"
+//             />
+//             <Script id="ga-init" strategy="afterInteractive">
+//               {`
+//                 window.dataLayer = window.dataLayer || [];
+//                 function gtag(){dataLayer.push(arguments);}
+//                 gtag('js', new Date());
+//                 gtag('config', '${GA_ID}', { anonymize_ip: true });
+//               `}
+//             </Script>
+//           </>
+//         ) : null}
+
+//         <ThemeRegistry>
+//           <Header />
+//           <main>{children}</main>
+
+//           {/* Modal-slot */}
+//           {modal}
+
+//           <Footer />
+//         </ThemeRegistry>
+
+//         <Suspense fallback={null}>
+//           <AnalyticsTracker GA_ID={GA_ID} />
+//         </Suspense>
+//       </body>
+//     </html>
+//   );
+// }
+
 // app/layout.js
 import { Suspense } from "react";
 import Script from "next/script";
@@ -7,74 +119,42 @@ import Footer from "../components/Footer/Footer";
 import AnalyticsTracker from "../components/Analytics/AnalyticsTracker";
 import EzoicScripts from "../components/EzoicScripts";
 
+// ✅ ADD:
+import { Inter, Playfair_Display } from "next/font/google";
+
 export const runtime = "nodejs";
 
-// ✅ Next.js 16: themeColor must live in `viewport`, not `metadata.other`
 export const viewport = {
   themeColor: "#95010e",
   colorScheme: "light",
 };
 
 export const metadata = {
-  metadataBase: new URL("https://curiowire.com"),
-  title: {
-    default: "CurioWire",
-    template: "%s — CurioWire",
-  },
-  description:
-    "A living feed of AI-generated curiosities across science, history, nature, technology and more — updated daily.",
-  alternates: {
-    canonical: "https://curiowire.com",
-    types: {
-      "application/rss+xml": "https://curiowire.com/api/rss",
-    },
-  },
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico", type: "image/x-icon" },
-    ],
-    apple: [{ url: "/apple-icon.png" }],
-  },
-
-  // ✅ Default OG/Twitter image (used for homepage + any page that doesn't override)
-  openGraph: {
-    type: "website",
-    siteName: "CurioWire",
-    url: "https://curiowire.com",
-    title: "CurioWire",
-    description:
-      "A living feed of AI-generated curiosities across science, history, nature, technology and more — updated daily.",
-    images: [
-      {
-        url: "/OGImage.png",
-        width: 1200,
-        height: 630,
-        alt: "CurioWire",
-      },
-    ],
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title: "CurioWire",
-    description:
-      "A living feed of AI-generated curiosities across science, history, nature, technology and more — updated daily.",
-    images: ["/OGImage.png"],
-  },
+  /* ... uendret ... */
 };
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 const isProd = process.env.NODE_ENV === "production";
 
+// ✅ ADD: Next fonts with CSS variables (best med styled-components)
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-playfair",
+});
+
 export default function RootLayout({ children, modal }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
-        {/* Ezoic/CMP: only in production (avoid localhost console noise) */}
         {isProd ? <EzoicScripts /> : null}
 
-        {/* GA: ok in layout body */}
         {GA_ID ? (
           <>
             <Script
@@ -95,10 +175,7 @@ export default function RootLayout({ children, modal }) {
         <ThemeRegistry>
           <Header />
           <main>{children}</main>
-
-          {/* Modal-slot */}
           {modal}
-
           <Footer />
         </ThemeRegistry>
 
