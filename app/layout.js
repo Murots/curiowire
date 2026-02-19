@@ -153,7 +153,7 @@ export default function RootLayout({ children, modal }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
-        {isProd ? <EzoicScripts /> : null}
+        {/* {isProd ? <EzoicScripts /> : null} */}
 
         {GA_ID ? (
           <>
