@@ -113,7 +113,20 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
         <ImageWrapper>
           {image_url ? (
             <Image
-              src={`${image_url}?width=900&quality=70&format=webp`}
+              src={`${image_url}?width=650&quality=70&format=webp`}
+              srcSet={[
+                `${image_url}?width=420&quality=70&format=webp 420w`,
+                `${image_url}?width=650&quality=70&format=webp 650w`,
+                `${image_url}?width=900&quality=70&format=webp 900w`,
+                `${image_url}?width=1200&quality=70&format=webp 1200w`,
+              ].join(", ")}
+              sizes={
+                isWide
+                  ? "(max-width: 780px) 100vw, 100vw"
+                  : "(max-width: 780px) 100vw, 50vw"
+              }
+              width={650}
+              height={406} // 16/10 ratio
               alt={cleanText(title)}
               loading="lazy"
               decoding="async"

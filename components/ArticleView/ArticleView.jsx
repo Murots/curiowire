@@ -182,11 +182,21 @@ export default function ArticleView({
       {card.image_url ? (
         <>
           <Image
-            src={`${card.image_url}?width=1400&quality=80&format=webp`}
+            src={`${card.image_url}?width=1200&quality=78&format=webp`}
+            srcSet={[
+              `${card.image_url}?width=800&quality=78&format=webp 800w`,
+              `${card.image_url}?width=1200&quality=78&format=webp 1200w`,
+              `${card.image_url}?width=1600&quality=78&format=webp 1600w`,
+            ].join(", ")}
+            sizes="(max-width: 980px) 100vw, 980px"
+            width={1200}
+            height={675} // 16/9
             alt={cleanText(card.title)}
-            loading={variant === "modal" ? "eager" : "eager"}
+            loading="eager"
+            fetchPriority="high"
             decoding="async"
           />
+
           {creditText ? <Credit>Image by {creditText}</Credit> : null}
         </>
       ) : null}
@@ -228,9 +238,13 @@ export default function ArticleView({
                     <>
                       <RelatedImage
                         src={`${a.image_url}?width=400&quality=70&format=webp`}
+                        width={400}
+                        height={225} // 16/9
                         alt={cleanText(a.title)}
                         loading="lazy"
+                        decoding="async"
                       />
+
                       <RelatedImageOverlay />
                     </>
                   ) : null}
