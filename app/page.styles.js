@@ -106,7 +106,7 @@ export const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 16px;
-  // grid-auto-flow: dense;
+  grid-auto-flow: dense;
 
   @media (max-width: 780px) {
     gap: 12px;
