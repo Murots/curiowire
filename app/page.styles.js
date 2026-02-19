@@ -5,7 +5,7 @@ export const Wrapper = styled.div`
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 18px 0 70px;
+  padding: 18px 0 0;
   color: var(--color-text);
 `;
 
@@ -176,4 +176,68 @@ export const Divider = styled.div`
   border-radius: 3px;
   margin: 5px 0 0;
   background: ${({ theme }) => theme.colors.accent};
+`;
+
+export const SeoNote = styled.section`
+  &&& {
+    margin: 80px auto 0;
+    max-width: 900px;
+
+    background: ${({ theme }) => theme.colors.bgAlt};
+    border-left: 4px solid rgba(0, 0, 0, 0.18);
+    border-radius: 10px;
+
+    padding: 18px 22px;
+
+    font-family:
+      Inter,
+      system-ui,
+      -apple-system,
+      Segoe UI,
+      Roboto,
+      Arial,
+      sans-serif;
+
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--color-muted);
+
+    opacity: 0.9;
+  }
+
+  /* Sørger for at global p, span, a osv ikke overstyrer */
+  &&& p,
+  &&& span,
+  &&& a,
+  &&& strong {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  &&& p {
+    margin: 0;
+  }
+
+  @media (max-width: 780px) {
+    &&& {
+      margin-top: 60px;
+      padding: 16px 18px;
+      font-size: 0.7rem;
+    }
+  }
+`;
+
+export const SeoNoteTitle = styled.strong`
+  &&& {
+    display: block;
+    margin-bottom: 8px;
+
+    font-family: "Playfair Display", serif;
+    font-size: 0.95rem !important; /* ✅ slår “inherit” */
+    line-height: 1.25 !important; /* ✅ slår “inherit” */
+    font-weight: 600;
+
+    color: ${({ theme }) => theme.colors.text};
+    opacity: 0.75;
+  }
 `;

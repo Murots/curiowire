@@ -21,6 +21,8 @@ import {
   LoadMore,
   Loader,
   Divider,
+  SeoNote,
+  SeoNoteTitle,
 } from "./page.styles";
 
 const PAGE_SIZE = 30;
@@ -687,7 +689,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
     <Wrapper>
       <TopBar>
         <div>
-          <Title>All about it!</Title>
+          <Title>Curiosities!</Title>
           <Divider />
         </div>
 
@@ -736,6 +738,16 @@ export default function HomeContent({ initialCards, initialQuery }) {
           {loading ? "Loading…" : "Load more"}
         </LoadMore>
       )}
+      <SeoNote>
+        <SeoNoteTitle>Read all about it!</SeoNoteTitle>
+        <p>
+          CurioWire publishes fresh curiosities from science, history, nature,
+          technology, space, culture and more. Each day we share short,
+          fascinating stories, unusual discoveries and remarkable facts from
+          around the world. Explore daily curiosities and discover something
+          new.
+        </p>
+      </SeoNote>
     </Wrapper>
   );
 }
