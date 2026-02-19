@@ -65,9 +65,7 @@ export async function generateMetadata({ params }) {
 
   const url = `${baseUrl}/article/${card.id}`;
 
-  const hasHero = Boolean(card.image_url);
-  const fallbackOg = `${baseUrl}/OGImage.png`;
-  const imageUrl = hasHero ? card.image_url : fallbackOg;
+  const imageUrl = `${baseUrl}/OGImage.png`;
 
   // Always declare standard share size
   const ogWidth = 1200;
@@ -139,9 +137,7 @@ export default async function ArticlePage({ params }) {
   const headline = cleanInlineText(card.seo_title || card.title);
   const desc = cleanInlineText(card.seo_description || card.summary_normalized);
 
-  const hasHero = Boolean(card.image_url);
-  const fallbackOg = `${baseUrl}/OGImage.png`;
-  const imageUrl = hasHero ? card.image_url : fallbackOg;
+  const imageUrl = `${baseUrl}/OGImage.png`;
 
   // Declare standard share size
   const imgWidth = 1200;
