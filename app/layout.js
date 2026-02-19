@@ -117,7 +117,7 @@ import ThemeRegistry from "./ThemeRegistry";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import AnalyticsTracker from "../components/Analytics/AnalyticsTracker";
-import EzoicScripts from "../components/EzoicScripts";
+// import EzoicScripts from "../components/EzoicScripts";
 
 // ✅ ADD:
 import { Inter, Playfair_Display } from "next/font/google";
