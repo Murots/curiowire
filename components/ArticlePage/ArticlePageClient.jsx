@@ -1,7 +1,7 @@
 // components/ArticlePage/ArticlePageClient.jsx
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import ArticleView from "@/components/ArticleView/ArticleView";
@@ -67,13 +67,17 @@ export default function ArticlePageClient({ card }) {
 
       const cat = String(ctx?.category || "");
       const sort = String(ctx?.sort || "");
+      const q = String(ctx?.q || ""); // optional if you later store q in ctx
+
+      // ✅ Clean path-based return URL (matches your new SEO URL structure)
+      const basePath = cat && cat !== "all" ? `/${cat}` : `/`;
 
       const params = new URLSearchParams();
-      if (cat && cat !== "all") params.set("category", cat);
       if (sort && sort !== "newest") params.set("sort", sort);
+      if (q) params.set("q", q);
 
       const qs = params.toString();
-      const ret = qs ? `/?${qs}` : "/";
+      const ret = qs ? `${basePath}?${qs}` : basePath;
 
       setNav({
         prevId: prev,

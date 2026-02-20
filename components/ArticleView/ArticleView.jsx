@@ -162,6 +162,12 @@ export default function ArticleView({
 
   const showRelated = (relatedArticles || []).length > 0;
 
+  // ✅ Important: don't let the modal "pollute" the feed page's head/perf.
+  // Page variant can keep eager/high; modal should be normal/lazy.
+  const isPage = variant === "page";
+  const heroLoading = isPage ? "eager" : "lazy";
+  const heroFetchPriority = isPage ? "high" : "auto";
+
   return (
     <Swap $soft={false} data-variant={variant} key={card.id}>
       <ModalHeader>
@@ -192,8 +198,8 @@ export default function ArticleView({
             width={1200}
             height={675} // 16/9
             alt={cleanText(card.title)}
-            loading="eager"
-            fetchPriority="high"
+            loading={heroLoading}
+            fetchPriority={heroFetchPriority}
             decoding="async"
           />
 

@@ -1,39 +1,12 @@
 // components/ArticleModal/ArticleModalClient.jsx
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Overlay, Modal, Close, CloseWrap } from "./ArticleModal.styles";
 
 import ArticleView from "@/components/ArticleView/ArticleView";
-
-// -------------------------------------------------------------
-// Category intro (old vibe)
-// -------------------------------------------------------------
-function getCategoryIntro(category) {
-  const intros = {
-    science: "🧪 Echoes from the lab",
-    technology: "⚙️ Traces from the dawn of innovation",
-    space: "🚀 Whispers from the silent cosmos",
-    nature: "🌿 Stories carved by wind and water",
-    health: "🫀 Secrets of the human vessel",
-    history: "🏺 Recovered from the dusty archives",
-    culture: "🎭 Fragments from the heart of civilization",
-    sports: "🏆 Legends born in the arena",
-    products: "🛍️ Artifacts of human ingenuity",
-    world: "🌍 Records from the halls of power",
-    crime: "🕯️ Notes from the casefile",
-    mystery: "🧩 Fragments from the unknown",
-  };
-  return intros[String(category || "").toLowerCase()] || "— Hot off the wire";
-}
 
 export default function ArticleModalClient({ card }) {
   const router = useRouter();
@@ -106,6 +79,7 @@ export default function ArticleModalClient({ card }) {
       }
 
       const ctx = JSON.parse(raw);
+
       const ids = Array.isArray(ctx?.ids)
         ? ctx.ids.map(Number).filter(Boolean)
         : [];
@@ -118,13 +92,17 @@ export default function ArticleModalClient({ card }) {
 
       const cat = String(ctx?.category || "");
       const sort = String(ctx?.sort || "");
+      const q = String(ctx?.q || ""); // optional if you later store q in ctx
+
+      // ✅ Clean path-based return URL (matches your SEO URL structure)
+      const basePath = cat && cat !== "all" ? `/${cat}` : `/`;
 
       const params = new URLSearchParams();
-      if (cat && cat !== "all") params.set("category", cat);
       if (sort && sort !== "newest") params.set("sort", sort);
+      if (q) params.set("q", q);
 
       const qs = params.toString();
-      const ret = qs ? `/?${qs}` : "/";
+      const ret = qs ? `${basePath}?${qs}` : basePath;
 
       setNav({
         prevId: prev,

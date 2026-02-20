@@ -22,6 +22,23 @@ import {
   CloseMobile,
 } from "./Header.styles";
 
+// Keep category list in one place (same as elsewhere)
+const CATEGORIES = [
+  "all",
+  "science",
+  "technology",
+  "space",
+  "nature",
+  "health",
+  "history",
+  "culture",
+  "sports",
+  "products",
+  "world",
+  "crime",
+  "mystery",
+];
+
 function HeaderInner() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -30,11 +47,31 @@ function HeaderInner() {
   const isArticleRoute =
     typeof pathname === "string" && pathname.startsWith("/article/");
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // ------------------------------------------------------------
+  // ✅ Read current state from URL:
+  // - category comes from PATH (/science), not querystring
+  // - sort/q come from querystring (?sort=trending&q=foo)
+  // ------------------------------------------------------------
   const q = sp.get("q") || "";
-  const categoryQ = sp.get("category") || "all";
   const sortQ = sp.get("sort") || "newest";
 
-  const [menuOpen, setMenuOpen] = useState(false);
+  const pathCategory = useMemo(() => {
+    try {
+      const path = String(pathname || "/")
+        .replace(/\/+$/, "")
+        .toLowerCase();
+
+      if (path === "" || path === "/") return "all";
+      const seg = path.split("/").filter(Boolean)[0] || "";
+      return CATEGORIES.includes(seg) && seg !== "all" ? seg : "all";
+    } catch {
+      return "all";
+    }
+  }, [pathname]);
+
+  const categoryQ = pathCategory;
 
   // local input state (so typing doesn't instantly thrash URL)
   const [searchVal, setSearchVal] = useState(q);
@@ -49,41 +86,38 @@ function HeaderInner() {
     if (isArticleRoute) setMenuOpen(false);
   }, [isArticleRoute]);
 
-  const categories = useMemo(
-    () => [
-      "all",
-      "science",
-      "technology",
-      "space",
-      "nature",
-      "health",
-      "history",
-      "culture",
-      "sports",
-      "products",
-      "world",
-      "crime",
-      "mystery",
-    ],
-    [],
-  );
+  const categories = useMemo(() => CATEGORIES, []);
 
   function setQuery(next) {
+    // Build from current querystring
     const params = new URLSearchParams(sp.toString());
 
-    Object.entries(next).forEach(([k, v]) => {
-      if (
-        v === null ||
-        v === undefined ||
-        v === "" ||
-        (k === "category" && v === "all")
-      ) {
+    // Apply changes
+    Object.entries(next || {}).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === "") {
         params.delete(k);
+      } else if (k === "category") {
+        // category handled separately (path), not in querystring
+        // ignore here
       } else {
         params.set(k, v);
       }
     });
 
+    // Decide category (path) target
+    const nextCatRaw =
+      next && Object.prototype.hasOwnProperty.call(next, "category")
+        ? String(next.category || "all")
+        : categoryQ;
+
+    const nextCat =
+      nextCatRaw && categories.includes(nextCatRaw) ? nextCatRaw : "all";
+
+    // Ensure category never leaks into querystring
+    params.delete("category");
+
+    // Build target URL
+    const basePath = nextCat !== "all" ? `/${nextCat}` : `/`;
     const qs = params.toString();
 
     // ✅ Drop cached feed/scroll state når header endrer query (samme som HomeContent)
@@ -92,23 +126,23 @@ function HeaderInner() {
       sessionStorage.removeItem("cw_scroll_y");
     } catch {}
 
-    router.push(qs ? `/?${qs}` : `/`, { scroll: false });
+    router.push(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
   }
 
   // debounce URL update for search
   useEffect(() => {
     // ✅ Don't auto-navigate away from article pages on mount/hydration
-    if (pathname !== "/") return;
+    if (isArticleRoute) return;
 
     const t = setTimeout(() => {
       const cleaned = String(searchVal || "").trim();
-
-      // If empty: remove q
-      setQuery({ q: cleaned }); // empty string => setQuery deletes q
+      // empty string => deletes q
+      setQuery({ q: cleaned });
     }, 260);
 
     return () => clearTimeout(t);
-  }, [searchVal, pathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchVal, isArticleRoute]);
 
   const clearSearch = () => {
     setSearchVal("");

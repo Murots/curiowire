@@ -98,6 +98,15 @@ export async function generateMetadata({ params, searchParams }) {
 
   const label = category.charAt(0).toUpperCase() + category.slice(1);
 
+  // ✅ Index only the "clean" category feed page:
+  //    /technology
+  // NOT:
+  //    /technology?sort=trending
+  //    /technology?sort=random
+  //    /technology?q=foo
+  const isCleanCategory = !q && sortQ === "newest";
+
+  // Title/description can still reflect user state, even if noindex for variants
   const title = `CurioWire — ${label} curiosities`;
   const description = q
     ? `Search results in ${label} on CurioWire for “${q}”.`
@@ -105,7 +114,9 @@ export async function generateMetadata({ params, searchParams }) {
       ? `Trending ${label.toLowerCase()} curiosities on CurioWire.`
       : sortQ === "random"
         ? `Random ${label.toLowerCase()} curiosities on CurioWire.`
-        : `Fresh, short ${category} curiosities — published daily.`;
+        : sortQ === "wow"
+          ? `Top-rated ${label.toLowerCase()} curiosities on CurioWire.`
+          : `Fresh, short ${category} curiosities — published daily.`;
 
   // ✅ Canonical: keep category canonical clean (no params)
   const canonical = `${baseUrl}/${category}`;
@@ -118,10 +129,10 @@ export async function generateMetadata({ params, searchParams }) {
     alternates: { canonical },
 
     robots: {
-      index: true,
+      index: isCleanCategory,
       follow: true,
       googleBot: {
-        index: true,
+        index: isCleanCategory,
         follow: true,
         "max-image-preview": "large",
         "max-snippet": -1,
@@ -197,37 +208,24 @@ export default async function CategoryFeedPage({ params, searchParams }) {
 
   const list = Array.isArray(cards) ? cards : [];
 
-  const webSiteData = {
+  const label = category.charAt(0).toUpperCase() + category.slice(1);
+
+  // ✅ Category feed page schema (more correct than WebSite on category pages)
+  // Keep it feed-like: CollectionPage + ItemList
+  const collectionPageData = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "CurioWire",
-    url: baseUrl,
+    "@type": "CollectionPage",
+    name: `${label} curiosities | CurioWire`,
+    url: `${baseUrl}/${category}`,
     inLanguage: "en",
-    description:
-      "Fresh, short curiosities in science, history, nature, technology and more — published daily",
-    publisher: {
-      "@type": "Organization",
-      name: "CurioWire",
-      url: baseUrl,
-      logo: {
-        "@type": "ImageObject",
-        url: `${baseUrl}/icon.png`,
-        width: 512,
-        height: 512,
-      },
-    },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${baseUrl}/?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
+    description: `Latest ${category} curiosities on CurioWire.`,
   };
 
   const itemListData = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     inLanguage: "en",
-    name: `CurioWire Feed — ${category}`,
+    name: `CurioWire Feed — ${label}`,
     description: `Latest ${category} curiosities on CurioWire.`,
     numberOfItems: list.length,
     itemListElement: list.map((a, index) => {
@@ -246,11 +244,11 @@ export default async function CategoryFeedPage({ params, searchParams }) {
   return (
     <>
       <Script
-        id={`structured-data-feed-${category}`}
+        id={`structured-data-category-${category}`}
         type="application/ld+json"
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([webSiteData, itemListData]),
+          __html: JSON.stringify([collectionPageData, itemListData]),
         }}
       />
 

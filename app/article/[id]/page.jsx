@@ -65,7 +65,11 @@ export async function generateMetadata({ params }) {
 
   const url = `${baseUrl}/article/${card.id}`;
 
-  const imageUrl = `${baseUrl}/OGImage.png`;
+  // ✅ Prefer the article hero image when present (better SEO + better shares)
+  // Fallback to OGImage.png if no card image.
+  const imageUrl = card.image_url
+    ? `${card.image_url}?width=1200&quality=78&format=webp`
+    : `${baseUrl}/OGImage.png`;
 
   // Always declare standard share size
   const ogWidth = 1200;
@@ -137,13 +141,16 @@ export default async function ArticlePage({ params }) {
   const headline = cleanInlineText(card.seo_title || card.title);
   const desc = cleanInlineText(card.seo_description || card.summary_normalized);
 
-  const imageUrl = `${baseUrl}/OGImage.png`;
+  // ✅ Prefer real hero image for schema too
+  const imageUrl = card.image_url
+    ? `${card.image_url}?width=1200&quality=78&format=webp`
+    : `${baseUrl}/OGImage.png`;
 
-  // Declare standard share size
+  // Declare standard share size (you can adjust if your hero isn't 1200x630)
   const imgWidth = 1200;
   const imgHeight = 630;
 
-  // ✅ Structured data: NewsArticle + dateModified + WebPage/@id
+  // ✅ Structured data: Article (or BlogPosting) + dateModified + WebPage/@id
   // Added ImageObject width/height for consistency.
   const articleJsonLd = {
     "@context": "https://schema.org",
@@ -182,7 +189,7 @@ export default async function ArticlePage({ params }) {
       },
     },
     inLanguage: "en",
-    articleSection: card.category || "curiosities",
+    articleSection: String(card.category || "curiosities"),
   };
 
   return (
