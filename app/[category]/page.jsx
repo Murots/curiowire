@@ -120,11 +120,15 @@ export async function generateMetadata({ params, searchParams }) {
 
   // ✅ Canonical: keep category canonical clean (no params)
   const canonical = `${baseUrl}/${category}`;
-  const image = `${baseUrl}/OGImage.png`;
+
+  // ✅ Use local PNG for shares on ALL pages
+  const image = `${baseUrl}/OMImage.png`;
 
   return {
     title: { absolute: title },
     description,
+
+    applicationName: "CurioWire",
 
     alternates: { canonical },
 
@@ -154,7 +158,12 @@ export async function generateMetadata({ params, searchParams }) {
       card: "summary_large_image",
       title,
       description,
-      images: [image],
+      images: [
+        {
+          url: image,
+          alt: "CurioWire",
+        },
+      ],
     },
   };
 }
@@ -212,30 +221,42 @@ export default async function CategoryFeedPage({ params, searchParams }) {
 
   // ✅ Category feed page schema (more correct than WebSite on category pages)
   // Keep it feed-like: CollectionPage + ItemList
+  const collectionUrl = `${baseUrl}/${category}`;
+
+  const webSiteId = `${baseUrl}/#website`;
+
   const collectionPageData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
+    "@id": `${collectionUrl}#collection`,
     name: `${label} curiosities | CurioWire`,
-    url: `${baseUrl}/${category}`,
+    url: collectionUrl,
     inLanguage: "en",
     description: `Latest ${category} curiosities on CurioWire.`,
+    isPartOf: { "@id": webSiteId },
   };
 
   const itemListData = {
     "@context": "https://schema.org",
     "@type": "ItemList",
+    "@id": `${collectionUrl}#itemlist`,
     inLanguage: "en",
     name: `CurioWire Feed — ${label}`,
     description: `Latest ${category} curiosities on CurioWire.`,
     numberOfItems: list.length,
     itemListElement: list.map((a, index) => {
       const safeName = cleanInlineText(a?.seo_title || a?.title);
+
+      const img = String(a?.image_url || "").trim();
+      const image =
+        img && /^https?:\/\//i.test(img) ? img : `${baseUrl}/icon.png`;
+
       return {
         "@type": "ListItem",
         position: index + 1,
         url: `${baseUrl}/article/${a.id}`,
         name: safeName || "CurioWire curiosity",
-        image: a?.image_url || `${baseUrl}/icon.png`,
+        image,
         datePublished: a?.created_at,
       };
     }),
