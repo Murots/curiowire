@@ -45,6 +45,25 @@ const playfair = Playfair_Display({
 export default function RootLayout({ children, modal }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+      <head>
+        {/* ✅ Force these into <head> (guaranteed) */}
+        <link
+          rel="preconnect"
+          href="https://qshftfehnecovxxgldsc.supabase.co"
+          crossOrigin=""
+        />
+        <link
+          rel="dns-prefetch"
+          href="https://qshftfehnecovxxgldsc.supabase.co"
+        />
+
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+
+        <link rel="preconnect" href="https://www.google-analytics.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+      </head>
+
       <body>
         {/* {isProd ? <EzoicScripts /> : null} */}
 
