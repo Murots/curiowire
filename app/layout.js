@@ -2,6 +2,7 @@
 import "./globals.css";
 
 import { Suspense } from "react";
+import Script from "next/script";
 
 import StyledComponentsRegistry from "./StyledComponentsRegistry";
 import ThemeRegistry from "./ThemeRegistry";
@@ -45,7 +46,24 @@ export default function RootLayout({ children, modal }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
-        {/* ✅ Analytics scripts (gtag/preconnect) are handled in app/head.jsx now */}
+        {/* ✅ GA scripts should live in body (afterInteractive) */}
+        {GA_ID ? (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}', { anonymize_ip: true });
+              `}
+            </Script>
+          </>
+        ) : null}
+
         {/* {isProd ? <EzoicScripts /> : null} */}
 
         <StyledComponentsRegistry>

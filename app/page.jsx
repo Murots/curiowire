@@ -83,6 +83,9 @@ export async function generateMetadata() {
     title: { absolute: title },
     description,
 
+    // ✅ small extra polish (adds meta name="application-name")
+    applicationName: "CurioWire",
+
     alternates: { canonical: url },
 
     robots: {
@@ -242,11 +245,11 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <>
-      {/* ✅ JSON-LD: keep in head, early */}
+      {/* ✅ Less head pressure: afterInteractive (no practical SEO downside) */}
       <Script
         id="structured-data-home"
         type="application/ld+json"
-        strategy="beforeInteractive"
+        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(allStructuredData),
         }}
