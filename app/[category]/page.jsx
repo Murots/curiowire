@@ -1,7 +1,6 @@
 // app/[category]/page.jsx
 import HomeContent from "../HomeContent";
 import { supabaseServer } from "@/lib/supabaseServer";
-import Script from "next/script";
 import { notFound } from "next/navigation";
 
 const PAGE_SIZE = 30;
@@ -104,6 +103,7 @@ export async function generateMetadata({ params, searchParams }) {
   //    /technology?sort=trending
   //    /technology?sort=random
   //    /technology?q=foo
+  // (wow treated as variant too)
   const isCleanCategory = !q && sortQ === "newest";
 
   // Title/description can still reflect user state, even if noindex for variants
@@ -120,6 +120,8 @@ export async function generateMetadata({ params, searchParams }) {
 
   // ✅ Canonical: keep category canonical clean (no params)
   const canonical = `${baseUrl}/${category}`;
+
+  // ✅ Keep standard OG image (stable share image)
   const image = `${baseUrl}/OGImage.png`;
 
   return {
@@ -210,8 +212,7 @@ export default async function CategoryFeedPage({ params, searchParams }) {
 
   const label = category.charAt(0).toUpperCase() + category.slice(1);
 
-  // ✅ Category feed page schema (more correct than WebSite on category pages)
-  // Keep it feed-like: CollectionPage + ItemList
+  // ✅ Category feed page schema (feed-like): CollectionPage + ItemList
   const collectionPageData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -243,10 +244,10 @@ export default async function CategoryFeedPage({ params, searchParams }) {
 
   return (
     <>
-      <Script
+      {/* ✅ JSON-LD as plain script (avoids "sticky head" issues with next/script + parallel routes) */}
+      <script
         id={`structured-data-category-${category}`}
         type="application/ld+json"
-        strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify([collectionPageData, itemListData]),
         }}

@@ -1,7 +1,6 @@
 // app/article/[id]/page.jsx
 import { supabaseServer } from "@/lib/supabaseServer";
 import ArticlePageClient from "@/components/ArticlePage/ArticlePageClient";
-import Script from "next/script";
 import { notFound } from "next/navigation";
 
 export const revalidate = 900;
@@ -20,7 +19,6 @@ async function getId(params) {
 async function fetchCard(id) {
   const sb = supabaseServer();
 
-  // Normalize id (your IDs are numeric elsewhere)
   const numericId = Number(id);
   if (!Number.isFinite(numericId) || numericId <= 0) return null;
 
@@ -46,6 +44,7 @@ function cleanInlineText(s) {
 
 export async function generateMetadata({ params }) {
   const baseUrl = "https://curiowire.com";
+
   const id = await getId(params);
   if (!id) return {};
 
@@ -65,16 +64,11 @@ export async function generateMetadata({ params }) {
 
   const url = `${baseUrl}/article/${card.id}`;
 
-  // ✅ Prefer the article hero image when present (better SEO + better shares)
-  // Fallback to OGImage.png if no card image.
-  const imageUrl = card.image_url
-    ? `${card.image_url}?width=1200&quality=78&format=webp`
-    : `${baseUrl}/OGImage.png`;
+  // ✅ ALWAYS use the static OG image (stable share previews)
+  const imageUrl = `${baseUrl}/OGImage.png`;
 
-  // Always declare standard share size
   const ogWidth = 1200;
   const ogHeight = 630;
-
   const ogAlt = title;
 
   return {
@@ -141,17 +135,11 @@ export default async function ArticlePage({ params }) {
   const headline = cleanInlineText(card.seo_title || card.title);
   const desc = cleanInlineText(card.seo_description || card.summary_normalized);
 
-  // ✅ Prefer real hero image for schema too
-  const imageUrl = card.image_url
-    ? `${card.image_url}?width=1200&quality=78&format=webp`
-    : `${baseUrl}/OGImage.png`;
-
-  // Declare standard share size (you can adjust if your hero isn't 1200x630)
+  // ✅ Keep schema image consistent with OG image (stable + predictable)
+  const imageUrl = `${baseUrl}/OGImage.png`;
   const imgWidth = 1200;
   const imgHeight = 630;
 
-  // ✅ Structured data: Article (or BlogPosting) + dateModified + WebPage/@id
-  // Added ImageObject width/height for consistency.
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -194,12 +182,12 @@ export default async function ArticlePage({ params }) {
 
   return (
     <>
-      <Script
-        id={`structured-data-article-${card.id}`}
+      {/* ✅ Use a plain script tag so it is reliably removed on navigation */}
+      <script
         type="application/ld+json"
-        strategy="beforeInteractive"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
       />
+
       <ArticlePageClient card={card} />
     </>
   );

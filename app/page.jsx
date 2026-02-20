@@ -1,7 +1,6 @@
 // app/page.jsx
 import HomeContent from "./HomeContent";
 import { supabase } from "@/lib/supabaseClient";
-import Script from "next/script";
 
 const PAGE_SIZE = 30;
 
@@ -210,13 +209,10 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <>
-      <Script
-        id="structured-data-home"
+      {/* ✅ Plain script tag => reliably removed on navigation (no sticky head JSON-LD) */}
+      <script
         type="application/ld+json"
-        strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(allStructuredData),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(allStructuredData) }}
       />
 
       {/* ✅ SSR feed first, then client continues */}
