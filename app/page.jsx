@@ -7,10 +7,15 @@ const PAGE_SIZE = 30;
 
 export const revalidate = 900; // 15 min
 
-// ✅ Next.js 16: themeColor must be in `viewport` (not metadata)
+// ✅ Next.js 16+: themeColor should live in viewport
 export const viewport = {
   themeColor: "#95010e",
+  colorScheme: "light",
 };
+
+// --------------------
+// Utils
+// --------------------
 
 // Minimal HTML strip + safety clean for titles used in JSON-LD / metadata
 function cleanInlineText(s) {
@@ -19,63 +24,6 @@ function cleanInlineText(s) {
     .replace(/<[^>]*>/g, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-export async function generateMetadata() {
-  const baseUrl = "https://curiowire.com";
-
-  const absoluteTitle = "CurioWire — All about curiosities";
-
-  const description =
-    "Fresh, short curiosities in science, history, nature, technology and more — published daily";
-
-  const image = `${baseUrl}/OGImage.png`;
-
-  return {
-    title: { absolute: absoluteTitle },
-    description,
-
-    alternates: {
-      canonical: baseUrl,
-    },
-
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-        "max-video-preview": -1,
-      },
-    },
-
-    openGraph: {
-      type: "website",
-      locale: "en_US",
-      title: absoluteTitle,
-      description,
-      url: baseUrl,
-      siteName: "CurioWire",
-      images: [
-        {
-          url: image,
-          width: 1200,
-          height: 630,
-          alt: "CurioWire",
-        },
-      ],
-    },
-
-    // ✅ ufarlig å ha selv om du ikke “bruker twitter”
-    twitter: {
-      card: "summary_large_image",
-      title: absoluteTitle,
-      description,
-      images: [image],
-    },
-  };
 }
 
 function normalizeSort(input) {
@@ -109,6 +57,78 @@ function getSP(sp, key) {
   }
 }
 
+// Escape single quotes for PostgREST "or(...)" filter strings
+function escapePostgrestOrLike(s) {
+  return String(s || "").replace(/'/g, "''");
+}
+
+// --------------------
+// ✅ SEO metadata (Home)
+// - Uses LOCAL PNG OM image (per your requirement)
+// - No twitter account needed; no twitter:site
+// - Canonical is absolute and stable
+// --------------------
+export async function generateMetadata() {
+  const baseUrl = "https://curiowire.com";
+  const url = `${baseUrl}/`;
+
+  const title = "CurioWire — All about curiosities";
+  const description =
+    "Fresh, short curiosities in science, history, nature, technology and more — published daily";
+
+  // ✅ Use local PNG for shares on ALL pages
+  const omImageUrl = `${baseUrl}/OMImage.png`;
+
+  return {
+    title: { absolute: title },
+    description,
+
+    alternates: { canonical: url },
+
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
+
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      title,
+      description,
+      url,
+      siteName: "CurioWire",
+      images: [
+        {
+          url: omImageUrl,
+          width: 1200,
+          height: 630,
+          alt: "CurioWire",
+        },
+      ],
+    },
+
+    // ✅ Harmless even without a Twitter account; helps link previews on X
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [
+        {
+          url: omImageUrl,
+          alt: "CurioWire",
+        },
+      ],
+    },
+  };
+}
+
 export default async function HomePage({ searchParams }) {
   const baseUrl = "https://curiowire.com";
 
@@ -130,8 +150,7 @@ export default async function HomePage({ searchParams }) {
   const q = normalizeQ(getSP(spResolved, "q"));
 
   // We SSR "newest" and "wow" with DB ordering.
-  // "trending" is computed client-side (via /api/trending), but we still SSR a
-  // reasonable feed (newest), and the client will replace it when trending loads.
+  // "trending" and "random" are client modes, but we still SSR a reasonable feed.
   const ssrSort = sortQ === "wow" ? "wow" : "newest";
 
   let qy = supabase
@@ -141,11 +160,9 @@ export default async function HomePage({ searchParams }) {
     )
     .eq("status", "published");
 
-  // Optional SSR search (keeps SEO coherent for search result URLs too)
+  // Optional SSR search (keeps SEO coherent for /?q=... URLs too)
   if (q) {
-    // Note: PostgREST "or" filter string. Keep it tight (no spaces).
-    // Escape single quotes to avoid breaking the filter string.
-    const safeQ = q.replace(/'/g, "''");
+    const safeQ = escapePostgrestOrLike(q);
     qy = qy.or(`title.ilike.%${safeQ}%,summary_normalized.ilike.%${safeQ}%`);
   }
 
@@ -160,9 +177,16 @@ export default async function HomePage({ searchParams }) {
 
   const list = Array.isArray(cards) ? cards : [];
 
+  // --------------------
+  // ✅ Structured data (Home)
+  // - Keep WebSite + ItemList
+  // - Add @id for stability
+  // - Ensure ItemList images are absolute URLs
+  // --------------------
   const webSiteData = {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": `${baseUrl}/#website`,
     name: "CurioWire",
     url: baseUrl,
     inLanguage: "en",
@@ -170,6 +194,7 @@ export default async function HomePage({ searchParams }) {
       "Fresh, short curiosities in science, history, nature, technology and more — published daily",
     publisher: {
       "@type": "Organization",
+      "@id": `${baseUrl}/#organization`,
       name: "CurioWire",
       url: baseUrl,
       logo: {
@@ -189,18 +214,25 @@ export default async function HomePage({ searchParams }) {
   const itemListData = {
     "@context": "https://schema.org",
     "@type": "ItemList",
+    "@id": `${baseUrl}/#feed`,
     inLanguage: "en",
     name: "CurioWire Feed",
     description: "Latest curiosities on CurioWire.",
     numberOfItems: list.length,
     itemListElement: list.map((a, index) => {
       const safeName = cleanInlineText(a?.seo_title || a?.title);
+      const img = String(a?.image_url || "").trim();
+
+      // ✅ Make image absolute; fallback to site icon
+      const image =
+        img && /^https?:\/\//i.test(img) ? img : `${baseUrl}/icon.png`;
+
       return {
         "@type": "ListItem",
         position: index + 1,
         url: `${baseUrl}/article/${a.id}`,
         name: safeName || "CurioWire curiosity",
-        image: a?.image_url || `${baseUrl}/icon.png`,
+        image,
         datePublished: a?.created_at,
       };
     }),
@@ -210,6 +242,7 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <>
+      {/* ✅ JSON-LD: keep in head, early */}
       <Script
         id="structured-data-home"
         type="application/ld+json"
