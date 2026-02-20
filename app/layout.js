@@ -46,13 +46,17 @@ export default function RootLayout({ children, modal }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
-        {/* ✅ GA scripts should live in body (afterInteractive) */}
+        {/* {isProd ? <EzoicScripts /> : null} */}
+
+        {/* ✅ Use plain async script for gtag loader to avoid Next injecting <link rel="preload"> */}
         {GA_ID ? (
           <>
-            <Script
+            <script
+              async
               src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-              strategy="afterInteractive"
             />
+
+            {/* ✅ Keep init in next/script (runs afterInteractive) */}
             <Script id="ga-init" strategy="afterInteractive">
               {`
                 window.dataLayer = window.dataLayer || [];
@@ -64,8 +68,6 @@ export default function RootLayout({ children, modal }) {
           </>
         ) : null}
 
-        {/* {isProd ? <EzoicScripts /> : null} */}
-
         <StyledComponentsRegistry>
           <ThemeRegistry>
             <Header />
@@ -75,7 +77,6 @@ export default function RootLayout({ children, modal }) {
           </ThemeRegistry>
         </StyledComponentsRegistry>
 
-        {/* ✅ Keep tracker at the end of body */}
         <Suspense fallback={null}>
           <AnalyticsTracker GA_ID={GA_ID} />
         </Suspense>
