@@ -77,15 +77,46 @@ function normalizeQ(input) {
     .slice(0, 120);
 }
 
+function readCategoryFromPathname() {
+  try {
+    const path = String(window.location.pathname || "/")
+      .replace(/\/+$/, "") // trim trailing slash
+      .toLowerCase();
+
+    // "/" -> no category
+    if (path === "" || path === "/") return null;
+
+    // "/science" -> "science"
+    const seg = path.split("/").filter(Boolean)[0] || null;
+
+    // Only accept allowed categories (reuse your normalizeCategory)
+    const cat = normalizeCategory(seg);
+
+    // normalizeCategory returns "all" if unknown -> treat as null
+    if (!cat || cat === "all") return null;
+
+    return cat;
+  } catch {
+    return null;
+  }
+}
+
 // Read query from URL on the client (no useSearchParams => avoids CSR bailout)
 function readQueryFromLocation(fallback) {
   try {
     const sp = new URLSearchParams(window.location.search);
-    const category = normalizeCategory(
-      sp.get("category") || fallback?.category,
-    );
+
+    // ✅ 1) category from clean path first (/science)
+    const pathCat = readCategoryFromPathname();
+
+    // ✅ 2) then fallback to querystring (?category=science)
+    const qsCat = normalizeCategory(sp.get("category") || fallback?.category);
+
+    const category = pathCat || qsCat;
+
     const sort = normalizeSort(sp.get("sort") || fallback?.sort);
     const q = normalizeQ(sp.get("q") ?? fallback?.q ?? "");
+
     return { category, sort, q };
   } catch {
     return {
@@ -172,6 +203,9 @@ function restoreFeedScroll() {
 export default function HomeContent({ initialCards, initialQuery }) {
   const router = useRouter();
 
+  // ✅ used to avoid "double load" when we navigate to /category (SSR should win)
+  const navPendingRef = useRef(false);
+
   const categories = useMemo(
     () => [
       "all",
@@ -232,6 +266,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
   // ----------------------------
   // ✅ Sync local query state when SSR props change (fixes mobile Header push)
   // ----------------------------
+  // ----------------------------
+  // ✅ Sync local query state when SSR props change (fixes double-loading)
+  // ----------------------------
   useEffect(() => {
     const next = {
       category: normalizeCategory(initialQuery?.category),
@@ -239,25 +276,34 @@ export default function HomeContent({ initialCards, initialQuery }) {
       q: normalizeQ(initialQuery?.q),
     };
 
-    if (sameQuery(query, next)) return;
+    // Hvis ingen endring i query: bare si at nav er ferdig
+    if (sameQuery(query, next)) {
+      navPendingRef.current = false;
+      return;
+    }
 
-    // Treat as a “real” query change coming from navigation (Header router.push)
+    // query endret (SSR props endret)
     restoredRef.current = false;
-
-    // Reset paging (same behavior as when changing via UI)
     setPage(1);
 
-    // Clear cached feed state to avoid restoring wrong list after a header-driven nav
     try {
       sessionStorage.removeItem(FEED_STATE_KEY);
       sessionStorage.removeItem(SCROLL_KEY);
     } catch {}
 
-    setQueryState(next);
+    // ✅ Kun la SSR kort overskrive når sort faktisk er SSR-styrt
+    const ssrControlsCards = next.sort === "newest" || next.sort === "wow";
 
-    // Keep SSR cards in sync as well (category/search changes SSR list; trending/random SSR is newest)
-    setCards(dedupeById(initialCards || []));
-    setHasMore((initialCards || []).length === PAGE_SIZE);
+    if (ssrControlsCards) {
+      setCards(dedupeById(initialCards || []));
+      setHasMore((initialCards || []).length === PAGE_SIZE);
+      setDidInit(true);
+    } else {
+      setHasMore(false);
+    }
+
+    setQueryState(next);
+    navPendingRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     initialQuery?.category,
@@ -277,15 +323,48 @@ export default function HomeContent({ initialCards, initialQuery }) {
         q: normalizeQ(next?.q ?? q),
       };
 
-      const params = new URLSearchParams();
-      if (merged.category && merged.category !== "all")
-        params.set("category", merged.category);
-      if (merged.sort && merged.sort !== "newest")
-        params.set("sort", merged.sort);
-      if (merged.q) params.set("q", merged.q);
+      const isSimpleCategory =
+        merged.category &&
+        merged.category !== "all" &&
+        merged.sort === "newest" &&
+        !merged.q;
 
-      const qs = params.toString();
-      router.push(qs ? `/?${qs}` : `/`, { scroll: false });
+      const isDefaultHome =
+        merged.category === "all" && merged.sort === "newest" && !merged.q;
+
+      // ✅ Immediately show loading while URL/state changes (prevents "flash" / double-feel)
+      setDidInit(false);
+
+      // ✅ mark that we're doing a route navigation; SSR should hydrate (prevents double-load)
+      navPendingRef.current = true;
+
+      if (isSimpleCategory) {
+        // ✅ Clean category URL
+        router.push(`/${merged.category}`, { scroll: false });
+      } else if (isDefaultHome) {
+        // ✅ Home
+        router.push(`/`, { scroll: false });
+      } else {
+        // ✅ Advanced state:
+        // Keep category in PATH when category != all:
+        //   /science?sort=trending
+        //   /science?q=foo
+        // Home stays:
+        //   /?sort=trending
+        //   /?q=foo
+        const basePath =
+          merged.category && merged.category !== "all"
+            ? `/${merged.category}`
+            : `/`;
+
+        const params = new URLSearchParams();
+        if (merged.sort && merged.sort !== "newest")
+          params.set("sort", merged.sort);
+        if (merged.q) params.set("q", merged.q);
+
+        const qs = params.toString();
+        router.push(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
+      }
 
       // Når query endrer seg, dropp cached feed-state for å unngå "feil restore"
       try {
@@ -295,7 +374,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
       restoredRef.current = false;
 
-      setQueryState(merged);
+      setQueryState((prev) => (sameQuery(prev, merged) ? prev : merged));
     },
     [router, categoryQ, sortQ, q],
   );
@@ -346,7 +425,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
       sort: initialQuery?.sort,
       q: initialQuery?.q,
     });
-    setQueryState(nextQuery);
+    setQueryState((prev) => (sameQuery(prev, nextQuery) ? prev : nextQuery));
 
     // Prøv å restore saved feed-state hvis den matcher query
     const saved = readSavedFeedState(nextQuery);
@@ -384,7 +463,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
         sort: initialQuery?.sort,
         q: initialQuery?.q,
       });
-      setQueryState(nextQuery);
+      setQueryState((prev) => (sameQuery(prev, nextQuery) ? prev : nextQuery));
 
       const saved = readSavedFeedState(nextQuery);
       if (saved) {
@@ -407,16 +486,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
   // Reset paging when filters change
   // ----------------------------
   useEffect(() => {
-    // Når filters endres via UI, vil vi starte på nytt
-    // (ikke når vi restore fra session)
     if (!restoredRef.current) {
-      setPage(1);
+      setPage((p) => (p === 1 ? p : 1));
     }
-
-    const isDefault =
-      categoryQ === "all" && sortQ === "newest" && !q && page === 1;
-    if (isDefault) setDidInit(true);
-    else setDidInit(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryQ, sortQ, q]);
 
@@ -459,6 +531,19 @@ export default function HomeContent({ initialCards, initialQuery }) {
   // ----------------------------
   useEffect(() => {
     let alive = true;
+
+    // ✅ Avoid "double-load" when we just navigated and SSR is about to hydrate
+    const isNavPendingBaseState = navPendingRef.current && page === 1 && !q;
+
+    if (
+      isNavPendingBaseState &&
+      (sortQ === "newest" || sortQ === "wow") &&
+      !restoredRef.current
+    ) {
+      return () => {
+        alive = false;
+      };
+    }
 
     const isDefault =
       categoryQ === "all" && sortQ === "newest" && page === 1 && !q;
@@ -536,6 +621,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
         // Når vi først har kjørt en “real” fetch, kan vi slippe restored-flagget
         restoredRef.current = false;
+
+        // ✅ after our own fetch, we're definitely not waiting for SSR nav
+        navPendingRef.current = false;
       }
     }
 
@@ -580,6 +668,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
     setHasMore(false);
 
     if (!trendingLoading) setDidInit(true);
+
+    // ✅ trending is client mode; no need to wait for SSR nav
+    navPendingRef.current = false;
   }, [sortQ, categoryQ, q, trendingList, trendingLoading]);
 
   // ----------------------------
@@ -620,6 +711,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
         setRandomLoading(false);
         setDidInit(true);
         restoredRef.current = false;
+
+        // ✅ random is client mode; no need to wait for SSR nav
+        navPendingRef.current = false;
       }
     }
 

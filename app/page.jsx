@@ -68,6 +68,7 @@ export async function generateMetadata() {
       ],
     },
 
+    // ✅ ufarlig å ha selv om du ikke “bruker twitter”
     twitter: {
       card: "summary_large_image",
       title: absoluteTitle,
@@ -83,26 +84,6 @@ function normalizeSort(input) {
   if (v === "random") return "random";
   if (v === "wow") return "wow";
   return "newest";
-}
-
-function normalizeCategory(input) {
-  const v = String(input || "all").toLowerCase();
-  const allowed = new Set([
-    "all",
-    "science",
-    "technology",
-    "space",
-    "nature",
-    "health",
-    "history",
-    "culture",
-    "sports",
-    "products",
-    "world",
-    "crime",
-    "mystery",
-  ]);
-  return allowed.has(v) ? v : "all";
 }
 
 function normalizeQ(input) {
@@ -139,7 +120,12 @@ export default async function HomePage({ searchParams }) {
     spResolved = null;
   }
 
-  const categoryQ = normalizeCategory(getSP(spResolved, "category"));
+  // ✅ IMPORTANT:
+  // Home route "/" should NOT be a category page.
+  // Category is represented by clean paths like "/science".
+  // Therefore we ignore searchParams.category here on purpose.
+  const categoryQ = "all";
+
   const sortQ = normalizeSort(getSP(spResolved, "sort"));
   const q = normalizeQ(getSP(spResolved, "q"));
 
@@ -154,8 +140,6 @@ export default async function HomePage({ searchParams }) {
       "id, category, title, summary_normalized, image_url, created_at, wow_score, seo_title, seo_description",
     )
     .eq("status", "published");
-
-  if (categoryQ !== "all") qy = qy.eq("category", categoryQ);
 
   // Optional SSR search (keeps SEO coherent for search result URLs too)
   if (q) {
@@ -239,7 +223,7 @@ export default async function HomePage({ searchParams }) {
       <HomeContent
         initialCards={list}
         initialQuery={{
-          category: categoryQ,
+          category: categoryQ, // always "all" on "/"
           sort: sortQ,
           q,
         }}
