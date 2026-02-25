@@ -35,8 +35,58 @@ const SCROLL_KEY = "cw_scroll_y";
 const RESTORE_EVENT = "cw:restore-scroll";
 
 // --------------------
+// Category copy (used for category pages + SEO text)
+// --------------------
+const CATEGORY_INTROS = {
+  science: "Echoes from the lab",
+  technology: "Traces from the dawn of innovation",
+  space: "Whispers from the silent cosmos",
+  nature: "Stories carved by wind and water",
+  health: "Secrets of the human vessel",
+  history: "Recovered from the dusty archives",
+  culture: "Fragments from the heart of civilization",
+  sports: "Legends born in the arena",
+  products: "Artifacts of human ingenuity",
+  world: "Records from the halls of power",
+  crime: "Notes from the casefile",
+  mystery: "Fragments from the unknown",
+};
+
+const CATEGORY_DESCRIPTIONS = {
+  science:
+    "Explore echoes from the lab — from surprising discoveries and cutting-edge research to strange natural phenomena that shape our world.",
+  technology:
+    "Discover traces from the dawn of innovation — breakthrough inventions, digital revolutions and the ideas shaping the future.",
+  space:
+    "Follow whispers from the silent cosmos — distant galaxies, black holes and the mysteries of the universe.",
+  nature:
+    "Uncover stories carved by wind and water — extraordinary wildlife, extreme environments and the hidden forces of nature.",
+  health:
+    "Learn the secrets of the human vessel — medical discoveries, human biology and the science behind how our bodies function.",
+  history:
+    "Step into stories recovered from the dusty archives — forgotten events, remarkable figures and strange moments from the past.",
+  culture:
+    "Explore fragments from the heart of civilization — traditions, art, customs and the stories that define societies.",
+  sports:
+    "Discover legends born in the arena — extraordinary achievements, unbelievable records and iconic sporting moments.",
+  products:
+    "Examine artifacts of human ingenuity — inventions, design breakthroughs and the unexpected origins of everyday objects.",
+  world:
+    "Read records from the halls of power — global events, political shifts and remarkable stories shaping our world.",
+  crime:
+    "Explore notes from the casefile — unusual cases, historical crimes and the darker side of human behavior.",
+  mystery:
+    "Uncover fragments from the unknown — unexplained phenomena, strange disappearances and enduring enigmas.",
+};
+
+// --------------------
 // Utils
 // --------------------
+function formatHeading(category) {
+  if (!category || category === "all") return "All curiosities";
+  return category.charAt(0).toUpperCase() + category.slice(1);
+}
+
 function escapeLike(s) {
   return String(s || "")
     .replace(/\\/g, "\\\\")
@@ -783,7 +833,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
     <Wrapper>
       <TopBar>
         <div>
-          <Title>Curiosities!</Title>
+          <Title>{formatHeading(categoryQ)}</Title>
           <Divider />
         </div>
 
@@ -810,6 +860,21 @@ export default function HomeContent({ initialCards, initialQuery }) {
         </Controls>
       </TopBar>
 
+      <SeoNote>
+        <SeoNoteTitle>
+          {categoryQ === "all"
+            ? "Read all about it!"
+            : `About ${formatHeading(categoryQ)}`}
+        </SeoNoteTitle>
+
+        <p>
+          {categoryQ === "all"
+            ? "CurioWire publishes fresh curiosities from science, history, nature, technology, space, culture and more. Each day we share short, fascinating stories, unusual discoveries and remarkable facts from around the world. Explore daily curiosities and discover something new."
+            : CATEGORY_DESCRIPTIONS[categoryQ] ||
+              "Explore fascinating curiosities published daily on CurioWire."}
+        </p>
+      </SeoNote>
+
       {isEmpty ? (
         <Loader>
           {emptyMessage} <span style={{ opacity: 0.7 }}>{emptyHint}</span>
@@ -832,16 +897,20 @@ export default function HomeContent({ initialCards, initialQuery }) {
           {loading ? "Loading…" : "Load more"}
         </LoadMore>
       )}
-      <SeoNote>
-        <SeoNoteTitle>Read all about it!</SeoNoteTitle>
+      {/* <SeoNote>
+        <SeoNoteTitle>
+          {categoryQ === "all"
+            ? "Read all about it!"
+            : `About ${formatHeading(categoryQ)}`}
+        </SeoNoteTitle>
+
         <p>
-          CurioWire publishes fresh curiosities from science, history, nature,
-          technology, space, culture and more. Each day we share short,
-          fascinating stories, unusual discoveries and remarkable facts from
-          around the world. Explore daily curiosities and discover something
-          new.
+          {categoryQ === "all"
+            ? "CurioWire publishes fresh curiosities from science, history, nature, technology, space, culture and more. Each day we share short, fascinating stories, unusual discoveries and remarkable facts from around the world. Explore daily curiosities and discover something new."
+            : CATEGORY_DESCRIPTIONS[categoryQ] ||
+              "Explore fascinating curiosities published daily on CurioWire."}
         </p>
-      </SeoNote>
+      </SeoNote> */}
     </Wrapper>
   );
 }

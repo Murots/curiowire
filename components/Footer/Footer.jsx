@@ -2,7 +2,22 @@
 
 import React from "react";
 import Link from "next/link";
-import { FooterWrapper, Copy, Links } from "./Footer.styles";
+import { FooterWrapper, Copy, Links, CategoryLinks } from "./Footer.styles";
+
+const CATEGORIES = [
+  "science",
+  "technology",
+  "space",
+  "nature",
+  "health",
+  "history",
+  "culture",
+  "sports",
+  "products",
+  "world",
+  "crime",
+  "mystery",
+];
 
 export default function Footer() {
   return (
@@ -10,6 +25,17 @@ export default function Footer() {
       <Copy>
         © {new Date().getFullYear()} CurioWire — From the digital wire.
       </Copy>
+
+      {/* ✅ Diskrete, crawlbare kategorilenker (SEO + sitelinks-sjanse) */}
+      <CategoryLinks aria-label="Explore categories">
+        <span>Explore:</span>
+        {CATEGORIES.map((c, i) => (
+          <React.Fragment key={c}>
+            <Link href={`/${c}`}>{c}</Link>
+            {i < CATEGORIES.length - 1 ? <span>·</span> : null}
+          </React.Fragment>
+        ))}
+      </CategoryLinks>
 
       <Links>
         <Link href="/about">About</Link>
@@ -24,7 +50,7 @@ export default function Footer() {
         <span>·</span>
         <Link href="/sitemap">Sitemap</Link>
         <span>·</span>
-        {/* 📰 Ny RSS-lenke – for abonnenter og aggregatorer */}
+        {/* 📰 RSS-lenke – for abonnenter og aggregatorer */}
         <a
           href="/api/rss"
           target="_blank"

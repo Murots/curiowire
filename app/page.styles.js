@@ -5,7 +5,6 @@ export const Wrapper = styled.div`
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 18px 0 0;
   color: var(--color-text);
 `;
 
@@ -180,7 +179,7 @@ export const Divider = styled.div`
 
 export const SeoNote = styled.section`
   &&& {
-    margin: 80px auto 0;
+    margin: 0 auto 40px;
     max-width: 900px;
 
     background: ${({ theme }) => theme.colors.bgAlt};
@@ -220,7 +219,6 @@ export const SeoNote = styled.section`
 
   @media (max-width: 780px) {
     &&& {
-      margin-top: 60px;
       padding: 16px 18px;
       font-size: 0.7rem;
     }

@@ -81,3 +81,30 @@ export const Links = styled.div`
     line-height: 2;
   }
 `;
+
+export const CategoryLinks = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 90%;
+  line-height: 1.8;
+  font-size: 0.6rem;
+  opacity: 0.75;
+
+  span {
+    color: var(--color-muted);
+    user-select: none;
+  }
+
+  a {
+    color: var(--color-link);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-accent);
+      text-decoration: underline;
+    }
+  }
+`;
