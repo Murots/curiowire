@@ -3,8 +3,8 @@ name: CurioWire Auto Article Generator
 on:
   workflow_dispatch:
   schedule:
-    # 📰 Articles: every 2 hours (12/day)
-    - cron: "0 */2 * * *"
+    # 📰 Articles: every 4 hours (12/day)
+    - cron: "0 */4 * * *"
 
 concurrency:
   group: curiowire-production

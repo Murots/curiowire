@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Overlay, Modal, Close, CloseWrap } from "./ArticleModal.styles";
+import { Overlay, Modal, CloseWrap, CloseLink } from "./ArticleModal.styles";
 
 import ArticleView from "@/components/ArticleView/ArticleView";
 
@@ -243,9 +243,16 @@ export default function ArticleModalClient({ card }) {
         aria-modal="true"
       >
         <CloseWrap>
-          <Close onClick={close} aria-label="Close">
+          <CloseLink
+            href={nav.returnHref || "/"}
+            onClick={(e) => {
+              e.preventDefault();
+              close();
+            }}
+            aria-label="Close"
+          >
             ✕
-          </Close>
+          </CloseLink>
         </CloseWrap>
 
         <ArticleView

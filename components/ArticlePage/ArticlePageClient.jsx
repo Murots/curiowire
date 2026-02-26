@@ -13,12 +13,14 @@ const PageWrap = styled.div`
   padding: 18px 18px 40px;
 `;
 
-const TopBack = styled.button`
+const TopBack = styled.a`
   border: 0;
   background: transparent;
   cursor: pointer;
   opacity: 0.7;
   margin: 10px 0 6px;
+  display: inline-block;
+
   &:hover {
     opacity: 1;
   }
@@ -166,7 +168,11 @@ export default function ArticlePageClient({ card }) {
   return (
     <PageWrap>
       <TopBack
-        onClick={() => router.push(nav.returnHref || "/", { scroll: false })}
+        href={nav.returnHref || "/"}
+        onClick={(e) => {
+          e.preventDefault();
+          router.push(nav.returnHref || "/", { scroll: false });
+        }}
       >
         ← Back to feed
       </TopBack>

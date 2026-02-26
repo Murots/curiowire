@@ -168,6 +168,17 @@ export default function ArticleView({
   const heroLoading = isPage ? "eager" : "lazy";
   const heroFetchPriority = isPage ? "high" : "auto";
 
+  const categoryHref = `/${String(card.category || "").toLowerCase()}`;
+
+  const prevHref = prevId ? `/article/${prevId}` : null;
+  const nextHref = nextId ? `/article/${nextId}` : null;
+
+  const disabledLinkStyle = {
+    opacity: 0.45,
+    cursor: "default",
+    pointerEvents: "none",
+  };
+
   return (
     <Swap $soft={false} data-variant={variant} key={card.id}>
       <ModalHeader>
@@ -178,7 +189,15 @@ export default function ArticleView({
         <ModalTitle>{cleanText(card.title)}</ModalTitle>
 
         <MetaRow>
-          <CategoryBadge $category={card.category}>
+          <CategoryBadge
+            as="a"
+            href={categoryHref}
+            $category={card.category}
+            onClick={(e) => {
+              // keep SPA behavior (modal/page can override via router higher up if needed)
+              // but always keep a real href for crawlers
+            }}
+          >
             {card.category}
           </CategoryBadge>
           <span className="date">Published {formattedDate}</span>
@@ -266,13 +285,45 @@ export default function ArticleView({
       </Body>
 
       <NavBar>
-        <NavButton onClick={onPrev} disabled={!prevId} aria-label="Previous">
+        <NavButton
+          as="a"
+          href={prevHref || undefined}
+          aria-label="Previous"
+          aria-disabled={!prevId}
+          tabIndex={!prevId ? -1 : 0}
+          style={!prevId ? disabledLinkStyle : undefined}
+          onClick={(e) => {
+            if (!prevId) {
+              e.preventDefault();
+              return;
+            }
+            // keep real href, but preserve modal/page behavior
+            e.preventDefault();
+            onPrev?.();
+          }}
+        >
           ← Previous
         </NavButton>
 
         {positionText ? <NavHint>{positionText}</NavHint> : <span />}
 
-        <NavButton onClick={onNext} disabled={!nextId} aria-label="Next">
+        <NavButton
+          as="a"
+          href={nextHref || undefined}
+          aria-label="Next"
+          aria-disabled={!nextId}
+          tabIndex={!nextId ? -1 : 0}
+          style={!nextId ? disabledLinkStyle : undefined}
+          onClick={(e) => {
+            if (!nextId) {
+              e.preventDefault();
+              return;
+            }
+            // keep real href, but preserve modal/page behavior
+            e.preventDefault();
+            onNext?.();
+          }}
+        >
           Next →
         </NavButton>
       </NavBar>

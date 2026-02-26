@@ -223,6 +223,12 @@ export const CategoryBadge = styled.span`
   color: white;
   line-height: 1;
 
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.18s ease;
+
+  will-change: transform;
+
   ${({ $category }) => {
     const color =
       categoryColors[String($category || "").toLowerCase()] || "#666";
@@ -232,8 +238,12 @@ export const CategoryBadge = styled.span`
   }}
 
   text-shadow: 0 1px 20px rgb(0, 0, 0);
-`;
 
+  &:hover {
+    transform: scale(1.06);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  }
+`;
 export const Image = styled.img`
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -495,4 +505,108 @@ export const RelatedText = styled.div`
     font-size: 0.88rem;
     line-height: 1.3;
   }
+`;
+
+/* ============================================================
+   ✅ SEO/NAV HELPERS (anchors that keep exact design)
+   Added only — nothing removed.
+============================================================ */
+
+/**
+ * Use on an element that wraps the Close UI to become a real <a>/<Link>.
+ * IMPORTANT: keep pointer-events auto (CloseWrap disables pointer events).
+ */
+export const CloseLink = styled.a`
+  position: absolute;
+  right: 14px;
+  top: 27px;
+
+  pointer-events: auto;
+
+  border: 0;
+  background: #d8d8d8;
+  border-radius: 10px;
+  padding: 5px 10px;
+
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    background: #cccccc;
+  }
+`;
+
+/**
+ * Link styled EXACT like NavButton for Prev/Next anchors.
+ */
+export const NavLink = styled.a`
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 12px;
+
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    sans-serif;
+  font-weight: 500;
+  font-size: 0.8rem;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    border-color: #cccccc;
+    background-color: ${({ theme }) => theme.colors.bgAlt};
+  }
+`;
+
+/**
+ * Non-clickable sibling for disabled Prev/Next, matching :disabled on NavButton.
+ */
+export const NavDisabled = styled.span`
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 12px;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    sans-serif;
+  font-weight: 500;
+  font-size: 0.8rem;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+`;
+
+/**
+ * Wrapper for CategoryBadge so the badge can become a real link without styling changes.
+ */
+export const CategoryLink = styled.a`
+  display: inline-flex;
+  align-items: center;
+
+  text-decoration: none;
+  color: inherit;
 `;
