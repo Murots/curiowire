@@ -1,12 +1,9 @@
 # ===========================================
 # CurioWire – Automated Curiosity Newspaper
-# robots.txt — SEO & indexing configuration
+# robots.txt — SEO configuration
 # ===========================================
 
 User-agent: *
 Allow: /
 
 Sitemap: https://curiowire.com/api/sitemap
-
-# Optional: Bing may respect crawl-delay; Google ignores it.
-Crawl-delay: 1
