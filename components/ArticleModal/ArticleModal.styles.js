@@ -53,7 +53,7 @@ export const Overlay = styled.div`
 `;
 
 export const Modal = styled.div`
-  width: min(980px, 100%);
+  width: min(1080px, 100%);
   max-height: calc(100vh - 36px);
   overflow: auto;
 
@@ -244,14 +244,20 @@ export const CategoryBadge = styled.span`
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
   }
 `;
-export const Image = styled.img`
+export const HeroImageWrap = styled.div`
   width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  object-position: 50% 30%;
-  display: block;
+  aspect-ratio: 16 / 10; /* 👈 match CurioCard */
+  overflow: hidden;
   background: #eaeaea;
   margin-top: 14px;
+`;
+
+export const Image = styled.img`
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 30%;
 `;
 
 export const Credit = styled.div`
@@ -439,7 +445,9 @@ export const RelatedCard = styled.a`
     transform 0.25s ease,
     box-shadow 0.25s ease;
 
-  /* hindrer "gigantisk" feeling ved få kort, men fyller fortsatt cellen */
+  /* ✅ kortet bestemmer høyden (samme ratio som feed cards) */
+  aspect-ratio: 16 / 10;
+
   max-width: 420px;
   width: 100%;
   justify-self: start;
@@ -461,9 +469,14 @@ export const RelatedCard = styled.a`
 `;
 
 export const RelatedImage = styled.img`
+  /* ✅ fyll hele kortet (kortet har ratioen) */
+  position: absolute;
+  inset: 0;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
+
   object-fit: cover;
+  object-position: center 37%;
   display: block;
 `;
 

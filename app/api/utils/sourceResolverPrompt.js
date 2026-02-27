@@ -3,7 +3,11 @@
 // Purpose: After PASS, find 1 verifiable source URL for the core claim.
 // ============================================================================
 
-export function buildSourceResolverPrompt({ title, card_text, category }) {
+export function buildSourceResolverPrompt({
+  title,
+  summary_normalized,
+  category,
+}) {
   const safe = (v) => String(v || "").trim();
 
   return `
@@ -35,11 +39,11 @@ INPUT
 Title:
 ${safe(title)}
 
+Summary:
+${safe(summary_normalized)}
+
 Category:
 ${safe(category)}
-
-Article:
-${safe(card_text)}
 
 OUTPUT (EXACTLY ONE LINE):
 URL: <direct URL>   OR   URL: NONE

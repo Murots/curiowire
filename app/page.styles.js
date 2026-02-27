@@ -180,7 +180,7 @@ export const Divider = styled.div`
 export const SeoNote = styled.section`
   &&& {
     margin: 0 auto 40px;
-    max-width: 900px;
+    // max-width: 900px;
 
     background: ${({ theme }) => theme.colors.bgAlt};
     border-left: 4px solid rgba(0, 0, 0, 0.18);

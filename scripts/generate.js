@@ -399,8 +399,12 @@ function splitSourceResolverOutput(text) {
   return cleaned;
 }
 
-async function resolveOneSourceUrl({ title, card_text, category }) {
-  const prompt = buildSourceResolverPrompt({ title, card_text, category });
+async function resolveOneSourceUrl({ title, summary_normalized, category }) {
+  const prompt = buildSourceResolverPrompt({
+    title,
+    summary_normalized,
+    category,
+  });
 
   const resp = await openai.responses.create({
     model:
@@ -808,7 +812,7 @@ async function run() {
     try {
       source_url = await resolveOneSourceUrl({
         title: fcTitle,
-        card_text: fcCardText,
+        summary_normalized: fcSummary || "",
         category: categoryKey,
       });
     } catch (e) {

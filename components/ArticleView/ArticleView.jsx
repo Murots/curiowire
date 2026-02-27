@@ -8,6 +8,7 @@ import {
   MetaRow,
   Body,
   Image,
+  HeroImageWrap,
   Credit,
   CategoryBadge,
   Divider,
@@ -123,6 +124,13 @@ function ensureSummaryBox(html) {
   return `<div class="article-summary-box"><strong>Quick Summary</strong><div>${s}</div></div>`;
 }
 
+function normalizeSourceUrl(url) {
+  const s = String(url || "").trim();
+  if (!s) return null;
+  if (!/^https?:\/\/\S+$/i.test(s)) return null;
+  return s.replace(/[)\].,;:]+$/, "");
+}
+
 export default function ArticleView({
   card,
   // nav
@@ -158,6 +166,11 @@ export default function ArticleView({
   const summaryHtml = useMemo(
     () => ensureSummaryBox(card.summary_normalized),
     [card.summary_normalized],
+  );
+
+  const sourceUrl = useMemo(
+    () => normalizeSourceUrl(card.source_url),
+    [card.source_url],
   );
 
   const showRelated = (relatedArticles || []).length > 0;
@@ -206,21 +219,21 @@ export default function ArticleView({
 
       {card.image_url ? (
         <>
-          <Image
-            src={`${card.image_url}?width=1200&quality=78&format=webp`}
-            srcSet={[
-              `${card.image_url}?width=800&quality=78&format=webp 800w`,
-              `${card.image_url}?width=1200&quality=78&format=webp 1200w`,
-              `${card.image_url}?width=1600&quality=78&format=webp 1600w`,
-            ].join(", ")}
-            sizes="(max-width: 980px) 100vw, 980px"
-            width={1200}
-            height={675} // 16/9
-            alt={cleanText(card.title)}
-            loading={heroLoading}
-            fetchPriority={heroFetchPriority}
-            decoding="async"
-          />
+          <HeroImageWrap>
+            <Image
+              src={`${card.image_url}?width=1200&quality=78&format=webp`}
+              srcSet={[
+                `${card.image_url}?width=800&quality=78&format=webp 800w`,
+                `${card.image_url}?width=1200&quality=78&format=webp 1200w`,
+                `${card.image_url}?width=1600&quality=78&format=webp 1600w`,
+              ].join(", ")}
+              sizes="(max-width: 980px) 100vw, 980px"
+              alt={cleanText(card.title)}
+              loading={heroLoading}
+              fetchPriority={heroFetchPriority}
+              decoding="async"
+            />
+          </HeroImageWrap>
 
           {creditText ? <Credit>Image by {creditText}</Credit> : null}
         </>
@@ -238,6 +251,23 @@ export default function ArticleView({
             <h2 className="did-you-know">Did You Know?</h2>
             <Divider />
             <div dangerouslySetInnerHTML={{ __html: card.fun_fact }} />
+          </div>
+        ) : null}
+
+        {sourceUrl ? (
+          <div style={{ marginTop: 18 }}>
+            <h2 className="source">Source</h2>
+            <Divider />
+            <p style={{ marginTop: 10 }}>
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "underline", wordBreak: "break-word" }}
+              >
+                {sourceUrl}
+              </a>
+            </p>
           </div>
         ) : null}
 

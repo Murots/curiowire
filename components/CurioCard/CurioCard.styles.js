@@ -98,6 +98,8 @@ export const Image = styled.img`
   object-fit: cover;
   object-position: center;
 
+  object-position: center 37%;
+
   transition:
     transform 0.6s ease,
     filter 0.35s ease;

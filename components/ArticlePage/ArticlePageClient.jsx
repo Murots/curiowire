@@ -8,9 +8,9 @@ import ArticleView from "@/components/ArticleView/ArticleView";
 import styled from "styled-components";
 
 const PageWrap = styled.div`
-  max-width: 980px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 18px 18px 40px;
+  // padding: 18px 18px 40px;
 `;
 
 const TopBack = styled.a`
