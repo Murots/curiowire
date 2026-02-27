@@ -21,6 +21,7 @@ import { buildRefinePackagePrompt } from "../app/api/utils/refinePackage.js";
 import { buildFactCheckPackagePrompt } from "../app/api/utils/factCheckPackage.js";
 import { buildPremiseSalvagePrompt } from "../app/api/utils/premiseSalvage.js";
 import { generateScenePrompt } from "../app/api/utils/scenePrompt.js";
+import { buildSourceResolverPrompt } from "../app/api/utils/sourceResolverPrompt.js";
 
 import { selectBestImage } from "../lib/imageSelector.js";
 import { updateAndPingSearchEngines } from "../app/api/utils/seoTools.js";
@@ -376,6 +377,48 @@ async function factCheckPackage({
     summary_normalized: parsed.summary_normalized || summary_normalized,
     fun_fact: parsed.fun_fact || fun_fact,
   };
+}
+
+// ----------------------------------------------------------------------------
+// SOURCE RESOLVER (ONE URL after PASS)
+// ----------------------------------------------------------------------------
+function splitSourceResolverOutput(text) {
+  const s = String(text || "").trim();
+  const firstLine = s.split(/\r?\n/)[0]?.trim() || "";
+  const m = firstLine.match(/^URL:\s*(.+)\s*$/i);
+  const raw = (m?.[1] || "").trim();
+
+  if (!raw) return null;
+  if (raw.toUpperCase() === "NONE") return null;
+
+  // basic safety: only accept http(s)
+  if (!/^https?:\/\/\S+$/i.test(raw)) return null;
+
+  // strip trailing punctuation sometimes produced by LLMs
+  const cleaned = raw.replace(/[)\].,;:]+$/, "");
+  return cleaned;
+}
+
+async function resolveOneSourceUrl({ title, card_text, category }) {
+  const prompt = buildSourceResolverPrompt({ title, card_text, category });
+
+  const resp = await openai.responses.create({
+    model:
+      process.env.SOURCE_RESOLVER_MODEL ||
+      process.env.FACTCHECK_MODEL ||
+      "gpt-5",
+    tools: [{ type: "web_search" }],
+    tool_choice: "auto",
+    input: prompt,
+  });
+
+  const out = (resp.output_text || "").trim();
+  const url = splitSourceResolverOutput(out);
+
+  console.log(`🔗 SourceResolver: ${url ? "FOUND" : "NONE"}`);
+  if (url) console.log(`   source_url=${url}`);
+
+  return url; // string | null
 }
 
 // ----------------------------------------------------------------------------
@@ -760,6 +803,19 @@ async function run() {
     const fcSummary = checked.summary_normalized;
     const fcFunFact = checked.fun_fact;
 
+    // Source URL (ONE) — after PASS
+    let source_url = null;
+    try {
+      source_url = await resolveOneSourceUrl({
+        title: fcTitle,
+        card_text: fcCardText,
+        category: categoryKey,
+      });
+    } catch (e) {
+      console.warn("⚠️ SourceResolver failed:", e.message);
+      source_url = null;
+    }
+
     // Scene prompt (GPT) — after pass
     try {
       scene_prompt = await generateScenePrompt({
@@ -831,6 +887,8 @@ async function run() {
       title: fcTitle,
       card_text: fcCardText,
       video_script: fcVideoScript,
+
+      source_url: source_url || null,
 
       summary_normalized: fcSummary,
       fun_fact: fcFunFact,
