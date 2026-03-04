@@ -119,7 +119,7 @@ export default function SitemapPage() {
 
       <Info>
         Looking for the XML version for search engines?{" "}
-        <a href="/api/sitemap" target="_blank" rel="noopener noreferrer">
+        <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer">
           View sitemap.xml
         </a>
       </Info>

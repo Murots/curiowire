@@ -6,4 +6,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://curiowire.com/api/sitemap
+Sitemap: https://curiowire.com/sitemap.xml
