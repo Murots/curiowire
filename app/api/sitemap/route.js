@@ -1,10 +1,9 @@
-// app/api/sitemap/route.js
-
+// app/api/sitemap.xml/route.js
 export async function GET() {
   return new Response(null, {
     status: 308,
     headers: {
-      Location: "https://curiowire.com/sitemap.xml",
+      Location: "/sitemap.xml",
     },
   });
 }
