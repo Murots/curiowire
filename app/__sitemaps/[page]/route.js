@@ -30,7 +30,7 @@ function xmlEscape(s = "") {
     .replace(/'/g, "&apos;");
 }
 
-export async function GET(req, { params }) {
+export async function GET(_req, { params }) {
   const pageStr = String(params?.page || "");
   const pageNum = parseInt(pageStr, 10);
 
@@ -67,7 +67,6 @@ export async function GET(req, { params }) {
 
   const now = new Date().toISOString();
 
-  // Kun på første sitemap-side: legg inn homepage + kategori-sider
   const extraOnFirstPage =
     pageNum === 1
       ? `

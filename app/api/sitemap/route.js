@@ -1,4 +1,4 @@
-// app/api/sitemap.xml/route.js
+// app/api/sitemap/route.js
 export async function GET() {
   return new Response(null, {
     status: 308,

@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 
 const BASE_URL = "https://curiowire.com";
-const PAGE_SIZE = 1000; // 1000 URL-er per sitemap-fil (trygt og raskt)
+const PAGE_SIZE = 1000;
 
 function xmlEscape(s = "") {
   return String(s)
@@ -31,7 +31,6 @@ export async function GET() {
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
-  // Teller hvor mange publiserte artikler du har
   const { count, error } = await supabase
     .from("curiosity_cards")
     .select("id", { count: "exact", head: true })
