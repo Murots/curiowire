@@ -1,3 +1,4 @@
+// app/sitemaps/[page]/route.js
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -59,7 +60,6 @@ export async function GET(req) {
   }
 
   const pageNum = parsePageFromPathname(pathname);
-
   if (!pageNum) {
     return new NextResponse("Invalid sitemap page", { status: 400 });
   }
@@ -82,6 +82,7 @@ export async function GET(req) {
   const from = (pageNum - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
+  // Hent denne siden av artikler
   const { data: cards, error } = await supabase
     .from("curiosity_cards")
     .select("id, created_at, updated_at")
@@ -93,14 +94,33 @@ export async function GET(req) {
     return new NextResponse("Failed to fetch curiosity_cards", { status: 500 });
   }
 
-  const now = new Date().toISOString();
+  // For forsiden/kategorier på første side: bruk sist endret artikkel som lastmod
+  // (bedre enn "now" som får Google til å tro alt endrer seg konstant).
+  const { data: latest, error: latestError } = await supabase
+    .from("curiosity_cards")
+    .select("updated_at, created_at")
+    .eq("status", "published")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
+  if (latestError) {
+    return new NextResponse("Failed to fetch latest curiosity_card", {
+      status: 500,
+    });
+  }
+
+  const siteLastmod = new Date(
+    latest?.updated_at || latest?.created_at || Date.now(),
+  ).toISOString();
+
+  // Kun på første sitemap-side: legg inn homepage + kategori-sider
   const extraOnFirstPage =
     pageNum === 1
       ? `
   <url>
     <loc>${xmlEscape(BASE_URL)}</loc>
-    <lastmod>${now}</lastmod>
+    <lastmod>${siteLastmod}</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -108,7 +128,7 @@ ${CATEGORY_SLUGS.map(
   (slug) => `
   <url>
     <loc>${xmlEscape(`${BASE_URL}/${slug}`)}</loc>
-    <lastmod>${now}</lastmod>
+    <lastmod>${siteLastmod}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>`,
