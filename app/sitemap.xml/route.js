@@ -20,14 +20,12 @@ export async function GET() {
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl) {
+  if (!supabaseUrl)
     return new NextResponse("Missing SUPABASE_URL", { status: 500 });
-  }
-  if (!serviceKey) {
+  if (!serviceKey)
     return new NextResponse("Missing SUPABASE_SERVICE_ROLE_KEY", {
       status: 500,
     });
-  }
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -48,7 +46,7 @@ export async function GET() {
     const n = i + 1;
     return `
   <sitemap>
-    <loc>${xmlEscape(`${BASE_URL}/sitemap-${n}.xml`)}</loc>
+    <loc>${xmlEscape(`${BASE_URL}/sitemaps/${n}.xml`)}</loc>
     <lastmod>${now}</lastmod>
   </sitemap>`;
   }).join("");

@@ -22,17 +22,21 @@ const nextConfig = {
         destination: "/sitemap.xml",
         permanent: true,
       },
+
+      // valgfritt: gammel paginert URL -> ny (så /sitemap-1.xml ikke er “død”)
+      {
+        source: "/sitemap-:page(\\d+).xml",
+        destination: "/sitemaps/:page.xml",
+        permanent: true,
+      },
     ];
   },
 
   async rewrites() {
     return [
-      // behold denne hvis du vil, men den kolliderer med UI:
-      // { source: "/sitemap/:page(\\d+).xml", destination: "/__sitemaps/:page" },
-
-      // NY: /sitemap-1.xml -> /__sitemaps/1 (ingen kollisjon)
+      // /sitemaps/1.xml -> /__sitemaps/1
       {
-        source: "/sitemap-:page(\\d+).xml",
+        source: "/sitemaps/:page(\\d+).xml",
         destination: "/__sitemaps/:page",
       },
     ];
