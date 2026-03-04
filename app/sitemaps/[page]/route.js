@@ -25,36 +25,30 @@ function xmlEscape(s = "") {
   return String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&lt;")
+    .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 }
 
-function parsePageParam(raw) {
-  // Next kan gi string | string[]
-  const v = Array.isArray(raw) ? raw[0] : raw;
+function parsePageFromUrl(req) {
+  const { pathname } = new URL(req.url);
 
-  // Tillat "1" og "1.xml"
-  const s = String(v || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\.xml$/, "");
+  // Godta:
+  // /sitemaps/1
+  // /sitemaps/1.xml
+  const m = pathname.match(/^\/sitemaps\/(\d+)(?:\.xml)?$/);
+  if (!m) return null;
 
-  // Kun positive heltall
-  if (!/^\d+$/.test(s)) return null;
-  const n = Number(s);
+  const n = Number(m[1]);
   if (!Number.isFinite(n) || n < 1) return null;
   return n;
 }
 
-export async function GET(_req, { params }) {
-  const pageNum = parsePageParam(params?.page);
+export async function GET(req) {
+  const pageNum = parsePageFromUrl(req);
+
   if (!pageNum) {
-    // Litt mer nyttig feilmelding mens du tester
-    return new NextResponse(
-      `Invalid sitemap page (got: ${JSON.stringify(params?.page)})`,
-      { status: 400 },
-    );
+    return new NextResponse("Invalid sitemap page", { status: 400 });
   }
 
   const supabaseUrl =
