@@ -30,9 +30,7 @@ function xmlEscape(s = "") {
     .replace(/'/g, "&apos;");
 }
 
-function parsePageFromUrl(req) {
-  const { pathname } = new URL(req.url);
-
+function parsePageFromPathname(pathname) {
   // Godta:
   // /sitemaps/1
   // /sitemaps/1.xml
@@ -45,7 +43,22 @@ function parsePageFromUrl(req) {
 }
 
 export async function GET(req) {
-  const pageNum = parsePageFromUrl(req);
+  const { pathname } = new URL(req.url);
+
+  // Canonical: alltid .xml
+  // Redirect /sitemaps/1 -> /sitemaps/1.xml
+  const canonicalMatch = pathname.match(/^\/sitemaps\/(\d+)$/);
+  if (canonicalMatch) {
+    return new Response(null, {
+      status: 308,
+      headers: {
+        Location: `/sitemaps/${canonicalMatch[1]}.xml`,
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    });
+  }
+
+  const pageNum = parsePageFromPathname(pathname);
 
   if (!pageNum) {
     return new NextResponse("Invalid sitemap page", { status: 400 });
@@ -55,12 +68,14 @@ export async function GET(req) {
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl)
+  if (!supabaseUrl) {
     return new NextResponse("Missing SUPABASE_URL", { status: 500 });
-  if (!serviceKey)
+  }
+  if (!serviceKey) {
     return new NextResponse("Missing SUPABASE_SERVICE_ROLE_KEY", {
       status: 500,
     });
+  }
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
