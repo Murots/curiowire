@@ -27,9 +27,12 @@ const nextConfig = {
 
   async rewrites() {
     return [
-      // Offentlig URL: /sitemap/1.xml -> intern: /__sitemaps/1
+      // behold denne hvis du vil, men den kolliderer med UI:
+      // { source: "/sitemap/:page(\\d+).xml", destination: "/__sitemaps/:page" },
+
+      // NY: /sitemap-1.xml -> /__sitemaps/1 (ingen kollisjon)
       {
-        source: "/sitemap/:page(\\d+).xml",
+        source: "/sitemap-:page(\\d+).xml",
         destination: "/__sitemaps/:page",
       },
     ];
