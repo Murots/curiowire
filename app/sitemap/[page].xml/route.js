@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 
 const BASE_URL = "https://curiowire.com";
+const PAGE_SIZE = 1000;
 
 const CATEGORY_SLUGS = [
   "science",
@@ -20,9 +21,6 @@ const CATEGORY_SLUGS = [
   "mystery",
 ];
 
-// Må matche PAGE_SIZE i index-filen
-const PAGE_SIZE = 1000;
-
 function xmlEscape(s = "") {
   return String(s)
     .replace(/&/g, "&amp;")
@@ -33,9 +31,8 @@ function xmlEscape(s = "") {
 }
 
 export async function GET(req, { params }) {
-  const pageParam = params?.page; // fra folder "sitemap-[page].xml"
-  const match = String(pageParam || "").match(/^(\d+)$/);
-  const pageNum = match ? parseInt(match[1], 10) : NaN;
+  const pageStr = String(params?.page || "");
+  const pageNum = parseInt(pageStr, 10);
 
   if (!Number.isFinite(pageNum) || pageNum < 1) {
     return new NextResponse("Invalid sitemap page", { status: 400 });
@@ -70,7 +67,7 @@ export async function GET(req, { params }) {
 
   const now = new Date().toISOString();
 
-  // ✅ Kun på første sitemap-side legger vi også inn homepage + kategorier
+  // Kun på første sitemap-side: legg inn homepage + kategori-sider
   const extraOnFirstPage =
     pageNum === 1
       ? `
@@ -80,15 +77,15 @@ export async function GET(req, { params }) {
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-${CATEGORY_SLUGS.map((slug) => {
-  return `
+${CATEGORY_SLUGS.map(
+  (slug) => `
   <url>
     <loc>${xmlEscape(`${BASE_URL}/${slug}`)}</loc>
     <lastmod>${now}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
-  </url>`;
-}).join("")}`
+  </url>`,
+).join("")}`
       : "";
 
   const articleUrls = (cards || [])

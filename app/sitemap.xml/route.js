@@ -49,7 +49,7 @@ export async function GET() {
     const n = i + 1;
     return `
   <sitemap>
-    <loc>${xmlEscape(`${BASE_URL}/sitemap-${n}.xml`)}</loc>
+    <loc>${xmlEscape(`${BASE_URL}/sitemap/${n}.xml`)}</loc>
     <lastmod>${now}</lastmod>
   </sitemap>`;
   }).join("");
