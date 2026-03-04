@@ -25,17 +25,36 @@ function xmlEscape(s = "") {
   return String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
+    .replace(/>/g, "&lt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 }
 
-export async function GET(_req, { params }) {
-  const pageStr = String(params?.page || "");
-  const pageNum = parseInt(pageStr, 10);
+function parsePageParam(raw) {
+  // Next kan gi string | string[]
+  const v = Array.isArray(raw) ? raw[0] : raw;
 
-  if (!Number.isFinite(pageNum) || pageNum < 1) {
-    return new NextResponse("Invalid sitemap page", { status: 400 });
+  // Tillat "1" og "1.xml"
+  const s = String(v || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.xml$/, "");
+
+  // Kun positive heltall
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 1) return null;
+  return n;
+}
+
+export async function GET(_req, { params }) {
+  const pageNum = parsePageParam(params?.page);
+  if (!pageNum) {
+    // Litt mer nyttig feilmelding mens du tester
+    return new NextResponse(
+      `Invalid sitemap page (got: ${JSON.stringify(params?.page)})`,
+      { status: 400 },
+    );
   }
 
   const supabaseUrl =
