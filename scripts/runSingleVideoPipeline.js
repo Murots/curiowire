@@ -116,7 +116,7 @@ async function run() {
     video_path: videoPath,
   });
 
-  console.log("✅ Video generated and (stub) posted successfully");
+  console.log("✅ Video pipeline completed successfully");
 }
 
 // ============================================================================

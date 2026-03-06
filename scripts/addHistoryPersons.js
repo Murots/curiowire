@@ -1,248 +1,26 @@
-// // ============================================================================
-// // CurioWire — addHistoryPersons.js
-// // Adds ~100 well-known historical persons to history anchors (category=history)
-// // Safe: upsert on (category,anchor) so it only extends, never deletes.
-// // ============================================================================
-
-// import dotenv from "dotenv";
-// dotenv.config({ path: ".env.local" });
-
-// import OpenAI from "openai";
-// import { createClient } from "@supabase/supabase-js";
-// import { CATEGORY_DEFINITIONS } from "../app/api/utils/categoryDefinitions.js";
-
-// // ----------------------------------------------------------------------------
-// // CONFIG
-// // ----------------------------------------------------------------------------
-// const COUNT = 100;
-// const MODEL = process.env.CURIO_ANCHORS_MODEL || "gpt-4o-mini";
-
-// // ----------------------------------------------------------------------------
-// // SUPABASE (SERVICE ROLE REQUIRED)
-// // ----------------------------------------------------------------------------
-// const supabaseUrl =
-//   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-// const supabaseKey =
-//   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-
-// if (!supabaseUrl)
-//   throw new Error("Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL");
-// if (!supabaseKey)
-//   throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_KEY");
-
-// const supabase = createClient(supabaseUrl, supabaseKey);
-
-// // ----------------------------------------------------------------------------
-// // OPENAI
-// // ----------------------------------------------------------------------------
-// const openai = new OpenAI({
-//   apiKey: process.env.OPENAI_API_KEY,
-//   organization: process.env.OPENAI_ORG_ID,
-// });
-
-// // ----------------------------------------------------------------------------
-// // HELPERS
-// // ----------------------------------------------------------------------------
-// function safeJsonParse(line) {
-//   try {
-//     return JSON.parse(line);
-//   } catch {
-//     return null;
-//   }
-// }
-
-// function normAnchor(s) {
-//   return (s || "")
-//     .toLowerCase()
-//     .replace(/\s+/g, " ")
-//     .replace(/[^\p{L}\p{N}\s]/gu, "")
-//     .trim();
-// }
-
-// function parseJSONL(text) {
-//   if (!text) return [];
-//   return text
-//     .split("\n")
-//     .map((l) => l.trim())
-//     .filter(Boolean)
-//     .map((l) => l.replace(/^[-*]\s*/, "").trim())
-//     .map(safeJsonParse)
-//     .filter(Boolean);
-// }
-
-// // ----------------------------------------------------------------------------
-// // PROMPT
-// // ----------------------------------------------------------------------------
-// function buildPrompt() {
-//   const definition = CATEGORY_DEFINITIONS.history;
-
-//   return `
-// You are generating REAL-WORLD CURIOSITY ANCHORS for CurioWire.
-
-// CATEGORY: HISTORY
-// CATEGORY DEFINITION (BOUNDARY LAW):
-// ${definition}
-
-// TASK:
-// Output EXACTLY ${COUNT} anchors as JSONL.
-
-// Each line MUST be a JSON object with:
-// - category: "history"
-// - anchor: "<PERSON NAME> (optional short disambiguator like 'of Macedon' if needed)"
-// - anchor_type: "person"
-// - must_include: 1–3 structural elements the article must reference (e.g., "primary correspondence", "state records", "battle dispatches")
-// - avoid: 2–4 framing traps (e.g., "hero-worship", "simplified morality tale", "modern political projection")
-// - evidence_types: 2–5 generic evidence forms (e.g., "letters", "court records", "chronicles", "archival files")
-// - time_scope: one of ["any","ancient","medieval","early-modern","modern","contemporary"]
-
-// CONSTRAINTS:
-// - Persons must be widely known or historically central (state, war, ideology, institution, empire, revolution, religion, science-in-society).
-// - Avoid pure pop-culture celebrities.
-// - Avoid biography/career-summary framing: anchor must be a SYSTEM NODE.
-// - Do NOT invent people.
-// - Ensure geographic + temporal diversity (not only Europe/US).
-
-// Return ONLY JSONL. No headings. No commentary.
-// `.trim();
-// }
-
-// // ----------------------------------------------------------------------------
-// // GENERATE + CLEAN
-// // ----------------------------------------------------------------------------
-// async function generateHistoryPersons() {
-//   const prompt = buildPrompt();
-
-//   const completion = await openai.chat.completions.create({
-//     model: MODEL,
-//     messages: [{ role: "user", content: prompt }],
-//     temperature: 0.6,
-//   });
-
-//   const raw = completion.choices?.[0]?.message?.content || "";
-//   const rows = parseJSONL(raw);
-
-//   const cleaned = [];
-//   const seen = new Set();
-
-//   for (const r of rows) {
-//     if (!r || typeof r !== "object") continue;
-
-//     const category = (r.category || "").toLowerCase();
-//     if (category !== "history") continue;
-
-//     const anchor = (r.anchor || "").trim();
-//     if (!anchor || anchor.length < 3) continue;
-
-//     const anchorType = (r.anchor_type || "").trim();
-//     if (anchorType !== "person") continue;
-
-//     const key = normAnchor(anchor);
-//     if (seen.has(key)) continue;
-//     seen.add(key);
-
-//     cleaned.push({
-//       category: "history",
-//       anchor,
-//       anchor_type: "person",
-//       must_include: Array.isArray(r.must_include) ? r.must_include : [],
-//       avoid: Array.isArray(r.avoid) ? r.avoid : [],
-//       evidence_types: Array.isArray(r.evidence_types) ? r.evidence_types : [],
-//       time_scope: typeof r.time_scope === "string" ? r.time_scope : "any",
-//     });
-//   }
-
-//   return cleaned;
-// }
-
-// // ----------------------------------------------------------------------------
-// // UPSERT
-// // ----------------------------------------------------------------------------
-// async function upsertAnchors(rows) {
-//   if (!rows.length) return { inserted: 0 };
-
-//   const { error } = await supabase
-//     .from("curiosity_anchors")
-//     .upsert(rows, { onConflict: "category,anchor" });
-
-//   if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
-//   return { inserted: rows.length };
-// }
-
-// // ----------------------------------------------------------------------------
-// // MAIN
-// // ----------------------------------------------------------------------------
-// async function main() {
-//   console.log("👤 addHistoryPersons.js");
-//   console.log("   model:", MODEL);
-//   console.log("   target count:", COUNT);
-
-//   const { count: beforeCount } = await supabase
-//     .from("curiosity_anchors")
-//     .select("*", { count: "exact", head: true })
-//     .eq("category", "history")
-//     .eq("anchor_type", "person");
-
-//   console.log("📊 Persons before:", beforeCount ?? "n/a");
-
-//   let persons = await generateHistoryPersons();
-
-//   // Top-up if model returns too few valid rows
-//   let safety = 0;
-//   while (persons.length < COUNT && safety < 5) {
-//     safety += 1;
-//     console.log(`⚠️ Got ${persons.length}/${COUNT}. Top-up pass ${safety}...`);
-
-//     const more = await generateHistoryPersons();
-//     const merged = [...persons, ...more];
-
-//     const seen = new Set();
-//     persons = merged.filter((x) => {
-//       const k = normAnchor(x.anchor);
-//       if (seen.has(k)) return false;
-//       seen.add(k);
-//       return true;
-//     });
-
-//     persons = persons.slice(0, COUNT);
-//   }
-
-//   if (persons.length < COUNT) {
-//     throw new Error(
-//       `Failed to generate enough valid persons: ${persons.length}/${COUNT}`
-//     );
-//   }
-
-//   const res = await upsertAnchors(persons);
-//   console.log(`✅ Upserted ${res.inserted} person anchors into Supabase`);
-
-//   const { count: afterCount } = await supabase
-//     .from("curiosity_anchors")
-//     .select("*", { count: "exact", head: true })
-//     .eq("category", "history")
-//     .eq("anchor_type", "person");
-
-//   console.log("📊 Persons after:", afterCount ?? "n/a");
-
-//   if (beforeCount != null && afterCount != null) {
-//     console.log("📈 Net new persons added:", afterCount - beforeCount);
-//   }
-
-//   console.log("🎉 Done.");
-// }
-
-// main().catch((err) => {
-//   console.error("💥 addHistoryPersons.js failed:", err);
-//   process.exit(1);
-// });
-
 // ============================================================================
-// CurioWire — addHistoryPersons.js (v2, self-contained Wikipedia verify)
-// Adds well-known historical persons to history anchors (category=history)
-// Safe: upsert on (category,anchor) so it only extends, never deletes.
-// - No external wiki client needed (Node 20 fetch)
-// - Wikipedia verification to avoid invented people
-// - Top-up passes until we have COUNT "new-to-DB" verified persons
+// CurioWire — addHistoryPersonCuriosities.js
+//
+// Purpose:
+//  Insert NEW "curiosity_suggestions" rows ONLY for category=history,
+//  and ONLY about well-known historical persons.
+//
+// Key properties:
+// ✅ Inserts into public.curiosity_suggestions (NOT curiosity_anchors)
+// ✅ No "top-up to quota" logic (does NOT care about times_used targets)
+// ✅ You can run it repeatedly; DB unique indexes prevent duplicates:
+//    - curiosity_suggestions_anchor_topic_unique (category, anchor_entity_norm, topic_tag_norm)
+//    - curiosity_suggestions_unique (category, md5(lower(trim(curiosity))))
+// ✅ Wikipedia verification used to ensure "anchor_entity" is a real person
+// ✅ Generates high-WOW, concrete, one-sentence claims with anchor+twist+mechanism
+// ✅ Optionally runs Wikipedia verify + LLM judge/rewrite for status=null rows it created
+//
+// Requirements:
+// - Node 20+ (global fetch)
+// - .env.local with OpenAI + Supabase service role
+//
+// Run:
+//   node scripts/addHistoryPersonCuriosities.js
 // ============================================================================
 
 import dotenv from "dotenv";
@@ -250,22 +28,77 @@ dotenv.config({ path: ".env.local" });
 
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
-import { CATEGORY_DEFINITIONS } from "../app/api/utils/categoryDefinitions.js";
 
 // ----------------------------------------------------------------------------
 // CONFIG
 // ----------------------------------------------------------------------------
-const COUNT = 100; // target NEW verified persons to add
-const MODEL = process.env.CURIO_ANCHORS_MODEL || "gpt-4o-mini";
+const MODEL = process.env.CURIO_SUGGESTIONS_MODEL || "gpt-4o-mini";
 
-// How many anchors to ask for per call (oversample to survive filtering)
-const GEN_BATCH = 140;
+// How many NEW suggestions to successfully insert per run (not a global cap).
+// Raise as you like; script will attempt to reach it.
+const TARGET_NEW_PER_RUN = parseInt(
+  process.env.HISTORY_PERSON_SUGGESTIONS_TARGET ?? "50",
+  10,
+);
 
-// Max top-up passes
-const TOPUP_PASSES = 8;
+// Oversampling batches (to survive filtering + dupes)
+const PERSON_BATCH = parseInt(
+  process.env.HISTORY_PERSON_PERSON_BATCH ?? "80",
+  10,
+);
+const CURIOS_BATCH = parseInt(
+  process.env.HISTORY_PERSON_CURIOS_BATCH ?? "120",
+  10,
+);
 
-// Wikipedia verification timeout-ish (simple)
-const WIKI_VERIFY_CONCURRENCY = 6;
+// Max passes so we don’t loop forever if model stalls
+const PASSES_MAX = parseInt(process.env.HISTORY_PERSON_PASSES_MAX ?? "20", 10);
+
+// Quality gates
+const MIN_WOW_TO_KEEP = parseInt(process.env.CURIO_MIN_WOW ?? "78", 10);
+const MIN_CONFIDENCE_TO_VERIFY = parseInt(
+  process.env.CURIO_MIN_CONFIDENCE ?? "4",
+  10,
+);
+
+// How many curiosities per person we try to generate in a single pass.
+// Keep low to increase diversity.
+const PER_PERSON = parseInt(process.env.HISTORY_PERSON_PER_PERSON ?? "1", 10);
+
+// Avoid clustering: tell model to avoid the most-used anchors in this category
+const AVOID_ANCHORS_TOP = parseInt(
+  process.env.HISTORY_PERSON_AVOID_TOP ?? "120",
+  10,
+);
+
+// Wikipedia verification
+const WIKI_VERIFY_CONCURRENCY = parseInt(
+  process.env.HISTORY_PERSON_WIKI_CONCURRENCY ?? "6",
+  10,
+);
+
+// Optional post-processing verification of created rows
+const DO_WIKI_VERIFY_CLAIMS =
+  String(
+    process.env.HISTORY_PERSON_DO_WIKI_VERIFY_CLAIMS ?? "true",
+  ).toLowerCase() === "true";
+
+const DO_NOURL_JUDGE =
+  String(process.env.HISTORY_PERSON_DO_NOURL_JUDGE ?? "true").toLowerCase() ===
+  "true";
+
+const URL_VERIFY_BATCH = parseInt(
+  process.env.HISTORY_PERSON_URL_VERIFY_BATCH ?? "60",
+  10,
+);
+const NOURL_VERIFY_BATCH = parseInt(
+  process.env.HISTORY_PERSON_NOURL_VERIFY_BATCH ?? "30",
+  10,
+);
+const URL_VERIFY_MAX_STALLS = parseInt(
+  process.env.HISTORY_PERSON_URL_VERIFY_MAX_STALLS ?? "3",
+  10,
+);
 
 // ----------------------------------------------------------------------------
 // SUPABASE (SERVICE ROLE REQUIRED)
@@ -292,7 +125,7 @@ const openai = new OpenAI({
 });
 
 // ----------------------------------------------------------------------------
-// HELPERS
+// HELPERS: parsing / normalization
 // ----------------------------------------------------------------------------
 function safeJsonParse(line) {
   try {
@@ -313,7 +146,7 @@ function parseJSONL(text) {
     .filter(Boolean);
 }
 
-function normAnchor(s) {
+function normText(s) {
   return (s || "")
     .toLowerCase()
     .replace(/\s+/g, " ")
@@ -321,27 +154,12 @@ function normAnchor(s) {
     .trim();
 }
 
-function clampList(arr, max) {
-  if (!Array.isArray(arr)) return [];
-  return arr
-    .map((x) => String(x || "").trim())
-    .filter(Boolean)
-    .slice(0, max);
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
 }
 
-function pickTimeScope(v) {
-  const allowed = new Set([
-    "any",
-    "ancient",
-    "medieval",
-    "early-modern",
-    "modern",
-    "contemporary",
-  ]);
-  const s = String(v || "any")
-    .trim()
-    .toLowerCase();
-  return allowed.has(s) ? s : "any";
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
 }
 
 function sleep(ms) {
@@ -349,7 +167,54 @@ function sleep(ms) {
 }
 
 // ----------------------------------------------------------------------------
-// WIKIPEDIA (SELF-CONTAINED)
+// QUALITY FILTERS (same idea as your main generator)
+// ----------------------------------------------------------------------------
+function looksLikeListicleOrFiller(s) {
+  const t = (s || "").toLowerCase();
+  if (!t) return true;
+  if (t.length < 18) return true;
+  if (t.length > 260) return true;
+  if (/^(did you know|fun fact|here are|top \d+)/i.test(s)) return true;
+  if (/(scientists say|studies show|experts agree)/i.test(s)) return true;
+  if (/(always|never|proved|definitely|guarantees)/i.test(s)) return true;
+  if (/(click here|subscribe|follow for)/i.test(s)) return true;
+  return false;
+}
+
+function looksLikeThemeSentence(s) {
+  const t = (s || "").toLowerCase();
+  if (!t) return true;
+
+  if (
+    /(remains a mystery|continues to mystify|mystif(y|ies)|researchers have theories|theories range|is debated|debated among|purpose.*unknown)/i.test(
+      s,
+    )
+  ) {
+    return true;
+  }
+
+  if (/(it is believed|it is thought|many believe|some believe)/i.test(s)) {
+    if (
+      !/(only when|because|due to|in (the|a) (experiment|study|trial|test)|under (certain|specific) conditions)/i.test(
+        s,
+      )
+    ) {
+      return true;
+    }
+  }
+
+  const hasConstraintCue =
+    /(only when|because|due to|under |in (the|a) (experiment|study|trial|test)|from (the|a) archive|measurement limit|detection threshold|signal.*only|works.*only)/i.test(
+      s,
+    );
+
+  if (!hasConstraintCue) return true;
+
+  return false;
+}
+
+// ----------------------------------------------------------------------------
+// WIKIPEDIA (self-contained)
 // ----------------------------------------------------------------------------
 async function wikiSearchTopTitle(query) {
   const q = String(query || "").trim();
@@ -382,9 +247,7 @@ async function wikiGetSummary(title) {
     "https://en.wikipedia.org/api/rest_v1/page/summary/" +
     encodeURIComponent(t.replace(/ /g, "_"));
 
-  const res = await fetch(url, {
-    headers: { accept: "application/json" },
-  });
+  const res = await fetch(url, { headers: { accept: "application/json" } });
   if (!res.ok) return null;
 
   const json = await res.json();
@@ -395,34 +258,36 @@ async function wikiGetSummary(title) {
   };
 }
 
-// Conservative “is this a person page?” heuristic
+function wikiUrlFromTitle(title) {
+  if (!title) return null;
+  return `https://en.wikipedia.org/wiki/${encodeURIComponent(
+    title.replace(/ /g, "_"),
+  )}`;
+}
+
+// Conservative person-page heuristic
 function looksLikePersonSummary(summary) {
   const extract = String(summary?.extract || "").toLowerCase();
   const type = String(summary?.type || "").toLowerCase();
 
-  // Wikipedia REST sometimes marks pages; "standard" is common for real pages
   if (!extract || extract.length < 60) return false;
-
-  // Basic person cues
-  const personCues =
-    /\b(was a|was an|is a|is an)\b.*\b(king|queen|emperor|pope|saint|philosopher|general|statesman|revolutionary|scholar|writer|composer|scientist|inventor|explorer|ruler|president|prime minister|monarch|dynasty)\b/;
-
-  // Birth/death parentheses / years cues (very common on person pages)
-  const yearCues = /\b(born|died)\b|\(\s*\d{3,4}\s*–\s*\d{3,4}\s*\)/;
-
-  // Disambiguation pages are not what we want
   if (type.includes("disambiguation")) return false;
+
+  const personCues =
+    /\b(was a|was an|is a|is an)\b.*\b(king|queen|emperor|pope|saint|philosopher|general|statesman|revolutionary|scholar|writer|composer|scientist|inventor|explorer|ruler|president|prime minister|monarch)\b/;
+
+  const yearCues = /\b(born|died)\b|\(\s*\d{3,4}\s*–\s*\d{3,4}\s*\)/;
 
   if (personCues.test(extract) || yearCues.test(extract)) return true;
 
-  // Some figures won’t match cues; still allow if it’s clearly a biography-ish opening
-  // but avoid institutions/places by rejecting common non-person patterns
+  // Avoid obvious non-person
   if (
     /\b(is a|was a)\b.*\b(city|country|empire|kingdom|battle|treaty|war|revolution|dynasty|museum|university)\b/.test(
       extract,
     )
-  )
+  ) {
     return false;
+  }
 
   return true;
 }
@@ -431,19 +296,15 @@ async function verifyPersonOnWikipedia(name) {
   const q = String(name || "").trim();
   if (!q) return false;
 
-  // 1) Search title
   const title = await wikiSearchTopTitle(q);
   if (!title) return false;
 
-  // 2) Fetch summary
   const summary = await wikiGetSummary(title);
   if (!summary) return false;
 
-  // 3) Check it looks like a person bio page
   return looksLikePersonSummary(summary);
 }
 
-// Simple concurrency runner
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
   let i = 0;
@@ -461,79 +322,409 @@ async function mapLimit(items, limit, fn) {
 }
 
 // ----------------------------------------------------------------------------
-// PROMPT
+// PRELOAD DEDUPE STATE from curiosity_suggestions (history only)
 // ----------------------------------------------------------------------------
-function buildPrompt(count) {
-  const definition = CATEGORY_DEFINITIONS.history;
+async function preloadHistoryState() {
+  const { data, error } = await supabase
+    .from("curiosity_suggestions")
+    .select("anchor_entity_norm, topic_tag_norm")
+    .eq("category", "history");
+
+  if (error)
+    throw new Error("Failed to preload history state: " + error.message);
+
+  const seenAnchorTopic = new Set();
+  const anchorCounts = new Map();
+
+  for (const row of data || []) {
+    const a = String(row.anchor_entity_norm || "").trim();
+    const t = String(row.topic_tag_norm || "").trim();
+
+    if (a) anchorCounts.set(a, (anchorCounts.get(a) || 0) + 1);
+    if (a && t) seenAnchorTopic.add(`history|${a}|${t}`);
+  }
+
+  return { seenAnchorTopic, anchorCounts };
+}
+
+// ----------------------------------------------------------------------------
+// PROMPTS
+// ----------------------------------------------------------------------------
+function buildPersonListPrompt({ count, avoidAnchors }) {
+  return `
+You are generating a list of REAL, well-known historical persons.
+
+Task:
+Return EXACTLY ${count} lines of JSONL.
+
+Each line MUST be:
+{
+  "name": "Person Name (add short disambiguator if needed, e.g., 'Elizabeth I')"
+}
+
+Rules:
+- Must be real and widely known / historically central (state, war, ideology, science-in-society, empire, religion).
+- Not pop culture celebrities.
+- Geographic + temporal diversity.
+- Avoid repeating ultra-common picks unless distinctly disambiguated.
+
+Avoid these overused names (do NOT output them):
+${avoidAnchors.length ? avoidAnchors.map((x) => `- ${x}`).join("\n") : "- (none)"}
+
+Return ONLY JSONL. No commentary.
+`.trim();
+}
+
+function buildHistoryPersonCuriosPrompt({ persons, perPerson, minWow }) {
+  const list = persons.map((p) => `- ${p}`).join("\n");
 
   return `
-You are generating REAL-WORLD CURIOSITY ANCHORS for CurioWire.
+You are generating HIGH-WOW CurioWire "curiosity suggestions" in category HISTORY.
+IMPORTANT: Every item MUST be about a PERSON from the allowed list below.
 
-CATEGORY: HISTORY
-CATEGORY DEFINITION (BOUNDARY LAW):
-${definition}
+ALLOWED PERSON ANCHORS (must match exactly one of these in anchor_entity):
+${list}
 
-TASK:
-Output EXACTLY ${count} anchors as JSONL.
+Output EXACTLY ${persons.length * perPerson} lines of JSONL.
+For each person, generate ${perPerson} distinct curiosities focusing on obscure-but-real edge details.
 
-Each line MUST be a JSON object with:
-- category: "history"
-- anchor: "<PERSON NAME> (optional short disambiguator like 'of Macedon' if needed)"
-- anchor_type: "person"
-- must_include: 1–3 structural elements the article must reference (e.g., "primary correspondence", "state records", "battle dispatches")
-- avoid: 2–4 framing traps (e.g., "hero-worship", "simplified morality tale", "modern political projection")
-- evidence_types: 2–5 generic evidence forms (e.g., "letters", "court records", "chronicles", "archival files")
-- time_scope: one of ["any","ancient","medieval","early-modern","modern","contemporary"]
+Hard requirements for each item:
+- ONE sentence, max 220 characters.
+- Must include: Anchor + Twist + Constraint/Mechanism (only when/because/due to/in X record/test/procedure/condition).
+- No theme sentences ("remains a mystery", "debated", "researchers have theories").
+- Avoid headline biography summaries. Prefer archival/procedural quirks, legal/technical corner cases, unexpected constraints.
+- Broadly true + defensible; avoid fragile exact years/numbers.
+- No "always/never/proved/definitely".
 
-CONSTRAINTS:
-- Persons must be widely known or historically central (state, war, ideology, institution, empire, revolution, religion, science-in-society).
-- Avoid pure pop-culture celebrities.
-- Avoid biography/career-summary framing: anchor must be a SYSTEM NODE.
-- Do NOT invent people.
-- Ensure geographic + temporal diversity (not only Europe/US).
-- Avoid repeating ultra-common names unless disambiguated to a distinct system-node (e.g., "Napoleon III" vs "Napoleon").
+OUTPUT format per line:
+{
+  "category": "history",
+  "curiosity": "one sentence",
+  "wow_score": ${minWow}-100,
+  "verification_query": "2-8 words",
+  "anchor_entity": "MUST match one allowed person exactly",
+  "topic_tag": "2-8 words, specific detail (not 'biography', 'war', 'history')"
+}
 
-Return ONLY JSONL. No headings. No commentary.
+Return ONLY JSONL.
+`.trim();
+}
+
+function buildNoUrlJudgePrompt(rows) {
+  const items = rows.map((r) => ({
+    id: r.id,
+    category: r.category,
+    curiosity: r.curiosity,
+    wow_score: r.wow_score,
+    anchor_entity: r.anchor_entity,
+    topic_tag: r.topic_tag,
+  }));
+
+  return `
+You are CurioWire's verifier for short "curiosity suggestions".
+Judge if each item is (A) broadly true AND (B) concrete (not a theme sentence).
+
+Concrete definition:
+- Must include: a specific anchor + a surprising twist + a constraint/mechanism ("only when/because/due to/in X record...").
+
+Rules:
+- If likely true but too vague/theme-y OR too strong: verdict="rewrite" with a MORE CONCRETE safe_rewrite.
+- If true and already concrete: verdict="pass".
+- If dubious/misleading/unverifiable as a claim: verdict="fail".
+- Rewrites MUST NOT add new names/dates/numbers/institutions unless already present.
+- Rewrites must be ONE sentence <= 220 chars and remove theme phrasing.
+- Keep anchor_entity + topic_tag consistent; do not introduce new ones.
+
+Return JSONL, exactly one object per input:
+{
+  "id": "...",
+  "verdict": "pass" | "rewrite" | "fail",
+  "confidence": 1-5,
+  "safe_rewrite": "..." (only if verdict="rewrite"),
+  "wow_score": 0-100
+}
+
+INPUT ITEMS:
+${JSON.stringify(items, null, 2)}
+
+Return ONLY JSONL.
 `.trim();
 }
 
 // ----------------------------------------------------------------------------
-// FETCH EXISTING (dedupe vs DB)
+// DB: insert suggestions row-by-row to gracefully skip dupes
 // ----------------------------------------------------------------------------
-async function fetchExistingPersonAnchors() {
-  const seen = new Set();
+async function insertSuggestions(rows) {
+  let inserted = 0;
+  let skipped = 0;
 
-  let from = 0;
-  const pageSize = 1000;
+  for (const r of rows) {
+    const payload = {
+      category: "history",
+      curiosity: r.curiosity,
+      status: null,
+      source_urls: [],
+      wow_score: r.wow_score ?? 50,
+      confidence: null,
+      review_note: null,
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("curiosity_anchors")
-      .select("anchor")
-      .eq("category", "history")
-      .eq("anchor_type", "person")
-      .range(from, from + pageSize - 1);
+      anchor_entity: r.anchor_entity,
+      anchor_entity_norm: r.anchor_entity_norm,
+      topic_tag: r.topic_tag,
+      topic_tag_norm: r.topic_tag_norm,
+    };
 
-    if (error) throw new Error(`Supabase fetch failed: ${error.message}`);
-    const rows = Array.isArray(data) ? data : [];
+    const { error } = await supabase
+      .from("curiosity_suggestions")
+      .insert(payload);
 
-    for (const r of rows) {
-      const k = normAnchor(r.anchor);
-      if (k) seen.add(k);
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+      if (
+        msg.includes("duplicate key") ||
+        msg.includes("already exists") ||
+        msg.includes("unique")
+      ) {
+        skipped += 1;
+        continue;
+      }
+      throw new Error("Supabase insert failed: " + error.message);
     }
 
-    if (rows.length < pageSize) break;
-    from += pageSize;
+    inserted += 1;
   }
 
-  return seen;
+  return { inserted, skipped };
 }
 
 // ----------------------------------------------------------------------------
-// GENERATE + CLEAN + VERIFY
+// OPTIONAL: verify created rows (status=null) with Wikipedia overlap
 // ----------------------------------------------------------------------------
-async function generateHistoryPersonsBatch(batchCount) {
-  const prompt = buildPrompt(batchCount);
+function keywordOverlapScore(text, extract) {
+  const t = normText(text);
+  const e = normText(extract || "");
+  if (!t || !e) return 0;
+
+  const words = t.split(" ").filter((w) => w.length >= 5);
+  if (!words.length) return 0;
+
+  let hits = 0;
+  for (const w of new Set(words)) {
+    if (e.includes(w)) hits += 1;
+  }
+  return hits / Math.min(words.length, 10);
+}
+
+async function fetchUnverified(limit = 200) {
+  const { data, error } = await supabase
+    .from("curiosity_suggestions")
+    .select("id, category, curiosity, wow_score")
+    .eq("category", "history")
+    .is("status", null)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw new Error("Fetch unverified failed: " + error.message);
+  return data || [];
+}
+
+async function verifyByWikipedia(rows) {
+  const updates = [];
+
+  for (const r of rows) {
+    const curiosity = r.curiosity || "";
+    const query = curiosity
+      .replace(/\b(may|can|could|often|sometimes|might)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const title = await wikiSearchTopTitle(query);
+    if (!title) continue;
+
+    const summary = await wikiGetSummary(title);
+    const extract = summary?.extract || "";
+
+    const score = keywordOverlapScore(curiosity, extract);
+    if (score < 0.08) continue;
+
+    const url = wikiUrlFromTitle(summary?.title || title);
+    if (!url) continue;
+
+    updates.push({
+      id: r.id,
+      status: "verified",
+      source_urls: [url],
+      confidence: 5,
+      review_note: null,
+    });
+  }
+
+  return updates;
+}
+
+async function applyUpdates(updates) {
+  let ok = 0;
+
+  for (const u of updates) {
+    const { error } = await supabase
+      .from("curiosity_suggestions")
+      .update({
+        status: u.status ?? null,
+        source_urls: u.source_urls ?? [],
+        confidence: u.confidence ?? null,
+        review_note: u.review_note ?? null,
+      })
+      .eq("id", u.id);
+
+    if (error) throw new Error("Apply updates failed: " + error.message);
+    ok += 1;
+  }
+
+  return ok;
+}
+
+// ----------------------------------------------------------------------------
+// OPTIONAL: No-URL judge + rewrite for remaining status=null
+// ----------------------------------------------------------------------------
+async function noUrlJudgeBatch(rows) {
+  const prompt = buildNoUrlJudgePrompt(rows);
+
+  const completion = await openai.chat.completions.create({
+    model: MODEL,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.2,
+  });
+
+  const raw = completion.choices?.[0]?.message?.content || "";
+  return parseJSONL(raw);
+}
+
+async function applyNoUrlDecisions(rows, judged) {
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  let verified = 0;
+  let flagged = 0;
+
+  for (const j of judged) {
+    if (!j || typeof j !== "object") continue;
+
+    const id = j.id;
+    if (!id || !byId.has(id)) continue;
+
+    const verdict = String(j.verdict || "")
+      .toLowerCase()
+      .trim();
+    const confidence = clamp(parseInt(j.confidence ?? 3, 10) || 3, 1, 5);
+    const wow = clamp(parseInt(j.wow_score ?? 50, 10) || 50, 0, 100);
+    const rewrite = String(j.safe_rewrite || "").trim();
+
+    const original = byId.get(id)?.curiosity || "";
+
+    if (verdict === "pass" && confidence >= MIN_CONFIDENCE_TO_VERIFY) {
+      if (wow < MIN_WOW_TO_KEEP) continue;
+      if (looksLikeThemeSentence(original)) {
+        await supabase
+          .from("curiosity_suggestions")
+          .update({
+            status: "flagged",
+            confidence,
+            wow_score: wow,
+            review_note: "no_url_pass_but_theme_sentence",
+          })
+          .eq("id", id);
+        flagged += 1;
+        continue;
+      }
+
+      await supabase
+        .from("curiosity_suggestions")
+        .update({
+          status: "verified",
+          confidence,
+          wow_score: wow,
+          review_note: null,
+        })
+        .eq("id", id);
+
+      verified += 1;
+      continue;
+    }
+
+    if (
+      verdict === "rewrite" &&
+      rewrite &&
+      confidence >= MIN_CONFIDENCE_TO_VERIFY
+    ) {
+      if (
+        looksLikeListicleOrFiller(rewrite) ||
+        looksLikeThemeSentence(rewrite)
+      ) {
+        await supabase
+          .from("curiosity_suggestions")
+          .update({
+            status: "flagged",
+            confidence,
+            wow_score: wow,
+            review_note: "rewrite_failed_quality_or_theme_gate",
+          })
+          .eq("id", id);
+        flagged += 1;
+        continue;
+      }
+
+      if (wow < MIN_WOW_TO_KEEP) {
+        await supabase
+          .from("curiosity_suggestions")
+          .update({
+            status: "flagged",
+            confidence,
+            wow_score: wow,
+            review_note: "rewrite_below_min_wow",
+          })
+          .eq("id", id);
+        flagged += 1;
+        continue;
+      }
+
+      await supabase
+        .from("curiosity_suggestions")
+        .update({
+          status: "verified",
+          confidence,
+          wow_score: wow,
+          review_note: null,
+          curiosity: rewrite,
+        })
+        .eq("id", id);
+
+      verified += 1;
+      continue;
+    }
+
+    if (verdict === "fail") {
+      await supabase
+        .from("curiosity_suggestions")
+        .update({
+          status: "flagged",
+          confidence,
+          wow_score: wow,
+          review_note: "no_url_judge_fail",
+        })
+        .eq("id", id);
+      flagged += 1;
+      continue;
+    }
+
+    // low confidence: leave status null for future pass
+  }
+
+  return { verified, flagged };
+}
+
+// ----------------------------------------------------------------------------
+// GENERATION: persons -> verify -> curiosities
+// ----------------------------------------------------------------------------
+async function generatePersons({ count, avoidAnchors }) {
+  const prompt = buildPersonListPrompt({ count, avoidAnchors });
 
   const completion = await openai.chat.completions.create({
     model: MODEL,
@@ -544,170 +735,266 @@ async function generateHistoryPersonsBatch(batchCount) {
   const raw = completion.choices?.[0]?.message?.content || "";
   const rows = parseJSONL(raw);
 
-  // basic clean
-  const cleaned = [];
-  const seenLocal = new Set();
+  const out = [];
+  const seen = new Set();
 
   for (const r of rows) {
-    if (!r || typeof r !== "object") continue;
-
-    const category = String(r.category || "")
-      .toLowerCase()
-      .trim();
-    if (category !== "history") continue;
-
-    const anchor = String(r.anchor || "").trim();
-    if (!anchor || anchor.length < 3) continue;
-
-    const anchorType = String(r.anchor_type || "").trim();
-    if (anchorType !== "person") continue;
-
-    const key = normAnchor(anchor);
-    if (!key) continue;
-    if (seenLocal.has(key)) continue;
-    seenLocal.add(key);
-
-    cleaned.push({
-      category: "history",
-      anchor,
-      anchor_type: "person",
-      must_include: clampList(r.must_include, 3),
-      avoid: clampList(r.avoid, 4),
-      evidence_types: clampList(r.evidence_types, 5),
-      time_scope: pickTimeScope(r.time_scope),
-    });
+    const name = String(r?.name || "").trim();
+    const k = normText(name);
+    if (!name || k.length < 3) continue;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(name);
   }
 
-  return cleaned;
+  return out;
 }
 
-async function verifyAndFilterPersons(rows) {
-  if (!rows.length) return [];
-
-  // Verify on Wikipedia with limited concurrency
+async function verifyPersons(names) {
   const verdicts = await mapLimit(
-    rows,
+    names,
     WIKI_VERIFY_CONCURRENCY,
-    async (row) => {
-      // tiny jitter to be polite
+    async (name) => {
       await sleep(40 + Math.floor(Math.random() * 80));
-      const ok = await verifyPersonOnWikipedia(row.anchor);
-      return ok ? row : null;
+      const ok = await verifyPersonOnWikipedia(name);
+      return ok ? name : null;
     },
   );
-
   return verdicts.filter(Boolean);
 }
 
-// ----------------------------------------------------------------------------
-// UPSERT
-// ----------------------------------------------------------------------------
-async function upsertAnchors(rows) {
-  if (!rows.length) return { inserted: 0 };
+async function generateCuriositiesForPersons({
+  persons,
+  perPerson,
+  minWow,
+  seenAnchorTopic,
+}) {
+  const prompt = buildHistoryPersonCuriosPrompt({
+    persons,
+    perPerson,
+    minWow,
+  });
 
-  const { error } = await supabase
-    .from("curiosity_anchors")
-    .upsert(rows, { onConflict: "category,anchor" });
+  const completion = await openai.chat.completions.create({
+    model: MODEL,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+  });
 
-  if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
-  return { inserted: rows.length };
+  const raw = completion.choices?.[0]?.message?.content || "";
+  const rows = parseJSONL(raw);
+
+  const allowed = new Set(persons.map((p) => p.trim()));
+  const cleaned = [];
+  const localSeenCur = new Set();
+
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    if (String(r.category || "").toLowerCase() !== "history") continue;
+
+    const curiosity = String(r.curiosity || "").trim();
+    if (looksLikeListicleOrFiller(curiosity)) continue;
+    if (looksLikeThemeSentence(curiosity)) continue;
+
+    const wow = clamp(parseInt(r.wow_score ?? 50, 10) || 50, 0, 100);
+    if (wow < minWow) continue;
+
+    const anchor_entity = String(r.anchor_entity || "").trim();
+    if (!allowed.has(anchor_entity)) continue; // must match allowed list
+
+    const topic_tag = String(r.topic_tag || "").trim();
+    const anchorNorm = normText(anchor_entity);
+    const topicNorm = normText(topic_tag);
+
+    if (!anchorNorm || anchorNorm.length < 3) continue;
+    if (!topicNorm || topicNorm.length < 3) continue;
+
+    const key = `history|${anchorNorm}|${topicNorm}`;
+    if (seenAnchorTopic.has(key)) continue;
+
+    const curKey = normText(curiosity);
+    if (!curKey || curKey.length < 10) continue;
+    if (localSeenCur.has(curKey)) continue;
+    localSeenCur.add(curKey);
+
+    cleaned.push({
+      category: "history",
+      curiosity,
+      wow_score: wow,
+      anchor_entity,
+      anchor_entity_norm: anchorNorm,
+      topic_tag,
+      topic_tag_norm: topicNorm,
+    });
+
+    // optimistic reservation so we don't generate same thing twice in this run
+    seenAnchorTopic.add(key);
+  }
+
+  return cleaned;
 }
 
 // ----------------------------------------------------------------------------
 // MAIN
 // ----------------------------------------------------------------------------
 async function main() {
-  console.log("👤 addHistoryPersons.js (v2)");
+  console.log("🧔 addHistoryPersonCuriosities.js");
   console.log("   model:", MODEL);
-  console.log("   target NEW count:", COUNT);
-  console.log("   gen batch:", GEN_BATCH);
-  console.log("   topup passes:", TOPUP_PASSES);
+  console.log("   TARGET_NEW_PER_RUN:", TARGET_NEW_PER_RUN);
+  console.log("   MIN_WOW_TO_KEEP:", MIN_WOW_TO_KEEP);
+  console.log("   PER_PERSON:", PER_PERSON);
+  console.log("   DO_WIKI_VERIFY_CLAIMS:", DO_WIKI_VERIFY_CLAIMS);
+  console.log("   DO_NOURL_JUDGE:", DO_NOURL_JUDGE);
 
-  const { count: beforeCount } = await supabase
-    .from("curiosity_anchors")
-    .select("*", { count: "exact", head: true })
-    .eq("category", "history")
-    .eq("anchor_type", "person");
+  const { seenAnchorTopic, anchorCounts } = await preloadHistoryState();
 
-  console.log("📊 Persons before:", beforeCount ?? "n/a");
+  // Avoid the most overused anchors (normalized) by telling the model not to pick them
+  const avoidAnchorsNorm = [...anchorCounts.entries()]
+    .sort((a, b) => (b[1] || 0) - (a[1] || 0))
+    .slice(0, AVOID_ANCHORS_TOP)
+    .map(([k]) => k);
 
-  // Dedupe vs DB so we actually add new ones
-  const existing = await fetchExistingPersonAnchors();
-  console.log("🧠 Existing person anchors loaded:", existing.size);
+  let insertedTotal = 0;
+  let skippedTotal = 0;
 
-  const toAdd = [];
-  const seenFinal = new Set(); // normalize across passes too
+  for (let pass = 1; pass <= PASSES_MAX; pass++) {
+    if (insertedTotal >= TARGET_NEW_PER_RUN) break;
 
-  for (let pass = 1; pass <= TOPUP_PASSES; pass++) {
-    if (toAdd.length >= COUNT) break;
+    console.log(`\n=== PASS ${pass}/${PASSES_MAX} ===`);
+    console.log(`Need ${TARGET_NEW_PER_RUN - insertedTotal} more new rows...`);
 
-    console.log(`\n--- PASS ${pass}/${TOPUP_PASSES} ---`);
-    console.log(`Need ${COUNT - toAdd.length} more new verified persons...`);
-
-    const batch = await generateHistoryPersonsBatch(GEN_BATCH);
-
-    // Remove anything already in DB or already accepted
-    const candidates = batch.filter((x) => {
-      const k = normAnchor(x.anchor);
-      if (!k) return false;
-      if (existing.has(k)) return false;
-      if (seenFinal.has(k)) return false;
-      return true;
+    // 1) Generate person candidates
+    const people = await generatePersons({
+      count: PERSON_BATCH,
+      avoidAnchors: avoidAnchorsNorm,
     });
 
-    console.log(
-      `Generated ${batch.length}, candidates after DB+local dedupe: ${candidates.length}`,
-    );
-
-    if (!candidates.length) {
-      console.log("…no candidates this pass. continuing.");
+    if (!people.length) {
+      console.log("…no people generated. continuing.");
       continue;
     }
 
-    const verified = await verifyAndFilterPersons(candidates);
-    console.log(`Wikipedia-verified persons this pass: ${verified.length}`);
+    // 2) Wikipedia-verify they are persons
+    const verifiedPeople = await verifyPersons(people);
 
-    for (const v of verified) {
-      const k = normAnchor(v.anchor);
-      if (!k) continue;
-      if (existing.has(k)) continue;
-      if (seenFinal.has(k)) continue;
-
-      seenFinal.add(k);
-      toAdd.push(v);
-
-      if (toAdd.length >= COUNT) break;
+    if (!verifiedPeople.length) {
+      console.log("…no Wikipedia-verified persons. continuing.");
+      continue;
     }
 
-    console.log(`Total new verified queued: ${toAdd.length}/${COUNT}`);
-  }
+    console.log(`✅ Verified persons this pass: ${verifiedPeople.length}`);
 
-  if (toAdd.length < COUNT) {
-    console.warn(
-      `⚠️ Could not reach target. Will still upsert what we have: ${toAdd.length}/${COUNT}`,
+    // 3) Take a slice for the curiosities prompt (avoid token blowups)
+    const slice = verifiedPeople.slice(
+      0,
+      Math.min(
+        verifiedPeople.length,
+        Math.floor(CURIOS_BATCH / Math.max(1, PER_PERSON)),
+      ),
+    );
+    if (!slice.length) continue;
+
+    // 4) Generate curiosities for these persons
+    const suggestions = await generateCuriositiesForPersons({
+      persons: slice,
+      perPerson: PER_PERSON,
+      minWow: MIN_WOW_TO_KEEP,
+      seenAnchorTopic,
+    });
+
+    if (!suggestions.length) {
+      console.log("…no usable curiosities generated (filtered/dupes).");
+      continue;
+    }
+
+    // 5) Insert
+    const { inserted, skipped } = await insertSuggestions(shuffle(suggestions));
+    insertedTotal += inserted;
+    skippedTotal += skipped;
+
+    console.log(
+      `✅ Inserted=${inserted}, skipped(dupes)=${skipped} | totalInserted=${insertedTotal}/${TARGET_NEW_PER_RUN}`,
     );
   }
 
-  const payload = toAdd.slice(0, COUNT);
-  const res = await upsertAnchors(payload);
-  console.log(`✅ Upserted ${res.inserted} person anchors into Supabase`);
+  console.log("\n🏁 INSERT PHASE DONE");
+  console.log("Inserted total:", insertedTotal);
+  console.log("Skipped dupes total:", skippedTotal);
 
-  const { count: afterCount } = await supabase
-    .from("curiosity_anchors")
-    .select("*", { count: "exact", head: true })
-    .eq("category", "history")
-    .eq("anchor_type", "person");
+  // Optional: verify claims we just created (status=null in history)
+  if (DO_WIKI_VERIFY_CLAIMS) {
+    console.log("\n=== OPTIONAL PHASE: WIKIPEDIA VERIFY CLAIMS ===");
 
-  console.log("📊 Persons after:", afterCount ?? "n/a");
+    let urlVerifiedTotal = 0;
+    let stalls = 0;
 
-  if (beforeCount != null && afterCount != null) {
-    console.log("📈 Net new persons added:", afterCount - beforeCount);
+    while (true) {
+      const candidates = await fetchUnverified(URL_VERIFY_BATCH);
+      if (!candidates.length) break;
+
+      console.log(`🔎 URL-verify batch: ${candidates.length}...`);
+      const updates = await verifyByWikipedia(candidates);
+
+      if (!updates.length) {
+        stalls += 1;
+        console.log(
+          `…no URL-verifications. stall=${stalls}/${URL_VERIFY_MAX_STALLS}`,
+        );
+        if (stalls >= URL_VERIFY_MAX_STALLS) break;
+        continue;
+      }
+
+      stalls = 0;
+      const applied = await applyUpdates(updates);
+      urlVerifiedTotal += applied;
+
+      console.log(
+        `✅ URL-verified updated: ${applied} (total=${urlVerifiedTotal})`,
+      );
+    }
+
+    console.log("🏁 URL verified total:", urlVerifiedTotal);
   }
 
-  console.log("🎉 Done.");
+  // Optional: no-url judge for remaining status=null in history
+  if (DO_NOURL_JUDGE) {
+    console.log("\n=== OPTIONAL PHASE: NO-URL JUDGE + REWRITE ===");
+
+    let verified = 0;
+    let flagged = 0;
+    let loops = 0;
+
+    while (true) {
+      loops += 1;
+
+      const remaining = await fetchUnverified(NOURL_VERIFY_BATCH);
+      if (!remaining.length) break;
+
+      console.log(`🧪 Judge batch: ${remaining.length}...`);
+      const judged = await noUrlJudgeBatch(remaining);
+      if (!judged.length) {
+        console.log("…no decisions returned; stopping.");
+        break;
+      }
+
+      const res = await applyNoUrlDecisions(remaining, judged);
+      verified += res.verified;
+      flagged += res.flagged;
+
+      console.log(
+        `✅ judge applied: verified+${res.verified}, flagged+${res.flagged} | totals: verified=${verified}, flagged=${flagged}`,
+      );
+
+      if (loops > 200) break;
+    }
+
+    console.log("🏁 No-URL judge totals:", { verified, flagged });
+  }
+
+  console.log("\n🎉 Done.");
 }
 
 main().catch((err) => {
-  console.error("💥 addHistoryPersons.js failed:", err);
+  console.error("💥 addHistoryPersonCuriosities.js failed:", err);
   process.exit(1);
 });
