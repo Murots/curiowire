@@ -13,7 +13,7 @@ on:
         default: "kling"
   schedule:
     # 🎬 Videos: once per day (01:05 UTC) — US prime time
-    - cron: "5 1 * * *"
+    - cron: "15 22 * * *"
 
   # schedule:
   #   # 🎬 Videos: twice per day (00:05 and 12:05 UTC) - tidligere klokkeslett
