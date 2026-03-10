@@ -40,7 +40,7 @@ ${safeFrame ? `"${safeFrame}"` : "(none)"}
 Write:
 1) A click-strong and SEO-friendly headline (7–10 words)
 2) A super-viral, high-retention wow-curiosity article (300–500 words)
-3) A super-viral short-video script for TikTok/YouTube Shorts (25–35 seconds)
+3) A super-viral short-video script for TikTok/YouTube Shorts (25–30 seconds, strong first-line hook, short spoken sentences)
 4) SEO block (<title>, <description>, <keywords>)
 5) Hashtags block (space-separated)
 
@@ -50,6 +50,18 @@ GLOBAL RULES
 - Include time marker and/or place marker and/or names if available, natural and fitting. 
 - The ending/final paragraph must NOT tell the reader what to do “next time” (avoid “next time you” / “so, next time you” / “so next time you” / “so, the next time you” / “so the next time you” and variations).
 
+VIDEO SCRIPT RULES
+- The VideoScript must open with an immediate curiosity hook in the first sentence.
+- Use short spoken sentences.
+- Prioritize tension, surprise, and reveal over chronological explanation.
+- The structure should feel like:
+  1) hook
+  2) tension or mystery
+  3) escalation
+  4) reveal or payoff
+- Keep the wording concrete, vivid, and easy to speak aloud.
+- Avoid throat-clearing intros and slow setup.
+
 GLOBAL FORMAT RULES (STRICT)
 - Return ONLY the required sections. No extra text.
 - No emojis, no decorative symbols, no divider lines, no arrows, no ASCII art.
@@ -57,7 +69,6 @@ GLOBAL FORMAT RULES (STRICT)
 - No lists of any kind (no bullets, numbering, <ul>/<ol>/<li>).
 - Allowed HTML tags: h1, p
 - No <strong>, no <em>, no italics/bold, no quotes formatting tricks.
-
 
 SEO RULES (plain text only; no HTML tags)
 Output exactly:
