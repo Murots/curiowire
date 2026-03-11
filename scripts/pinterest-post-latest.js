@@ -7,21 +7,18 @@ const {
   SUPABASE_SERVICE_ROLE_KEY,
   PINTEREST_ACCESS_TOKEN,
   SITE_URL,
+  PINTEREST_POSTING_ENABLED,
 } = process.env;
 
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
 if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 }
-if (!PINTEREST_ACCESS_TOKEN) {
-  throw new Error("Missing PINTEREST_ACCESS_TOKEN");
-}
 if (!SITE_URL) throw new Error("Missing SITE_URL");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const PINTEREST_API_BASE_PROD = "https://api.pinterest.com";
-const PINTEREST_API_BASE_SANDBOX = "https://api-sandbox.pinterest.com";
 
 const BOARD_MAP = {
   science: process.env.PINTEREST_BOARD_ID_SCIENCE,
@@ -36,6 +33,7 @@ const BOARD_MAP = {
   world: process.env.PINTEREST_BOARD_ID_WORLD,
   crime: process.env.PINTEREST_BOARD_ID_CRIME,
   mystery: process.env.PINTEREST_BOARD_ID_MYSTERY,
+  general: process.env.PINTEREST_BOARD_ID_GENERAL,
 };
 
 function safeStr(v, fallback = "") {
@@ -55,6 +53,10 @@ function normalizeImageSource(source) {
 
 function needsVisibleCredit(card) {
   return normalizeImageSource(card.image_source).includes("wikimedia");
+}
+
+function isPostingEnabled() {
+  return String(PINTEREST_POSTING_ENABLED || "").toLowerCase() === "true";
 }
 
 function buildDescription(card) {
@@ -218,37 +220,23 @@ async function uploadPinterestImage(filePath, cardId) {
   }
 }
 
-async function alreadyPosted(cardId) {
+async function alreadyHandled(cardId) {
   const { data, error } = await supabase
     .from("pinterest_posts")
-    .select("id")
+    .select("id, status")
     .eq("card_id", cardId)
     .maybeSingle();
 
   if (error) throw error;
-  return !!data;
+  return data || null;
 }
 
-function shouldFallbackToSandbox(status, data) {
-  if (status !== 403) return false;
+async function postPin({ boardId, title, description, articleUrl, imageUrl }) {
+  if (!PINTEREST_ACCESS_TOKEN) {
+    throw new Error("Missing PINTEREST_ACCESS_TOKEN");
+  }
 
-  const message = safeStr(data?.message).toLowerCase();
-  return (
-    message.includes("trial access") &&
-    message.includes("may not create pins in production") &&
-    message.includes("sandbox")
-  );
-}
-
-async function postPin({
-  apiBase,
-  boardId,
-  title,
-  description,
-  articleUrl,
-  imageUrl,
-}) {
-  const res = await fetch(`${apiBase}/v5/pins`, {
+  const res = await fetch(`${PINTEREST_API_BASE_PROD}/v5/pins`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${PINTEREST_ACCESS_TOKEN}`,
@@ -267,8 +255,12 @@ async function postPin({
   });
 
   const data = await res.json().catch(() => ({}));
-
   return { res, data };
+}
+
+async function insertPinterestRow(payload) {
+  const { error } = await supabase.from("pinterest_posts").insert(payload);
+  if (error) throw error;
 }
 
 async function run() {
@@ -294,19 +286,21 @@ async function run() {
     return;
   }
 
-  if (await alreadyPosted(card.id)) {
-    console.log(`Card ${card.id} already posted to Pinterest. Skipping.`);
+  const existing = await alreadyHandled(card.id);
+  if (existing) {
+    console.log(
+      `Card ${card.id} already handled for Pinterest with status=${existing.status}. Skipping.`,
+    );
     return;
   }
 
   console.log("Latest article:", card.id, card.title);
 
-  const boardId =
-    BOARD_MAP[card.category] || process.env.PINTEREST_BOARD_ID_GENERAL;
+  const boardId = BOARD_MAP[card.category] || BOARD_MAP.general;
 
   if (!boardId) {
     throw new Error(
-      `Missing Pinterest board ID for category: ${card.category}`,
+      `Missing production Pinterest board ID for category: ${card.category}`,
     );
   }
 
@@ -325,33 +319,35 @@ async function run() {
   const articleUrl = `${SITE_URL}/article/${card.id}`;
   const pinTitle = safeStr(card.title).slice(0, 100);
 
-  console.log("Posting to Pinterest (production first)...");
+  if (!isPostingEnabled()) {
+    console.log(
+      "PINTEREST_POSTING_ENABLED is false. Skipping live Pinterest posting and saving test row only.",
+    );
 
-  let apiBaseUsed = PINTEREST_API_BASE_PROD;
-  let { res, data } = await postPin({
-    apiBase: PINTEREST_API_BASE_PROD,
+    await insertPinterestRow({
+      card_id: card.id,
+      pinterest_pin_id: null,
+      board_key: card.category,
+      destination_url: articleUrl,
+      image_url: pinterestImageUrl,
+      pin_title: card.title,
+      pin_description: description,
+      status: "skipped",
+    });
+
+    console.log("Pinterest test row stored.");
+    return;
+  }
+
+  console.log("Posting to Pinterest production API...");
+
+  const { res, data } = await postPin({
     boardId,
     title: pinTitle,
     description,
     articleUrl,
     imageUrl: pinterestImageUrl,
   });
-
-  if (shouldFallbackToSandbox(res.status, data)) {
-    console.log(
-      "Production posting blocked for Trial access. Falling back to Pinterest Sandbox...",
-    );
-
-    apiBaseUsed = PINTEREST_API_BASE_SANDBOX;
-    ({ res, data } = await postPin({
-      apiBase: PINTEREST_API_BASE_SANDBOX,
-      boardId,
-      title: pinTitle,
-      description,
-      articleUrl,
-      imageUrl: pinterestImageUrl,
-    }));
-  }
 
   console.log("Pinterest result:", data);
 
@@ -361,10 +357,7 @@ async function run() {
     );
   }
 
-  const finalStatus =
-    apiBaseUsed === PINTEREST_API_BASE_SANDBOX ? "sandbox_posted" : "posted";
-
-  const { error: insertError } = await supabase.from("pinterest_posts").insert({
+  await insertPinterestRow({
     card_id: card.id,
     pinterest_pin_id: data.id,
     board_key: card.category,
@@ -372,12 +365,10 @@ async function run() {
     image_url: pinterestImageUrl,
     pin_title: card.title,
     pin_description: description,
-    status: finalStatus,
+    status: "posted",
   });
 
-  if (insertError) throw insertError;
-
-  console.log(`Pinterest post stored (${finalStatus}).`);
+  console.log("Pinterest post stored.");
 }
 
 run().catch((err) => {
