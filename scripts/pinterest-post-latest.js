@@ -71,6 +71,38 @@ function buildDescription(card) {
   return `${base}\n\nRead more: ${articleUrl}`.slice(0, 800);
 }
 
+function buildPinterestTitle(title) {
+  let t = safeStr(title);
+
+  if (!t) return "CurioWire";
+
+  t = t.replace(/[!?]+$/g, "").trim();
+
+  const replacements = [
+    [/^the truth about\s+/i, ""],
+    [/^the surprising truth about\s+/i, ""],
+    [/^why\s+/i, "Why "],
+    [/^how\s+/i, "How "],
+    [/^inside\s+/i, ""],
+    [/^discover\s+/i, ""],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    t = t.replace(pattern, replacement).trim();
+  }
+
+  if (t.length <= 55) return t;
+
+  const shortened = t
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (shortened.length <= 55) return shortened;
+
+  return shortened.slice(0, 52).replace(/[,:;-\s]+$/, "") + "…";
+}
+
 function escapeXml(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
@@ -79,7 +111,7 @@ function escapeXml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function wrapTitle(title, maxLineLength = 24, maxLines = 4) {
+function wrapTitle(title, maxLineLength = 20, maxLines = 4) {
   const words = safeStr(title).split(/\s+/).filter(Boolean);
   const lines = [];
   let current = "";
@@ -110,18 +142,31 @@ function wrapTitle(title, maxLineLength = 24, maxLines = 4) {
 
 function buildOverlaySVG(title, credit) {
   const lines = wrapTitle(title);
+  const startY = 820;
+
   const titleSvg = lines
     .map((line, i) => {
-      const y = 980 + i * 82;
+      const y = startY + i * 88;
+      const text = escapeXml(line);
+
       return `
+      <text
+        x="82"
+        y="${y + 2}"
+        fill="black"
+        opacity="0.38"
+        font-size="76"
+        font-weight="800"
+        font-family="Arial, Helvetica, sans-serif"
+      >${text}</text>
       <text
         x="80"
         y="${y}"
         fill="white"
-        font-size="64"
-        font-weight="700"
+        font-size="76"
+        font-weight="800"
         font-family="Arial, Helvetica, sans-serif"
-      >${escapeXml(line)}</text>`;
+      >${text}</text>`;
     })
     .join("");
 
@@ -131,24 +176,34 @@ function buildOverlaySVG(title, credit) {
   <svg width="1000" height="1500" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="rgba(0,0,0,0.08)" />
-        <stop offset="55%" stop-color="rgba(0,0,0,0.18)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.72)" />
+        <stop offset="0%" stop-color="rgba(0,0,0,0.10)" />
+        <stop offset="45%" stop-color="rgba(0,0,0,0.20)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.82)" />
       </linearGradient>
     </defs>
 
     <rect x="0" y="0" width="1000" height="1500" fill="url(#fade)" />
 
+    <rect
+      x="48"
+      y="710"
+      width="904"
+      height="390"
+      rx="34"
+      fill="black"
+      opacity="0.34"
+    />
+
     ${titleSvg}
 
     <text
       x="80"
-      y="1400"
+      y="1388"
       fill="white"
-      font-size="34"
-      font-weight="600"
+      font-size="36"
+      font-weight="700"
       font-family="Arial, Helvetica, sans-serif"
-      opacity="0.95"
+      opacity="0.98"
     >CurioWire.com</text>
 
     ${
@@ -156,11 +211,11 @@ function buildOverlaySVG(title, credit) {
         ? `
     <text
       x="80"
-      y="1450"
+      y="1442"
       fill="white"
       font-size="20"
       font-family="Arial, Helvetica, sans-serif"
-      opacity="0.82"
+      opacity="0.84"
     >${escapeXml(creditText)}</text>`
         : ""
     }
@@ -168,7 +223,7 @@ function buildOverlaySVG(title, credit) {
   `;
 }
 
-async function createPinterestImage(card) {
+async function createPinterestImage(card, overlayTitle) {
   try {
     const res = await fetch(card.image_url);
     if (!res.ok) {
@@ -178,7 +233,7 @@ async function createPinterestImage(card) {
     const buffer = Buffer.from(await res.arrayBuffer());
 
     const credit = needsVisibleCredit(card) ? safeStr(card.image_credit) : "";
-    const overlaySVG = buildOverlaySVG(card.title, credit);
+    const overlaySVG = buildOverlaySVG(overlayTitle, credit);
     const overlayBuffer = Buffer.from(overlaySVG);
 
     const filePath = `/tmp/pinterest-${card.id}.jpg`;
@@ -304,9 +359,13 @@ async function run() {
     );
   }
 
+  const description = buildDescription(card);
+  const articleUrl = `${SITE_URL}/article/${card.id}`;
+  const pinterestTitle = buildPinterestTitle(card.title);
+
   let pinterestImageUrl = card.image_url;
 
-  const pinterestFile = await createPinterestImage(card);
+  const pinterestFile = await createPinterestImage(card, pinterestTitle);
 
   if (pinterestFile) {
     const uploadedUrl = await uploadPinterestImage(pinterestFile, card.id);
@@ -314,10 +373,6 @@ async function run() {
       pinterestImageUrl = uploadedUrl;
     }
   }
-
-  const description = buildDescription(card);
-  const articleUrl = `${SITE_URL}/article/${card.id}`;
-  const pinTitle = safeStr(card.title).slice(0, 100);
 
   if (!isPostingEnabled()) {
     console.log(
@@ -330,7 +385,7 @@ async function run() {
       board_key: card.category,
       destination_url: articleUrl,
       image_url: pinterestImageUrl,
-      pin_title: card.title,
+      pin_title: pinterestTitle,
       pin_description: description,
       status: "skipped",
     });
@@ -343,7 +398,7 @@ async function run() {
 
   const { res, data } = await postPin({
     boardId,
-    title: pinTitle,
+    title: pinterestTitle,
     description,
     articleUrl,
     imageUrl: pinterestImageUrl,
@@ -363,7 +418,7 @@ async function run() {
     board_key: card.category,
     destination_url: articleUrl,
     image_url: pinterestImageUrl,
-    pin_title: card.title,
+    pin_title: pinterestTitle,
     pin_description: description,
     status: "posted",
   });
