@@ -20,6 +20,9 @@ if (!SITE_URL) throw new Error("Missing SITE_URL");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+const PINTEREST_API_BASE_PROD = "https://api.pinterest.com";
+const PINTEREST_API_BASE_SANDBOX = "https://api-sandbox.pinterest.com";
+
 const BOARD_MAP = {
   science: process.env.PINTEREST_BOARD_ID_SCIENCE,
   technology: process.env.PINTEREST_BOARD_ID_TECHNOLOGY,
@@ -226,6 +229,48 @@ async function alreadyPosted(cardId) {
   return !!data;
 }
 
+function shouldFallbackToSandbox(status, data) {
+  if (status !== 403) return false;
+
+  const message = safeStr(data?.message).toLowerCase();
+  return (
+    message.includes("trial access") &&
+    message.includes("may not create pins in production") &&
+    message.includes("sandbox")
+  );
+}
+
+async function postPin({
+  apiBase,
+  boardId,
+  title,
+  description,
+  articleUrl,
+  imageUrl,
+}) {
+  const res = await fetch(`${apiBase}/v5/pins`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${PINTEREST_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      board_id: boardId,
+      title,
+      description,
+      link: articleUrl,
+      media_source: {
+        source_type: "image_url",
+        url: imageUrl,
+      },
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  return { res, data };
+}
+
 async function run() {
   console.log("Fetching latest article...");
 
@@ -278,28 +323,35 @@ async function run() {
 
   const description = buildDescription(card);
   const articleUrl = `${SITE_URL}/article/${card.id}`;
+  const pinTitle = safeStr(card.title).slice(0, 100);
 
-  console.log("Posting to Pinterest...");
+  console.log("Posting to Pinterest (production first)...");
 
-  const res = await fetch("https://api.pinterest.com/v5/pins", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${PINTEREST_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      board_id: boardId,
-      title: safeStr(card.title).slice(0, 100),
-      description,
-      link: articleUrl,
-      media_source: {
-        source_type: "image_url",
-        url: pinterestImageUrl,
-      },
-    }),
+  let apiBaseUsed = PINTEREST_API_BASE_PROD;
+  let { res, data } = await postPin({
+    apiBase: PINTEREST_API_BASE_PROD,
+    boardId,
+    title: pinTitle,
+    description,
+    articleUrl,
+    imageUrl: pinterestImageUrl,
   });
 
-  const data = await res.json().catch(() => ({}));
+  if (shouldFallbackToSandbox(res.status, data)) {
+    console.log(
+      "Production posting blocked for Trial access. Falling back to Pinterest Sandbox...",
+    );
+
+    apiBaseUsed = PINTEREST_API_BASE_SANDBOX;
+    ({ res, data } = await postPin({
+      apiBase: PINTEREST_API_BASE_SANDBOX,
+      boardId,
+      title: pinTitle,
+      description,
+      articleUrl,
+      imageUrl: pinterestImageUrl,
+    }));
+  }
 
   console.log("Pinterest result:", data);
 
@@ -309,6 +361,9 @@ async function run() {
     );
   }
 
+  const finalStatus =
+    apiBaseUsed === PINTEREST_API_BASE_SANDBOX ? "sandbox_posted" : "posted";
+
   const { error: insertError } = await supabase.from("pinterest_posts").insert({
     card_id: card.id,
     pinterest_pin_id: data.id,
@@ -317,12 +372,12 @@ async function run() {
     image_url: pinterestImageUrl,
     pin_title: card.title,
     pin_description: description,
-    status: "posted",
+    status: finalStatus,
   });
 
   if (insertError) throw insertError;
 
-  console.log("Pinterest post stored.");
+  console.log(`Pinterest post stored (${finalStatus}).`);
 }
 
 run().catch((err) => {
