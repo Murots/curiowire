@@ -1,0 +1,43 @@
+name: CurioWire Pinterest Poster
+
+on:
+  workflow_run:
+    workflows: ["CurioWire Auto Article Generator"]
+    types: [completed]
+
+jobs:
+  pinterest:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+      SITE_URL: ${{ secrets.SITE_URL }}
+
+      PINTEREST_BOARD_ID_SCIENCE: ${{ secrets.PINTEREST_BOARD_ID_SCIENCE }}
+      PINTEREST_BOARD_ID_TECHNOLOGY: ${{ secrets.PINTEREST_BOARD_ID_TECHNOLOGY }}
+      PINTEREST_BOARD_ID_SPACE: ${{ secrets.PINTEREST_BOARD_ID_SPACE }}
+      PINTEREST_BOARD_ID_NATURE: ${{ secrets.PINTEREST_BOARD_ID_NATURE }}
+      PINTEREST_BOARD_ID_HEALTH: ${{ secrets.PINTEREST_BOARD_ID_HEALTH }}
+      PINTEREST_BOARD_ID_HISTORY: ${{ secrets.PINTEREST_BOARD_ID_HISTORY }}
+      PINTEREST_BOARD_ID_CULTURE: ${{ secrets.PINTEREST_BOARD_ID_CULTURE }}
+      PINTEREST_BOARD_ID_SPORTS: ${{ secrets.PINTEREST_BOARD_ID_SPORTS }}
+      PINTEREST_BOARD_ID_PRODUCTS: ${{ secrets.PINTEREST_BOARD_ID_PRODUCTS }}
+      PINTEREST_BOARD_ID_WORLD: ${{ secrets.PINTEREST_BOARD_ID_WORLD }}
+      PINTEREST_BOARD_ID_CRIME: ${{ secrets.PINTEREST_BOARD_ID_CRIME }}
+      PINTEREST_BOARD_ID_MYSTERY: ${{ secrets.PINTEREST_BOARD_ID_MYSTERY }}
+      PINTEREST_BOARD_ID_GENERAL: ${{ secrets.PINTEREST_BOARD_ID_GENERAL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Post to Pinterest
+        run: node scripts/pinterest-post-latest.js
