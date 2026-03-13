@@ -133,7 +133,7 @@ ${safeFrame ? `"${safeFrame}"` : "(none)"}
 
 Write:
 1) A click-strong and SEO-friendly headline (7–10 words)
-2) A super-viral, high-retention and detailed wow-curiosity article (300–500 words)
+2) A super-viral, high-retention wow-curiosity article (350–500 words)
 3) A super-viral short-video script for TikTok/YouTube Shorts
 4) SEO block (<title>, <description>, <keywords>)
 5) Hashtags block (space-separated)

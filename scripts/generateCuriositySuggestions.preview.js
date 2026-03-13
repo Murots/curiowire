@@ -1,22 +1,21 @@
 // ============================================================================
-// CurioWire — generateCuriositySuggestions.v2.3.js
-// Goal: Generate HIGH-WOW "curiosity suggestions" with strong anti-duplication
-// and stronger editorial quality control.
+// CurioWire — generateCuriositySuggestions.preview.js
+// Goal: Preview curiosity suggestions in terminal only (NO DATABASE WRITES).
 //
-// ✅ Top-up mode (NO WIPE) by default
-// ✅ Top-up targets UNUSED inventory only: times_used = 0
-// ✅ Eligible inventory for the "unused quota": status IS NULL OR status='verified' (but NOT 'flagged')
-// ✅ Prefills dedupe state from DB so repeated runs keep improving without repeats
-// ✅ Enforces: category + anchor_entity_norm + topic_tag_norm uniqueness (in DB + in-memory)
-// ✅ Soft caps how often the same anchor can appear per category
-// ✅ Verifies via Wikipedia when possible, then LLM judge+rewrite for the rest
+// ✅ Reads existing suggestions from Supabase for dedupe / avoidAnchors
+// ✅ Generates with the same prompt + editorial filters as production
+// ✅ Does NOT insert, update, wipe, or modify anything in Supabase
+// ✅ Prints preview items to terminal and exits
 //
-// v2.3 — step 1 + editorial quality layer:
-// - Universal curiosity definition across generation + verification
-// - Internal multi-score quality model (novelty / retellability / specificity / generic-risk)
-// - Only total wow_score is stored in DB
-// - Editorial filter rejects generic, spec-sheet, summary-like curiosities before insert
-// - Dedupe and verification flow unchanged in structure
+// Usage examples:
+//   node scripts/generateCuriositySuggestions.preview.js
+//   node scripts/generateCuriositySuggestions.preview.js products
+//   node scripts/generateCuriositySuggestions.preview.js products 10 40
+//
+// Args:
+//   [0] category (optional)  e.g. products
+//   [1] preview limit        e.g. 10
+//   [2] ask count            e.g. 40
 // ============================================================================
 
 import OpenAI from "openai";
@@ -29,8 +28,21 @@ dotenv.config({ path: ".env.local" });
 // ----------------------------------------------------------------------------
 const MODEL = process.env.CURIO_SUGGESTIONS_MODEL || "gpt-5-mini";
 
-// ✅ Top-up mode (NO WIPE)
-const WIPE_BEFORE_REFILL = false;
+// CLI args are easier in VS Code / PowerShell
+const cliCategory = process.argv[2] || null;
+const cliPreviewLimit = process.argv[3] || null;
+const cliAskCount = process.argv[4] || null;
+
+// TEST / PREVIEW MODE
+const TEST_PREVIEW_LIMIT = parseInt(
+  cliPreviewLimit ?? process.env.CURIO_TEST_PREVIEW_LIMIT ?? "10",
+  10,
+);
+const TEST_CATEGORY = cliCategory ?? process.env.CURIO_TEST_CATEGORY ?? null; // e.g. "history"
+const TEST_ASK_COUNT = parseInt(
+  cliAskCount ?? process.env.CURIO_TEST_ASK_COUNT ?? "30",
+  10,
+);
 
 // Final stored wow threshold
 const MIN_WOW_TO_KEEP = parseInt(process.env.CURIO_MIN_WOW ?? "75", 10);
@@ -47,7 +59,7 @@ const MAX_GENERIC_FACT_RISK = parseInt(
   10,
 );
 
-// Target counts (desired minimum UNUSED rows per category, i.e., times_used=0)
+// Target counts (not really used in preview mode, but kept for parity)
 const TARGET_BY_CATEGORY = {
   history: 200,
   science: 150,
@@ -68,30 +80,14 @@ const CATEGORIES = Object.keys(TARGET_BY_CATEGORY);
 // How many to ask for per model call
 const GEN_BATCH = 60;
 
-// Max “top-up” passes per category
-const TOPUP_PASSES = 12;
-
-// Verification batching
-const URL_VERIFY_BATCH = 60;
-const NOURL_VERIFY_BATCH = 30;
-
-// No-URL judge threshold
-const MIN_CONFIDENCE_TO_VERIFY = 4;
-
-// Wikipedia phase: avoid infinite loops when no progress
-const URL_VERIFY_MAX_STALLS = 3;
-
 // Anti-repeat: soft cap how many suggestions per anchor per category
 const ANCHOR_CAP_PER_CATEGORY = parseInt(
   process.env.CURIO_ANCHOR_CAP ?? "4",
   10,
 );
 
-// For top-up asking: request more than needed to offset filtering/dupes
-const ASK_MULTIPLIER = Number(process.env.CURIO_ASK_MULT ?? "1.7");
-
 // ----------------------------------------------------------------------------
-// SUPABASE (SERVICE ROLE REQUIRED)
+// SUPABASE (READ ONLY IN THIS SCRIPT)
 // ----------------------------------------------------------------------------
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -118,54 +114,6 @@ const openai = new OpenAI({
 // ----------------------------------------------------------------------------
 // HELPERS
 // ----------------------------------------------------------------------------
-
-async function wikiSearchTopTitle(query) {
-  const q = String(query || "").trim();
-  if (!q) return null;
-
-  const url =
-    "https://en.wikipedia.org/w/api.php?" +
-    new URLSearchParams({
-      action: "query",
-      list: "search",
-      srsearch: q,
-      format: "json",
-      origin: "*",
-      srlimit: "1",
-    });
-
-  const res = await fetch(url);
-  if (!res.ok) return null;
-
-  const json = await res.json();
-  const title = json?.query?.search?.[0]?.title;
-  return title ? String(title) : null;
-}
-
-async function wikiGetSummary(title) {
-  const t = String(title || "").trim();
-  if (!t) return null;
-
-  const url =
-    "https://en.wikipedia.org/api/rest_v1/page/summary/" +
-    encodeURIComponent(t.replace(/ /g, "_"));
-
-  const res = await fetch(url, {
-    headers: { accept: "application/json" },
-  });
-  if (!res.ok) return null;
-
-  const json = await res.json();
-  return {
-    title: json?.title || t,
-    extract: json?.extract || "",
-  };
-}
-
-function shuffle(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
-
 function safeJsonParse(line) {
   try {
     return JSON.parse(line);
@@ -195,13 +143,6 @@ function normText(s) {
 
 function clamp(n, a, b) {
   return Math.max(a, Math.min(b, n));
-}
-
-function wikiUrlFromTitle(title) {
-  if (!title) return null;
-  return `https://en.wikipedia.org/wiki/${encodeURIComponent(
-    title.replace(/ /g, "_"),
-  )}`;
 }
 
 function looksLikeListicleOrFiller(s) {
@@ -295,7 +236,7 @@ function looksLikeBroadSummary(s) {
   }
 
   if (
-    /\bcan help|is used to|is known to|is commonly used|is often used|is widely used|is intended to)\b/i.test(
+    /\b(can help|is used to|is known to|is commonly used|is often used|is widely used|is intended to)\b/i.test(
       t,
     )
   ) {
@@ -386,23 +327,6 @@ function editorialRejectReason({ curiosity, topicTag = "", scores = null }) {
   }
 
   return null;
-}
-
-// Basic overlap helper for Wikipedia verification
-function keywordOverlapScore(text, extract) {
-  const t = normText(text);
-  const e = normText(extract || "");
-  if (!t || !e) return 0;
-
-  const words = t.split(" ").filter((w) => w.length >= 5);
-  if (!words.length) return 0;
-
-  let hits = 0;
-  for (const w of new Set(words)) {
-    if (e.includes(w)) hits += 1;
-  }
-
-  return hits / Math.min(words.length, 10);
 }
 
 // ----------------------------------------------------------------------------
@@ -531,6 +455,13 @@ NOVELTY REQUIREMENTS:
 - Prefer overlooked edge details: strange constraints, weird causes, procedural quirks, odd consequences, or real-world exceptions.
 - If it sounds like something most people already know, discard it and generate a different one.
 
+QUALITY SELF-CHECK (VERY IMPORTANT):
+Before outputting each item, ask yourself:
+- Would a curious person retell this to a friend?
+- Does it contain a concrete anchor + a strange or surprising detail?
+- Does it avoid sounding like a specification, definition, or general fact?
+If the answer to any of these is NO, discard the item and generate a different one.
+
 AVOID THESE OVERUSED ANCHORS (do not use these as the main anchor):
 ${avoidAnchors.length ? avoidAnchors.map((a) => `- ${a}`).join("\n") : "- (none)"}
 
@@ -586,89 +517,8 @@ Start now.
 `.trim();
 }
 
-function buildNoUrlJudgePrompt(rows) {
-  const items = rows.map((r) => ({
-    id: r.id,
-    category: r.category,
-    curiosity: r.curiosity,
-    wow_score: r.wow_score,
-    anchor_entity: r.anchor_entity,
-    topic_tag: r.topic_tag,
-  }));
-
-  return `
-You are CurioWire's verifier for short "curiosity suggestions".
-Judge if each item is (A) broadly true AND (B) a real curiosity, not a vague summary or generic fact.
-
-Curiosity definition:
-- Must include: a specific anchor + a surprising detail + meaningful context.
-- It should feel retellable, concrete, and somewhat rare or unexpected.
-- It must NOT read like a textbook line, product page, feature description, or broad explainer fact.
-
-Rules:
-- If likely true but too vague, too generic, too summary-like, or too broad: verdict="rewrite" with a sharper safe_rewrite.
-- If true and already feels like a real curiosity: verdict="pass".
-- If dubious, misleading, unverifiable, or uninteresting after sharpening: verdict="fail".
-- Rewrites MUST NOT add new names, dates, numbers, institutions, or claims unless already present.
-- Rewrites must be ONE sentence <= 220 chars and remove generic framing.
-- If you cannot rewrite without adding new facts, choose "fail".
-- Keep anchor_entity + topic_tag consistent; do not introduce new ones.
-
-Also score each final item honestly:
-- wow_score
-- novelty_score
-- retellability_score
-- specificity_score
-- generic_fact_risk
-
-Return JSONL, exactly one object per input:
-{
-  "id": "...",
-  "verdict": "pass" | "rewrite" | "fail",
-  "confidence": 1-5,
-  "safe_rewrite": "..." (only if verdict="rewrite"),
-  "wow_score": 0-100,
-  "novelty_score": 0-100,
-  "retellability_score": 0-100,
-  "specificity_score": 0-100,
-  "generic_fact_risk": 0-100
-}
-
-INPUT ITEMS:
-${JSON.stringify(items, null, 2)}
-
-Return ONLY JSONL.
-`.trim();
-}
-
 // ----------------------------------------------------------------------------
-// DB HELPERS
-// ----------------------------------------------------------------------------
-async function wipeAllSuggestions() {
-  console.log("🧨 WIPING curiosity_suggestions (full delete)...");
-  const { error } = await supabase
-    .from("curiosity_suggestions")
-    .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000");
-
-  if (error) throw new Error("Wipe failed: " + error.message);
-  console.log("✅ Wipe complete.");
-}
-
-async function countEligibleUnused(category) {
-  const { count, error } = await supabase
-    .from("curiosity_suggestions")
-    .select("*", { count: "exact", head: true })
-    .eq("category", category)
-    .eq("times_used", 0)
-    .or("status.is.null,status.eq.verified");
-
-  if (error) throw new Error("Eligible unused count failed: " + error.message);
-  return count ?? 0;
-}
-
-// ----------------------------------------------------------------------------
-// PHASE 1: GENERATE + INSERT (top-up)
+// GENERATION
 // ----------------------------------------------------------------------------
 async function generateForCategory({
   category,
@@ -717,7 +567,7 @@ async function generateForCategory({
 
     const scores = extractInternalScores(r);
     const computedWow = computeCompositeWow(scores);
-    const wow = clamp(
+    const modelWow = clamp(
       parseInt(r.wow_score ?? computedWow, 10) || computedWow,
       0,
       100,
@@ -731,7 +581,7 @@ async function generateForCategory({
     if (rejectReason) continue;
 
     if (computedWow < minWow) continue;
-    if (wow < minWow) continue;
+    if (modelWow < minWow) continue;
 
     const anchorNorm = normText(anchor_entity);
     const topicNorm = normText(topic_tag);
@@ -754,17 +604,15 @@ async function generateForCategory({
       category: catKey,
       curiosity,
       wow_score: computedWow,
-
-      status: null,
-      source_urls: [],
-      confidence: null,
-      review_note: null,
-
+      model_wow_score: modelWow,
+      novelty_score: scores.novelty,
+      retellability_score: scores.retellability,
+      specificity_score: scores.specificity,
+      generic_fact_risk: scores.genericFactRisk,
       anchor_entity,
       anchor_entity_norm: anchorNorm,
       topic_tag,
       topic_tag_norm: topicNorm,
-
       verification_query,
     });
 
@@ -775,444 +623,105 @@ async function generateForCategory({
   return cleaned;
 }
 
-async function insertCuriosities(rows) {
-  if (!rows.length) return { inserted: 0, skipped: 0 };
-
-  let inserted = 0;
-  let skipped = 0;
-
-  for (const r of rows) {
-    const payload = {
-      category: r.category,
-      curiosity: r.curiosity,
-      status: null,
-      source_urls: [],
-      wow_score: r.wow_score ?? 50,
-      confidence: null,
-      review_note: null,
-
-      anchor_entity: r.anchor_entity,
-      anchor_entity_norm: r.anchor_entity_norm,
-      topic_tag: r.topic_tag,
-      topic_tag_norm: r.topic_tag_norm,
-    };
-
-    const { error } = await supabase
-      .from("curiosity_suggestions")
-      .insert(payload);
-
-    if (error) {
-      const msg = (error.message || "").toLowerCase();
-
-      if (
-        msg.includes("duplicate key") ||
-        msg.includes("already exists") ||
-        msg.includes("unique")
-      ) {
-        skipped += 1;
-        continue;
-      }
-
-      throw new Error(`Supabase insert failed: ${error.message}`);
-    }
-
-    inserted += 1;
+// ----------------------------------------------------------------------------
+// TERMINAL PREVIEW
+// ----------------------------------------------------------------------------
+function printPreview(items) {
+  if (!items.length) {
+    console.log("\n⚠️ No preview items survived the filters.\n");
+    return;
   }
 
-  return { inserted, skipped };
-}
+  console.log(`\n🧪 PREVIEW (${items.length} items)\n`);
 
-// ----------------------------------------------------------------------------
-// PHASE 2: URL VERIFY (Wikipedia) for status=null
-// ----------------------------------------------------------------------------
-async function fetchUnverified(limit = 500, category = null) {
-  let q = supabase
-    .from("curiosity_suggestions")
-    .select("id, category, curiosity, wow_score, anchor_entity, topic_tag", {
-      count: "exact",
-    })
-    .is("status", null)
-    .order("created_at", { ascending: true })
-    .limit(limit);
-
-  if (category) q = q.eq("category", category);
-
-  const { data, error } = await q;
-  if (error) throw new Error(`Supabase fetch failed: ${error.message}`);
-  return data || [];
-}
-
-async function verifyByWikipedia(rows) {
-  const updates = [];
-
-  for (const r of rows) {
-    const curiosity = r.curiosity || "";
-    const query = curiosity
-      .replace(/\b(may|can|could|often|sometimes|might)\b/gi, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const title = await wikiSearchTopTitle(query);
-    if (!title) continue;
-
-    const summary = await wikiGetSummary(title);
-    const extract = summary?.extract || "";
-
-    const score = keywordOverlapScore(curiosity, extract);
-    if (score < 0.08) continue;
-
-    const url = wikiUrlFromTitle(summary?.title || title);
-    if (!url) continue;
-
-    updates.push({
-      id: r.id,
-      status: "verified",
-      source_urls: [url],
-      confidence: 5,
-      review_note: null,
-    });
-  }
-
-  return updates;
-}
-
-async function applyUpdates(updates) {
-  let ok = 0;
-  for (const u of updates) {
-    const { error } = await supabase
-      .from("curiosity_suggestions")
-      .update({
-        status: u.status ?? null,
-        source_urls: u.source_urls ?? [],
-        confidence: u.confidence ?? null,
-        review_note: u.review_note ?? null,
-      })
-      .eq("id", u.id);
-
-    if (error) throw new Error(`Supabase update failed: ${error.message}`);
-    ok += 1;
-  }
-  return ok;
-}
-
-// ----------------------------------------------------------------------------
-// PHASE 3: NO-URL JUDGE (LLM) + SAFE REWRITE
-// ----------------------------------------------------------------------------
-async function noUrlJudgeBatch(rows) {
-  const prompt = buildNoUrlJudgePrompt(rows);
-
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.2,
+  items.forEach((r, i) => {
+    console.log(`--- ${i + 1} ---`);
+    console.log(`category:            ${r.category}`);
+    console.log(`wow_score:           ${r.wow_score}`);
+    console.log(`model_wow_score:     ${r.model_wow_score}`);
+    console.log(`novelty_score:       ${r.novelty_score}`);
+    console.log(`retellability_score: ${r.retellability_score}`);
+    console.log(`specificity_score:   ${r.specificity_score}`);
+    console.log(`generic_fact_risk:   ${r.generic_fact_risk}`);
+    console.log(`anchor:              ${r.anchor_entity}`);
+    console.log(`topic:               ${r.topic_tag}`);
+    console.log(`verification_query:  ${r.verification_query}`);
+    console.log(`curiosity:           ${r.curiosity}`);
+    console.log("");
   });
-
-  const raw = completion.choices?.[0]?.message?.content || "";
-  const judged = parseJSONL(raw);
-
-  const byId = new Map(rows.map((r) => [r.id, r]));
-  const updates = [];
-
-  for (const j of judged) {
-    if (!j || typeof j !== "object") continue;
-    const id = j.id;
-    if (!id || !byId.has(id)) continue;
-
-    const verdict = (j.verdict || "").toLowerCase().trim();
-    const confidence = clamp(parseInt(j.confidence ?? 3, 10) || 3, 1, 5);
-    const scores = extractInternalScores(j);
-    const computedWow = computeCompositeWow(scores);
-    const rewrite = (j.safe_rewrite || "").trim();
-
-    const originalRow = byId.get(id);
-    const original = originalRow?.curiosity || "";
-    const topicTag = originalRow?.topic_tag || "";
-
-    if (verdict === "pass" && confidence >= MIN_CONFIDENCE_TO_VERIFY) {
-      if (computedWow < MIN_WOW_TO_KEEP) continue;
-
-      const rejectReason = editorialRejectReason({
-        curiosity: original,
-        topicTag,
-        scores,
-      });
-      if (rejectReason) {
-        updates.push({
-          id,
-          status: "flagged",
-          confidence,
-          wow_score: computedWow,
-          review_note: `no_url_pass_but_${rejectReason}`,
-          curiosity: null,
-        });
-        continue;
-      }
-
-      updates.push({
-        id,
-        status: "verified",
-        confidence,
-        wow_score: computedWow,
-        review_note: null,
-        curiosity: null,
-      });
-      continue;
-    }
-
-    if (
-      verdict === "rewrite" &&
-      rewrite &&
-      confidence >= MIN_CONFIDENCE_TO_VERIFY
-    ) {
-      if (computedWow < MIN_WOW_TO_KEEP) {
-        updates.push({
-          id,
-          status: "flagged",
-          confidence,
-          wow_score: computedWow,
-          review_note: "rewrite_below_min_wow",
-          curiosity: null,
-        });
-        continue;
-      }
-
-      const rejectReason = editorialRejectReason({
-        curiosity: rewrite,
-        topicTag,
-        scores,
-      });
-      if (rejectReason) {
-        updates.push({
-          id,
-          status: "flagged",
-          confidence,
-          wow_score: computedWow,
-          review_note: `rewrite_failed_${rejectReason}`,
-          curiosity: null,
-        });
-        continue;
-      }
-
-      updates.push({
-        id,
-        status: "verified",
-        confidence,
-        wow_score: computedWow,
-        review_note: null,
-        curiosity: rewrite,
-      });
-      continue;
-    }
-
-    if (verdict === "fail") {
-      updates.push({
-        id,
-        status: "flagged",
-        confidence,
-        wow_score: computedWow,
-        review_note: "no_url_judge_fail",
-        curiosity: null,
-      });
-      continue;
-    }
-  }
-
-  return updates;
-}
-
-async function applyNoUrlUpdates(updates) {
-  let ok = 0;
-  for (const u of updates) {
-    const patch = {
-      status: u.status ?? null,
-      confidence: u.confidence ?? null,
-      wow_score: u.wow_score ?? 50,
-      review_note: u.review_note ?? null,
-    };
-
-    if (u.curiosity) patch.curiosity = u.curiosity;
-
-    const { error } = await supabase
-      .from("curiosity_suggestions")
-      .update(patch)
-      .eq("id", u.id);
-
-    if (error) throw new Error(`Supabase update failed: ${error.message}`);
-    ok += 1;
-  }
-  return ok;
 }
 
 // ----------------------------------------------------------------------------
 // MAIN
 // ----------------------------------------------------------------------------
 async function main() {
-  console.log("🔧 generateCuriositySuggestions.v2.3.js");
+  console.log("🔧 generateCuriositySuggestions.preview.js");
   console.log("   model:", MODEL);
-  console.log("   categories:", CATEGORIES.join(", "));
+  console.log("   preview_limit:", TEST_PREVIEW_LIMIT);
+  console.log("   test_category:", TEST_CATEGORY || "(all categories)");
+  console.log("   test_ask_count:", TEST_ASK_COUNT);
   console.log("   MIN_WOW_TO_KEEP:", MIN_WOW_TO_KEEP);
   console.log("   MIN_NOVELTY_SCORE:", MIN_NOVELTY_SCORE);
   console.log("   MIN_RETELL_SCORE:", MIN_RETELL_SCORE);
   console.log("   MIN_SPECIFICITY_SCORE:", MIN_SPECIFICITY_SCORE);
   console.log("   MAX_GENERIC_FACT_RISK:", MAX_GENERIC_FACT_RISK);
-  console.log("   WIPE_BEFORE_REFILL:", WIPE_BEFORE_REFILL);
+  console.log("   mode: TERMINAL PREVIEW ONLY (no database writes)");
+
+  if (TEST_CATEGORY && !CATEGORIES.includes(TEST_CATEGORY)) {
+    throw new Error(
+      `Invalid category "${TEST_CATEGORY}". Must be one of: ${CATEGORIES.join(", ")}`,
+    );
+  }
+
+  const preload = await preloadExistingState();
+  const seenKey = preload.seenKey;
+  const anchorsUsedByCategory = preload.anchorsUsedByCategory;
+
+  const categories = TEST_CATEGORY ? [TEST_CATEGORY] : CATEGORIES;
+  const previewItems = [];
+
+  for (const category of categories) {
+    if (previewItems.length >= TEST_PREVIEW_LIMIT) break;
+
+    const anchorCounts = anchorsUsedByCategory.get(category) || new Map();
+
+    const avoidAnchors = [...anchorCounts.entries()]
+      .sort((a, b) => (b[1] || 0) - (a[1] || 0))
+      .slice(0, 120)
+      .map(([anchor]) => anchor);
+
+    const askCount = Math.min(
+      GEN_BATCH,
+      Math.max(TEST_ASK_COUNT, TEST_PREVIEW_LIMIT),
+    );
+
+    console.log(
+      `\n🧠 Generating preview for ${category.toUpperCase()} (askCount=${askCount}, avoidAnchors=${avoidAnchors.length})...`,
+    );
+
+    const batch = await generateForCategory({
+      category,
+      askCount,
+      avoidAnchors,
+      minWow: MIN_WOW_TO_KEEP,
+      seenKey,
+      anchorsUsedByCategory,
+    });
+
+    for (const item of batch) {
+      if (previewItems.length >= TEST_PREVIEW_LIMIT) break;
+      previewItems.push(item);
+    }
+  }
+
+  printPreview(previewItems);
+
   console.log(
-    "   TARGET is UNUSED inventory (times_used=0), eligible status NULL/verified (not flagged)",
+    "✅ Preview complete. No Supabase rows were inserted or updated.",
   );
-
-  if (WIPE_BEFORE_REFILL) {
-    await wipeAllSuggestions();
-  }
-
-  let seenKey = new Set();
-  let anchorsUsedByCategory = new Map();
-
-  if (!WIPE_BEFORE_REFILL) {
-    const preload = await preloadExistingState();
-    seenKey = preload.seenKey;
-    anchorsUsedByCategory = preload.anchorsUsedByCategory;
-  }
-
-  console.log("\n=== PHASE 1: GENERATE + INSERT (TOP-UP UNUSED) ===");
-
-  for (const category of CATEGORIES) {
-    const targetUnused = TARGET_BY_CATEGORY[category];
-    const haveUnusedEligible = await countEligibleUnused(category);
-    const missing = Math.max(0, targetUnused - haveUnusedEligible);
-
-    console.log(
-      `\n--- CATEGORY: ${category.toUpperCase()} (targetUnused=${targetUnused}, haveUnusedEligible=${haveUnusedEligible}, missing=${missing}) ---`,
-    );
-
-    if (missing === 0) {
-      console.log("✅ No top-up needed (unused eligible inventory is full).");
-      continue;
-    }
-
-    let filled = 0;
-    let totalSkipped = 0;
-    let safety = 0;
-
-    while (filled < missing && safety < TOPUP_PASSES) {
-      safety += 1;
-
-      const remaining = missing - filled;
-      const ask = Math.min(
-        GEN_BATCH,
-        Math.max(1, Math.ceil(remaining * ASK_MULTIPLIER)),
-      );
-
-      const anchorCounts = anchorsUsedByCategory.get(category) || new Map();
-
-      const avoidAnchors = [...anchorCounts.entries()]
-        .sort((a, b) => (b[1] || 0) - (a[1] || 0))
-        .slice(0, 120)
-        .map(([anchor]) => anchor);
-
-      console.log(
-        `🧠 gen pass ${safety}: need=${remaining}, asking=${ask}... (avoidAnchors=${avoidAnchors.length})`,
-      );
-
-      const batch = await generateForCategory({
-        category,
-        askCount: ask,
-        avoidAnchors,
-        minWow: MIN_WOW_TO_KEEP,
-        seenKey,
-        anchorsUsedByCategory,
-      });
-
-      if (!batch.length) {
-        console.log("…no usable items in this pass (all filtered).");
-        continue;
-      }
-
-      const { inserted, skipped } = await insertCuriosities(shuffle(batch));
-      filled += inserted;
-      totalSkipped += skipped;
-
-      console.log(
-        `✅ pass ${safety}: inserted=${inserted}, skipped(dupes)=${skipped}, filled=${filled}/${missing}`,
-      );
-    }
-
-    console.log(
-      `🏁 ${category}: topped-up inserted=${filled}/${missing}, dupesSkipped=${totalSkipped}`,
-    );
-  }
-
-  console.log("\n=== PHASE 2: URL VERIFY (WIKIPEDIA) ===");
-
-  let urlVerifiedTotal = 0;
-  let stalls = 0;
-
-  while (true) {
-    const candidates = await fetchUnverified(URL_VERIFY_BATCH);
-    if (!candidates.length) break;
-
-    console.log(`🔎 URL-verify batch: ${candidates.length} candidates...`);
-    const updates = await verifyByWikipedia(candidates);
-
-    if (!updates.length) {
-      stalls += 1;
-      console.log(
-        `…no URL-verifications in this batch. stall=${stalls}/${URL_VERIFY_MAX_STALLS}`,
-      );
-      if (stalls >= URL_VERIFY_MAX_STALLS) break;
-      continue;
-    }
-
-    stalls = 0;
-    const applied = await applyUpdates(updates);
-    urlVerifiedTotal += applied;
-
-    console.log(
-      `✅ URL-verified + updated: ${applied} (total=${urlVerifiedTotal})`,
-    );
-  }
-
-  console.log(`🏁 URL verified total: ${urlVerifiedTotal}`);
-
-  console.log("\n=== PHASE 3: NO-URL JUDGE + SAFE REWRITE ===");
-
-  let noUrlVerified = 0;
-  let flagged = 0;
-  let loops = 0;
-
-  while (true) {
-    loops += 1;
-    const remaining = await fetchUnverified(NOURL_VERIFY_BATCH);
-    if (!remaining.length) break;
-
-    console.log(`🧪 No-URL judge batch: ${remaining.length}...`);
-
-    const updates = await noUrlJudgeBatch(remaining);
-    if (!updates.length) {
-      console.log("…no decisions returned; stopping to avoid a loop.");
-      break;
-    }
-
-    const applied = await applyNoUrlUpdates(updates);
-
-    for (const u of updates) {
-      if (u.status === "verified") noUrlVerified += 1;
-      if (u.status === "flagged") flagged += 1;
-    }
-
-    console.log(
-      `✅ applied ${applied} updates (verified+${noUrlVerified}, flagged+${flagged})`,
-    );
-
-    if (loops > 300) break;
-  }
-
-  console.log("\n🎉 DONE.");
-  console.log("URL-verified:", urlVerifiedTotal);
-  console.log("No-URL verified:", noUrlVerified);
-  console.log("Flagged:", flagged);
 }
 
 main().catch((err) => {
-  console.error("💥 generateCuriositySuggestions.v2.3.js failed:", err);
+  console.error("💥 generateCuriositySuggestions.preview.js failed:", err);
   process.exit(1);
 });

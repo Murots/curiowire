@@ -2,17 +2,16 @@
 // CurioWire — addHistoryPersonCuriosities.js
 //
 // Purpose:
-//  Insert NEW "curiosity_suggestions" rows ONLY for category=history,
-//  and ONLY about well-known historical persons.
+//   Insert NEW "curiosity_suggestions" rows ONLY for category=history,
+//   and ONLY about well-known historical persons.
 //
 // Key properties:
 // ✅ Inserts into public.curiosity_suggestions (NOT curiosity_anchors)
 // ✅ No "top-up to quota" logic (does NOT care about times_used targets)
-// ✅ You can run it repeatedly; DB unique indexes prevent duplicates:
-//    - curiosity_suggestions_anchor_topic_unique (category, anchor_entity_norm, topic_tag_norm)
-//    - curiosity_suggestions_unique (category, md5(lower(trim(curiosity))))
+// ✅ Re-runnable; DB unique indexes prevent duplicates
 // ✅ Wikipedia verification used to ensure "anchor_entity" is a real person
-// ✅ Generates high-WOW, concrete, one-sentence claims with anchor+twist+mechanism
+// ✅ Uses improved curiosity definition + editorial scoring/filtering
+// ✅ Stores ONLY total wow_score in DB
 // ✅ Optionally runs Wikipedia verify + LLM judge/rewrite for status=null rows it created
 //
 // Requirements:
@@ -20,7 +19,7 @@
 // - .env.local with OpenAI + Supabase service role
 //
 // Run:
-//   node scripts/addHistoryPersonCuriosities.js
+//   node scripts/addHistoryPersons.js
 // ============================================================================
 
 import dotenv from "dotenv";
@@ -32,16 +31,15 @@ import { createClient } from "@supabase/supabase-js";
 // ----------------------------------------------------------------------------
 // CONFIG
 // ----------------------------------------------------------------------------
-const MODEL = process.env.CURIO_SUGGESTIONS_MODEL || "gpt-4o-mini";
+const MODEL = process.env.CURIO_SUGGESTIONS_MODEL || "gpt-5-mini";
 
-// How many NEW suggestions to successfully insert per run (not a global cap).
-// Raise as you like; script will attempt to reach it.
+// How many NEW suggestions to successfully insert per run
 const TARGET_NEW_PER_RUN = parseInt(
   process.env.HISTORY_PERSON_SUGGESTIONS_TARGET ?? "50",
   10,
 );
 
-// Oversampling batches (to survive filtering + dupes)
+// Oversampling batches
 const PERSON_BATCH = parseInt(
   process.env.HISTORY_PERSON_PERSON_BATCH ?? "80",
   10,
@@ -54,18 +52,30 @@ const CURIOS_BATCH = parseInt(
 // Max passes so we don’t loop forever if model stalls
 const PASSES_MAX = parseInt(process.env.HISTORY_PERSON_PASSES_MAX ?? "20", 10);
 
-// Quality gates
+// Final stored wow threshold
 const MIN_WOW_TO_KEEP = parseInt(process.env.CURIO_MIN_WOW ?? "78", 10);
+
+// Internal editorial thresholds
+const MIN_NOVELTY_SCORE = parseInt(process.env.CURIO_MIN_NOVELTY ?? "68", 10);
+const MIN_RETELL_SCORE = parseInt(process.env.CURIO_MIN_RETELL ?? "66", 10);
+const MIN_SPECIFICITY_SCORE = parseInt(
+  process.env.CURIO_MIN_SPECIFICITY ?? "58",
+  10,
+);
+const MAX_GENERIC_FACT_RISK = parseInt(
+  process.env.CURIO_MAX_GENERIC_RISK ?? "38",
+  10,
+);
+
 const MIN_CONFIDENCE_TO_VERIFY = parseInt(
   process.env.CURIO_MIN_CONFIDENCE ?? "4",
   10,
 );
 
-// How many curiosities per person we try to generate in a single pass.
-// Keep low to increase diversity.
+// How many curiosities per person we try to generate in a single pass
 const PER_PERSON = parseInt(process.env.HISTORY_PERSON_PER_PERSON ?? "1", 10);
 
-// Avoid clustering: tell model to avoid the most-used anchors in this category
+// Avoid clustering
 const AVOID_ANCHORS_TOP = parseInt(
   process.env.HISTORY_PERSON_AVOID_TOP ?? "120",
   10,
@@ -109,10 +119,12 @@ const supabaseUrl =
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
-if (!supabaseUrl)
+if (!supabaseUrl) {
   throw new Error("Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL");
-if (!supabaseKey)
+}
+if (!supabaseKey) {
   throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_KEY");
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -167,7 +179,7 @@ function sleep(ms) {
 }
 
 // ----------------------------------------------------------------------------
-// QUALITY FILTERS (same idea as your main generator)
+// QUALITY FILTERS
 // ----------------------------------------------------------------------------
 function looksLikeListicleOrFiller(s) {
   const t = (s || "").toLowerCase();
@@ -182,7 +194,7 @@ function looksLikeListicleOrFiller(s) {
 }
 
 function looksLikeThemeSentence(s) {
-  const t = (s || "").toLowerCase();
+  const t = (s || "").toLowerCase().trim();
   if (!t) return true;
 
   if (
@@ -193,28 +205,146 @@ function looksLikeThemeSentence(s) {
     return true;
   }
 
-  if (/(it is believed|it is thought|many believe|some believe)/i.test(s)) {
-    if (
-      !/(only when|because|due to|in (the|a) (experiment|study|trial|test)|under (certain|specific) conditions)/i.test(
-        s,
-      )
-    ) {
-      return true;
-    }
+  if (
+    /(it is believed|it is thought|many believe|some believe|legend says|according to legend)/i.test(
+      s,
+    )
+  ) {
+    return true;
   }
 
-  const hasConstraintCue =
-    /(only when|because|due to|under |in (the|a) (experiment|study|trial|test)|from (the|a) archive|measurement limit|detection threshold|signal.*only|works.*only)/i.test(
+  if (
+    /(is known for|is famous for|is remembered for|is associated with|is best known for|helped|contributed to|played a role in)/i.test(
       s,
-    );
-
-  if (!hasConstraintCue) return true;
+    )
+  ) {
+    return true;
+  }
 
   return false;
 }
 
+function looksLikeSpecOrCapabilitySentence(s) {
+  const t = (s || "").toLowerCase();
+
+  if (
+    /\b(offered|provided|improved|enhanced|advanced|designed for|built for|enabled)\b/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function looksLikeBroadSummary(s) {
+  const t = (s || "").toLowerCase();
+
+  if (
+    /\b(is a|was a|are a|refers to|is an example of|is the process of|is the practice of)\b/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(is known to|is widely known|is widely remembered|is often cited as)\b/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function computeCompositeWow({
+  novelty = 50,
+  retellability = 50,
+  specificity = 50,
+  genericFactRisk = 50,
+}) {
+  const wow =
+    novelty * 0.36 +
+    retellability * 0.34 +
+    specificity * 0.18 +
+    (100 - genericFactRisk) * 0.12;
+
+  return clamp(Math.round(wow), 0, 100);
+}
+
+function extractInternalScores(obj) {
+  const novelty = clamp(parseInt(obj.novelty_score ?? 50, 10) || 50, 0, 100);
+  const retellability = clamp(
+    parseInt(obj.retellability_score ?? 50, 10) || 50,
+    0,
+    100,
+  );
+  const specificity = clamp(
+    parseInt(obj.specificity_score ?? 50, 10) || 50,
+    0,
+    100,
+  );
+  const genericFactRisk = clamp(
+    parseInt(obj.generic_fact_risk ?? 50, 10) || 50,
+    0,
+    100,
+  );
+
+  return {
+    novelty,
+    retellability,
+    specificity,
+    genericFactRisk,
+  };
+}
+
+function passesInternalScoreThresholds(scores) {
+  if (scores.novelty < MIN_NOVELTY_SCORE) return false;
+  if (scores.retellability < MIN_RETELL_SCORE) return false;
+  if (scores.specificity < MIN_SPECIFICITY_SCORE) return false;
+  if (scores.genericFactRisk > MAX_GENERIC_FACT_RISK) return false;
+  return true;
+}
+
+function editorialRejectReason({ curiosity, topicTag = "", scores = null }) {
+  if (looksLikeListicleOrFiller(curiosity)) return "listicle_or_filler";
+  if (looksLikeThemeSentence(curiosity)) return "theme_sentence";
+  if (looksLikeSpecOrCapabilitySentence(curiosity)) return "spec_or_capability";
+  if (looksLikeBroadSummary(curiosity)) return "broad_summary";
+
+  const topicNorm = normText(topicTag);
+  if (
+    /\b(biography|legacy|career|rise to power|military leadership|politics|reign|achievements|wars)\b/i.test(
+      topicNorm,
+    )
+  ) {
+    return "generic_topic_tag";
+  }
+
+  if (scores && !passesInternalScoreThresholds(scores)) {
+    if (scores.genericFactRisk > MAX_GENERIC_FACT_RISK) {
+      return "high_generic_fact_risk";
+    }
+    if (scores.retellability < MIN_RETELL_SCORE) {
+      return "low_retellability";
+    }
+    if (scores.novelty < MIN_NOVELTY_SCORE) {
+      return "low_novelty";
+    }
+    if (scores.specificity < MIN_SPECIFICITY_SCORE) {
+      return "low_specificity";
+    }
+    return "failed_internal_scores";
+  }
+
+  return null;
+}
+
 // ----------------------------------------------------------------------------
-// WIKIPEDIA (self-contained)
+// WIKIPEDIA
 // ----------------------------------------------------------------------------
 async function wikiSearchTopTitle(query) {
   const q = String(query || "").trim();
@@ -265,7 +395,6 @@ function wikiUrlFromTitle(title) {
   )}`;
 }
 
-// Conservative person-page heuristic
 function looksLikePersonSummary(summary) {
   const extract = String(summary?.extract || "").toLowerCase();
   const type = String(summary?.type || "").toLowerCase();
@@ -280,7 +409,6 @@ function looksLikePersonSummary(summary) {
 
   if (personCues.test(extract) || yearCues.test(extract)) return true;
 
-  // Avoid obvious non-person
   if (
     /\b(is a|was a)\b.*\b(city|country|empire|kingdom|battle|treaty|war|revolution|dynasty|museum|university)\b/.test(
       extract,
@@ -330,8 +458,9 @@ async function preloadHistoryState() {
     .select("anchor_entity_norm, topic_tag_norm")
     .eq("category", "history");
 
-  if (error)
+  if (error) {
     throw new Error("Failed to preload history state: " + error.message);
+  }
 
   const seenAnchorTopic = new Set();
   const anchorCounts = new Map();
@@ -363,10 +492,11 @@ Each line MUST be:
 }
 
 Rules:
-- Must be real and widely known / historically central (state, war, ideology, science-in-society, empire, religion).
-- Not pop culture celebrities.
-- Geographic + temporal diversity.
-- Avoid repeating ultra-common picks unless distinctly disambiguated.
+- Must be real and historically notable enough to support strong, sourceable curiosities.
+- Prefer rulers, generals, inventors, scientists, revolutionaries, writers, religious figures, explorers, political leaders, and other widely documented historical figures.
+- Geographic and temporal diversity.
+- Avoid pop-culture celebrities and vague modern fame.
+- Avoid names that are likely to produce generic textbook biographies.
 
 Avoid these overused names (do NOT output them):
 ${avoidAnchors.length ? avoidAnchors.map((x) => `- ${x}`).join("\n") : "- (none)"}
@@ -385,25 +515,65 @@ IMPORTANT: Every item MUST be about a PERSON from the allowed list below.
 ALLOWED PERSON ANCHORS (must match exactly one of these in anchor_entity):
 ${list}
 
-Output EXACTLY ${persons.length * perPerson} lines of JSONL.
-For each person, generate ${perPerson} distinct curiosities focusing on obscure-but-real edge details.
+Goal:
+Generate rare, surprising, real-world curiosities about these historical persons — not broad biography summaries.
 
-Hard requirements for each item:
-- ONE sentence, max 220 characters.
-- Must include: Anchor + Twist + Constraint/Mechanism (only when/because/due to/in X record/test/procedure/condition).
-- No theme sentences ("remains a mystery", "debated", "researchers have theories").
-- Avoid headline biography summaries. Prefer archival/procedural quirks, legal/technical corner cases, unexpected constraints.
-- Broadly true + defensible; avoid fragile exact years/numbers.
+A good curiosity:
+- feels worth retelling
+- contains a specific anchor
+- includes a strange, surprising, or little-known detail
+- gives meaningful context: what happened, why it mattered, or the unusual condition that makes it interesting
+
+Prefer:
+- bizarre personal incidents
+- failed plans or costly mistakes
+- accidental consequences
+- odd legal, military, political, diplomatic, religious, or scientific edge-cases
+- unusual constraints, hidden details, or overlooked episodes
+
+Avoid:
+- broad life summaries
+- generic "X was known for..."
+- textbook biography lines
+- vague legend framing
+- common classroom trivia
+
+QUALITY SELF-CHECK (VERY IMPORTANT):
+Before outputting each item, ask yourself:
+- Would a curious person retell this to a friend?
+- Does it contain a concrete person + a strange or surprising detail?
+- Does it avoid sounding like a biography summary or general fact?
+If the answer to any of these is NO, discard the item and generate a different one.
+
+Output EXACTLY ${persons.length * perPerson} lines of JSONL.
+For each person, generate ${perPerson} distinct curiosities.
+
+SCORING:
+Score each item honestly using these independent scales:
+- wow_score: overall editorial strength of the curiosity
+- novelty_score: how rare / unexpected it feels
+- retellability_score: how likely someone would want to repeat it
+- specificity_score: how concrete and well-anchored it is
+- generic_fact_risk: risk that it reads like a generic fact, summary, or biography line
+
+TRUTH SAFETY:
+- Only propose claims that are broadly true and defensible.
+- If correctness depends on a fragile exact year or number, omit it or soften wording.
 - No "always/never/proved/definitely".
+- No vague authority fillers.
 
 OUTPUT format per line:
 {
   "category": "history",
-  "curiosity": "one sentence",
+  "curiosity": "one sentence, max 220 chars",
   "wow_score": ${minWow}-100,
+  "novelty_score": 0-100,
+  "retellability_score": 0-100,
+  "specificity_score": 0-100,
+  "generic_fact_risk": 0-100,
   "verification_query": "2-8 words",
   "anchor_entity": "MUST match one allowed person exactly",
-  "topic_tag": "2-8 words, specific detail (not 'biography', 'war', 'history')"
+  "topic_tag": "2-8 words, the specific surprising detail, not a generic biography label"
 }
 
 Return ONLY JSONL.
@@ -422,18 +592,28 @@ function buildNoUrlJudgePrompt(rows) {
 
   return `
 You are CurioWire's verifier for short "curiosity suggestions".
-Judge if each item is (A) broadly true AND (B) concrete (not a theme sentence).
+Judge if each item is (A) broadly true AND (B) a real curiosity, not a vague summary or generic fact.
 
-Concrete definition:
-- Must include: a specific anchor + a surprising twist + a constraint/mechanism ("only when/because/due to/in X record...").
+Curiosity definition:
+- Must include: a specific anchor + a surprising detail + meaningful context.
+- It should feel retellable, concrete, and somewhat rare or unexpected.
+- It must NOT read like a textbook line, product page, feature description, or broad explainer fact.
+- For history-person items, it must NOT read like a biography summary.
 
 Rules:
-- If likely true but too vague/theme-y OR too strong: verdict="rewrite" with a MORE CONCRETE safe_rewrite.
-- If true and already concrete: verdict="pass".
-- If dubious/misleading/unverifiable as a claim: verdict="fail".
-- Rewrites MUST NOT add new names/dates/numbers/institutions unless already present.
-- Rewrites must be ONE sentence <= 220 chars and remove theme phrasing.
+- If likely true but too vague, too generic, too summary-like, or too broad: verdict="rewrite" with a sharper safe_rewrite.
+- If true and already feels like a real curiosity: verdict="pass".
+- If dubious, misleading, unverifiable, or uninteresting after sharpening: verdict="fail".
+- Rewrites MUST NOT add new names, dates, numbers, institutions, or claims unless already present.
+- Rewrites must be ONE sentence <= 220 chars and remove generic framing.
 - Keep anchor_entity + topic_tag consistent; do not introduce new ones.
+
+Also score each final item honestly:
+- wow_score
+- novelty_score
+- retellability_score
+- specificity_score
+- generic_fact_risk
 
 Return JSONL, exactly one object per input:
 {
@@ -441,7 +621,11 @@ Return JSONL, exactly one object per input:
   "verdict": "pass" | "rewrite" | "fail",
   "confidence": 1-5,
   "safe_rewrite": "..." (only if verdict="rewrite"),
-  "wow_score": 0-100
+  "wow_score": 0-100,
+  "novelty_score": 0-100,
+  "retellability_score": 0-100,
+  "specificity_score": 0-100,
+  "generic_fact_risk": 0-100
 }
 
 INPUT ITEMS:
@@ -518,7 +702,7 @@ function keywordOverlapScore(text, extract) {
 async function fetchUnverified(limit = 200) {
   const { data, error } = await supabase
     .from("curiosity_suggestions")
-    .select("id, category, curiosity, wow_score")
+    .select("id, category, curiosity, wow_score, anchor_entity, topic_tag")
     .eq("category", "history")
     .is("status", null)
     .order("created_at", { ascending: true })
@@ -592,7 +776,6 @@ async function noUrlJudgeBatch(rows) {
   const completion = await openai.chat.completions.create({
     model: MODEL,
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.2,
   });
 
   const raw = completion.choices?.[0]?.message?.content || "";
@@ -614,21 +797,31 @@ async function applyNoUrlDecisions(rows, judged) {
       .toLowerCase()
       .trim();
     const confidence = clamp(parseInt(j.confidence ?? 3, 10) || 3, 1, 5);
-    const wow = clamp(parseInt(j.wow_score ?? 50, 10) || 50, 0, 100);
+    const scores = extractInternalScores(j);
+    const computedWow = computeCompositeWow(scores);
     const rewrite = String(j.safe_rewrite || "").trim();
 
-    const original = byId.get(id)?.curiosity || "";
+    const originalRow = byId.get(id);
+    const original = originalRow?.curiosity || "";
+    const topicTag = originalRow?.topic_tag || "";
 
     if (verdict === "pass" && confidence >= MIN_CONFIDENCE_TO_VERIFY) {
-      if (wow < MIN_WOW_TO_KEEP) continue;
-      if (looksLikeThemeSentence(original)) {
+      if (computedWow < MIN_WOW_TO_KEEP) continue;
+
+      const rejectReason = editorialRejectReason({
+        curiosity: original,
+        topicTag,
+        scores,
+      });
+
+      if (rejectReason) {
         await supabase
           .from("curiosity_suggestions")
           .update({
             status: "flagged",
             confidence,
-            wow_score: wow,
-            review_note: "no_url_pass_but_theme_sentence",
+            wow_score: computedWow,
+            review_note: `no_url_pass_but_${rejectReason}`,
           })
           .eq("id", id);
         flagged += 1;
@@ -640,7 +833,7 @@ async function applyNoUrlDecisions(rows, judged) {
         .update({
           status: "verified",
           confidence,
-          wow_score: wow,
+          wow_score: computedWow,
           review_note: null,
         })
         .eq("id", id);
@@ -654,31 +847,34 @@ async function applyNoUrlDecisions(rows, judged) {
       rewrite &&
       confidence >= MIN_CONFIDENCE_TO_VERIFY
     ) {
-      if (
-        looksLikeListicleOrFiller(rewrite) ||
-        looksLikeThemeSentence(rewrite)
-      ) {
+      if (computedWow < MIN_WOW_TO_KEEP) {
         await supabase
           .from("curiosity_suggestions")
           .update({
             status: "flagged",
             confidence,
-            wow_score: wow,
-            review_note: "rewrite_failed_quality_or_theme_gate",
+            wow_score: computedWow,
+            review_note: "rewrite_below_min_wow",
           })
           .eq("id", id);
         flagged += 1;
         continue;
       }
 
-      if (wow < MIN_WOW_TO_KEEP) {
+      const rejectReason = editorialRejectReason({
+        curiosity: rewrite,
+        topicTag,
+        scores,
+      });
+
+      if (rejectReason) {
         await supabase
           .from("curiosity_suggestions")
           .update({
             status: "flagged",
             confidence,
-            wow_score: wow,
-            review_note: "rewrite_below_min_wow",
+            wow_score: computedWow,
+            review_note: `rewrite_failed_${rejectReason}`,
           })
           .eq("id", id);
         flagged += 1;
@@ -690,7 +886,7 @@ async function applyNoUrlDecisions(rows, judged) {
         .update({
           status: "verified",
           confidence,
-          wow_score: wow,
+          wow_score: computedWow,
           review_note: null,
           curiosity: rewrite,
         })
@@ -706,15 +902,13 @@ async function applyNoUrlDecisions(rows, judged) {
         .update({
           status: "flagged",
           confidence,
-          wow_score: wow,
+          wow_score: computedWow,
           review_note: "no_url_judge_fail",
         })
         .eq("id", id);
       flagged += 1;
       continue;
     }
-
-    // low confidence: leave status null for future pass
   }
 
   return { verified, flagged };
@@ -729,7 +923,6 @@ async function generatePersons({ count, avoidAnchors }) {
   const completion = await openai.chat.completions.create({
     model: MODEL,
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.6,
   });
 
   const raw = completion.choices?.[0]?.message?.content || "";
@@ -778,7 +971,6 @@ async function generateCuriositiesForPersons({
   const completion = await openai.chat.completions.create({
     model: MODEL,
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.7,
   });
 
   const raw = completion.choices?.[0]?.message?.content || "";
@@ -793,16 +985,34 @@ async function generateCuriositiesForPersons({
     if (String(r.category || "").toLowerCase() !== "history") continue;
 
     const curiosity = String(r.curiosity || "").trim();
-    if (looksLikeListicleOrFiller(curiosity)) continue;
-    if (looksLikeThemeSentence(curiosity)) continue;
-
-    const wow = clamp(parseInt(r.wow_score ?? 50, 10) || 50, 0, 100);
-    if (wow < minWow) continue;
-
     const anchor_entity = String(r.anchor_entity || "").trim();
-    if (!allowed.has(anchor_entity)) continue; // must match allowed list
-
     const topic_tag = String(r.topic_tag || "").trim();
+    const verification_query = String(r.verification_query || "").trim();
+
+    if (!curiosity || !anchor_entity || !topic_tag || !verification_query) {
+      continue;
+    }
+
+    if (!allowed.has(anchor_entity)) continue;
+
+    const scores = extractInternalScores(r);
+    const computedWow = computeCompositeWow(scores);
+    const modelWow = clamp(
+      parseInt(r.wow_score ?? computedWow, 10) || computedWow,
+      0,
+      100,
+    );
+
+    const rejectReason = editorialRejectReason({
+      curiosity,
+      topicTag: topic_tag,
+      scores,
+    });
+    if (rejectReason) continue;
+
+    if (computedWow < minWow) continue;
+    if (modelWow < minWow) continue;
+
     const anchorNorm = normText(anchor_entity);
     const topicNorm = normText(topic_tag);
 
@@ -820,14 +1030,14 @@ async function generateCuriositiesForPersons({
     cleaned.push({
       category: "history",
       curiosity,
-      wow_score: wow,
+      wow_score: computedWow,
       anchor_entity,
       anchor_entity_norm: anchorNorm,
       topic_tag,
       topic_tag_norm: topicNorm,
+      verification_query,
     });
 
-    // optimistic reservation so we don't generate same thing twice in this run
     seenAnchorTopic.add(key);
   }
 
@@ -838,17 +1048,20 @@ async function generateCuriositiesForPersons({
 // MAIN
 // ----------------------------------------------------------------------------
 async function main() {
-  console.log("🧔 addHistoryPersonCuriosities.js");
+  console.log("🧔 addHistoryPersons.js");
   console.log("   model:", MODEL);
   console.log("   TARGET_NEW_PER_RUN:", TARGET_NEW_PER_RUN);
   console.log("   MIN_WOW_TO_KEEP:", MIN_WOW_TO_KEEP);
+  console.log("   MIN_NOVELTY_SCORE:", MIN_NOVELTY_SCORE);
+  console.log("   MIN_RETELL_SCORE:", MIN_RETELL_SCORE);
+  console.log("   MIN_SPECIFICITY_SCORE:", MIN_SPECIFICITY_SCORE);
+  console.log("   MAX_GENERIC_FACT_RISK:", MAX_GENERIC_FACT_RISK);
   console.log("   PER_PERSON:", PER_PERSON);
   console.log("   DO_WIKI_VERIFY_CLAIMS:", DO_WIKI_VERIFY_CLAIMS);
   console.log("   DO_NOURL_JUDGE:", DO_NOURL_JUDGE);
 
   const { seenAnchorTopic, anchorCounts } = await preloadHistoryState();
 
-  // Avoid the most overused anchors (normalized) by telling the model not to pick them
   const avoidAnchorsNorm = [...anchorCounts.entries()]
     .sort((a, b) => (b[1] || 0) - (a[1] || 0))
     .slice(0, AVOID_ANCHORS_TOP)
@@ -863,7 +1076,6 @@ async function main() {
     console.log(`\n=== PASS ${pass}/${PASSES_MAX} ===`);
     console.log(`Need ${TARGET_NEW_PER_RUN - insertedTotal} more new rows...`);
 
-    // 1) Generate person candidates
     const people = await generatePersons({
       count: PERSON_BATCH,
       avoidAnchors: avoidAnchorsNorm,
@@ -874,7 +1086,6 @@ async function main() {
       continue;
     }
 
-    // 2) Wikipedia-verify they are persons
     const verifiedPeople = await verifyPersons(people);
 
     if (!verifiedPeople.length) {
@@ -884,7 +1095,6 @@ async function main() {
 
     console.log(`✅ Verified persons this pass: ${verifiedPeople.length}`);
 
-    // 3) Take a slice for the curiosities prompt (avoid token blowups)
     const slice = verifiedPeople.slice(
       0,
       Math.min(
@@ -894,7 +1104,6 @@ async function main() {
     );
     if (!slice.length) continue;
 
-    // 4) Generate curiosities for these persons
     const suggestions = await generateCuriositiesForPersons({
       persons: slice,
       perPerson: PER_PERSON,
@@ -907,7 +1116,6 @@ async function main() {
       continue;
     }
 
-    // 5) Insert
     const { inserted, skipped } = await insertSuggestions(shuffle(suggestions));
     insertedTotal += inserted;
     skippedTotal += skipped;
@@ -921,7 +1129,6 @@ async function main() {
   console.log("Inserted total:", insertedTotal);
   console.log("Skipped dupes total:", skippedTotal);
 
-  // Optional: verify claims we just created (status=null in history)
   if (DO_WIKI_VERIFY_CLAIMS) {
     console.log("\n=== OPTIONAL PHASE: WIKIPEDIA VERIFY CLAIMS ===");
 
@@ -956,7 +1163,6 @@ async function main() {
     console.log("🏁 URL verified total:", urlVerifiedTotal);
   }
 
-  // Optional: no-url judge for remaining status=null in history
   if (DO_NOURL_JUDGE) {
     console.log("\n=== OPTIONAL PHASE: NO-URL JUDGE + REWRITE ===");
 
@@ -995,6 +1201,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("💥 addHistoryPersonCuriosities.js failed:", err);
+  console.error("💥 addHistoryPersons.js failed:", err);
   process.exit(1);
 });
