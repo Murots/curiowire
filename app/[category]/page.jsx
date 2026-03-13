@@ -198,6 +198,7 @@ export default async function CategoryFeedPage({ params, searchParams }) {
       "id, category, title, summary_normalized, image_url, created_at, wow_score, seo_title, seo_description",
     )
     .eq("status", "published")
+    .eq("is_listed", true)
     .eq("category", category);
 
   if (q) {

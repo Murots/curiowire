@@ -13,7 +13,7 @@ export async function GET(req) {
     const url = new URL(req.url);
     const limit = Math.min(
       Math.max(Number(url.searchParams.get("limit") || 10), 1),
-      60
+      60,
     );
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -21,7 +21,7 @@ export async function GET(req) {
     if (!SUPABASE_URL || !SERVICE_KEY) {
       return NextResponse.json(
         { ok: false, error: "Server misconfigured" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -36,7 +36,7 @@ export async function GET(req) {
       console.error("trending rpc error:", error);
       return NextResponse.json(
         { ok: false, error: "RPC failed" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -53,15 +53,16 @@ export async function GET(req) {
     const { data: cards, error: cardsErr } = await supabase
       .from("curiosity_cards")
       .select(
-        "id, category, title, summary_normalized, image_url, created_at, wow_score"
+        "id, category, title, summary_normalized, image_url, created_at, wow_score",
       )
       .in("id", ids)
-      .eq("status", "published");
+      .eq("status", "published")
+      .eq("is_listed", true);
 
     if (cardsErr) {
       console.error("trending hydrate error:", cardsErr);
       // fallback: returner raw rpc-data hvis hydrate feiler
-      return NextResponse.json({ ok: true, items: rows }, { status: 200 });
+      return NextResponse.json({ ok: true, items: [] }, { status: 200 });
     }
 
     const map = new Map((cards || []).map((c) => [Number(c.id), c]));
@@ -74,7 +75,7 @@ export async function GET(req) {
     console.error("trending error:", err);
     return NextResponse.json(
       { ok: false, error: "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

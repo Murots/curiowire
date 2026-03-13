@@ -295,7 +295,7 @@ function looksLikeBroadSummary(s) {
   }
 
   if (
-    /\bcan help|is used to|is known to|is commonly used|is often used|is widely used|is intended to)\b/i.test(
+    /\b(can help|is used to|is known to|is commonly used|is often used|is widely used|is intended to)\b/i.test(
       t,
     )
   ) {
@@ -904,7 +904,6 @@ async function noUrlJudgeBatch(rows) {
   const completion = await openai.chat.completions.create({
     model: MODEL,
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.2,
   });
 
   const raw = completion.choices?.[0]?.message?.content || "";

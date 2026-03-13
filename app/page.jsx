@@ -161,7 +161,8 @@ export default async function HomePage({ searchParams }) {
     .select(
       "id, category, title, summary_normalized, image_url, created_at, wow_score, seo_title, seo_description",
     )
-    .eq("status", "published");
+    .eq("status", "published")
+    .eq("is_listed", true);
 
   // Optional SSR search (keeps SEO coherent for /?q=... URLs too)
   if (q) {

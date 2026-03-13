@@ -624,7 +624,8 @@ export default function HomeContent({ initialCards, initialQuery }) {
           .select(
             "id, category, title, summary_normalized, image_url, created_at, wow_score",
           )
-          .eq("status", "published");
+          .eq("status", "published")
+          .eq("is_listed", true);
 
         if (categoryQ !== "all") qy = qy.eq("category", categoryQ);
 
