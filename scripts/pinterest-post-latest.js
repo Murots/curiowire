@@ -514,10 +514,6 @@ function buildTitleVariants(card) {
   const base = buildPinterestTitle(card.title);
   const category = titleCase(card.category || "Curiosity");
 
-  const seoDesc = safeStr(card.seo_description);
-  const summary = stripHtml(card.summary_normalized);
-  const fallback = seoDesc || summary || base;
-
   const variants = [
     {
       key: "base",
@@ -533,7 +529,6 @@ function buildTitleVariants(card) {
     },
   ];
 
-  // Deduplicate same final titles
   const seen = new Set();
   return variants.filter((v) => {
     const k = v.title.trim().toLowerCase();
@@ -543,7 +538,7 @@ function buildTitleVariants(card) {
   });
 }
 
-function buildDescription(card, variantTitle) {
+function buildDescription(card) {
   const base =
     safeStr(card.seo_description) ||
     stripHtml(card.summary_normalized) ||
@@ -723,7 +718,7 @@ async function uploadPinterestImage(filePath, cardId, variantKey) {
 async function existingPostsForCard(cardId) {
   const { data, error } = await supabase
     .from("pinterest_posts")
-    .select("id, status, pin_title")
+    .select("id, status, pin_title, variant_key")
     .eq("card_id", cardId);
 
   if (error) throw error;
@@ -796,23 +791,25 @@ async function run() {
   }
 
   const articleUrl = `${SITE_URL}/article/${card.id}`;
+  const description = buildDescription(card);
   const variants = buildTitleVariants(card);
   const existing = await existingPostsForCard(card.id);
-  const existingTitles = new Set(
-    existing.map((row) => safeStr(row.pin_title).toLowerCase()).filter(Boolean),
+
+  const existingVariants = new Set(
+    existing
+      .map((row) => safeStr(row.variant_key).toLowerCase())
+      .filter(Boolean),
   );
 
   for (const variant of variants) {
     const pinterestTitle = buildPinterestTitle(variant.title);
 
-    if (existingTitles.has(pinterestTitle.toLowerCase())) {
+    if (existingVariants.has(variant.key.toLowerCase())) {
       console.log(
-        `Variant already handled for card ${card.id}: "${pinterestTitle}". Skipping.`,
+        `Variant already handled for card ${card.id}: "${variant.key}". Skipping.`,
       );
       continue;
     }
-
-    const description = buildDescription(card, pinterestTitle);
 
     let pinterestImageUrl = card.image_url;
 
@@ -840,6 +837,7 @@ async function run() {
 
       await insertPinterestRow({
         card_id: card.id,
+        variant_key: variant.key,
         pinterest_pin_id: null,
         board_key: card.category,
         destination_url: articleUrl,
@@ -849,6 +847,7 @@ async function run() {
         status: "skipped",
       });
 
+      console.log(`Pinterest test row stored for variant "${variant.key}".`);
       continue;
     }
 
@@ -872,6 +871,7 @@ async function run() {
 
     await insertPinterestRow({
       card_id: card.id,
+      variant_key: variant.key,
       pinterest_pin_id: data.id,
       board_key: card.category,
       destination_url: articleUrl,
