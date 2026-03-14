@@ -492,50 +492,230 @@ function isPostingEnabled() {
   return String(PINTEREST_POSTING_ENABLED || "").toLowerCase() === "true";
 }
 
-function buildPinterestTitle(title) {
-  let t = safeStr(title);
-
-  if (!t) return "CurioWire";
-
-  t = t.replace(/[!?]+$/g, "").trim();
-
-  if (t.length <= 60) return t;
-
-  return t.slice(0, 57).replace(/[,:;-\s]+$/, "") + "…";
-}
-
 function titleCase(s) {
   return safeStr(s)
     .toLowerCase()
     .replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
-function buildTitleVariants(card) {
-  const base = buildPinterestTitle(card.title);
-  const category = titleCase(card.category || "Curiosity");
+function normalizeWhitespace(str) {
+  return safeStr(str).replace(/\s+/g, " ").trim();
+}
 
-  const variants = [
+function sentenceCase(str) {
+  const s = normalizeWhitespace(str);
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function stripTrailingPunctuation(str) {
+  return safeStr(str)
+    .replace(/[.!?,:;…\-\s]+$/g, "")
+    .trim();
+}
+
+function shortenNatural(str, maxLength = 60) {
+  let s = stripTrailingPunctuation(normalizeWhitespace(str));
+  if (!s) return "";
+
+  if (s.length <= maxLength) return s;
+
+  const truncated = s.slice(0, maxLength + 1);
+  const lastSpace = truncated.lastIndexOf(" ");
+  if (lastSpace > Math.floor(maxLength * 0.6)) {
+    s = truncated.slice(0, lastSpace);
+  } else {
+    s = s.slice(0, maxLength);
+  }
+
+  return stripTrailingPunctuation(s) + "…";
+}
+
+function stripGenericLeadIns(str) {
+  return normalizeWhitespace(str)
+    .replace(
+      /^(discover|learn|find out|explore|see|read about|inside look at)\s+/i,
+      "",
+    )
+    .replace(/^how\s+/i, "")
+    .replace(/^why\s+/i, "");
+}
+
+function extractPrimaryTopic(title) {
+  const raw = normalizeWhitespace(title);
+  if (!raw) return "CurioWire";
+
+  const separators = [" : ", ": ", " — ", " – ", " - ", " | "];
+  for (const sep of separators) {
+    const parts = raw.split(sep);
+    if (parts[0] && parts[0].trim().length >= 8) {
+      return stripTrailingPunctuation(parts[0].trim());
+    }
+  }
+
+  return stripTrailingPunctuation(raw);
+}
+
+function extractInterestingAngle(card) {
+  const candidates = [
+    safeStr(card.seo_description),
+    stripHtml(card.summary_normalized),
+    stripHtml(card.fun_fact),
+    stripHtml(card.card_text),
+  ]
+    .map(normalizeWhitespace)
+    .filter(Boolean);
+
+  for (const text of candidates) {
+    const patterns = [
+      /(?:reveals?|show(?:s|ed)?|explains?|uncovers?|discovered?|suggests?)\s+(.*?)(?:[.?!]|$)/i,
+      /(?:understanding of|evidence of|insight into)\s+(.*?)(?:[.?!]|$)/i,
+      /about\s+(.*?)(?:[.?!]|$)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) {
+        const cleaned = stripGenericLeadIns(match[1])
+          .replace(/^(that|how)\s+/i, "")
+          .replace(/\bfrom over .*$/i, "")
+          .replace(/\bmore than .*$/i, "")
+          .replace(/\bover \d[\d,.\s-]* years? ago.*$/i, "")
+          .trim();
+
+        if (cleaned.length >= 8) {
+          return stripTrailingPunctuation(cleaned);
+        }
+      }
+    }
+  }
+
+  return "";
+}
+
+function categoryAngleLabel(category) {
+  switch (safeStr(category).toLowerCase()) {
+    case "science":
+      return "science";
+    case "technology":
+      return "technology";
+    case "space":
+      return "space";
+    case "nature":
+      return "nature";
+    case "health":
+      return "health";
+    case "history":
+      return "history";
+    case "culture":
+      return "culture";
+    case "sports":
+      return "sports";
+    case "products":
+      return "design";
+    case "world":
+      return "history";
+    case "crime":
+      return "mystery";
+    case "mystery":
+      return "mystery";
+    default:
+      return "story";
+  }
+}
+
+function buildPinterestTitle(title) {
+  return shortenNatural(title, 58);
+}
+
+function buildOverlayTitle(title) {
+  return shortenNatural(title, 46);
+}
+
+function buildTitleVariants(card) {
+  const topic = extractPrimaryTopic(card.title);
+  const angle = extractInterestingAngle(card);
+  const categoryLabel = categoryAngleLabel(card.category);
+
+  const baseTopic = stripTrailingPunctuation(topic);
+  const cleanedAngle = stripTrailingPunctuation(sentenceCase(angle))
+    .replace(/^(The|A|An)\s+/i, (m) => m.trim() + " ")
+    .trim();
+
+  const candidates = [
     {
-      key: "base",
-      title: base,
+      key: "secret",
+      title: `The secret behind ${baseTopic}`,
     },
     {
-      key: "why",
-      title: base.length < 48 ? `Why ${base.replace(/^[Ww]hy\s+/, "")}` : base,
+      key: "reveals",
+      title: cleanedAngle
+        ? `What ${baseTopic} reveals about ${cleanedAngle}`
+        : `What ${baseTopic} reveals`,
     },
     {
-      key: "category",
-      title: base.length < 44 ? `${category}: ${base}` : base,
+      key: "surprising",
+      title:
+        categoryLabel === "story" || categoryLabel === "mystery"
+          ? `Why ${baseTopic} still fascinates people`
+          : `The surprising ${categoryLabel} behind ${baseTopic}`,
+    },
+    {
+      key: "amazes",
+      title: `Why ${baseTopic} still amazes researchers`,
+    },
+    {
+      key: "hidden",
+      title: `The hidden story in ${baseTopic}`,
     },
   ];
 
-  const seen = new Set();
-  return variants.filter((v) => {
-    const k = v.title.trim().toLowerCase();
-    if (!k || seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  const results = [];
+  const seenTitles = new Set();
+  const seenKeys = new Set();
+
+  for (const candidate of candidates) {
+    if (seenKeys.has(candidate.key)) continue;
+
+    const pinTitle = buildPinterestTitle(candidate.title);
+    const overlayTitle = buildOverlayTitle(candidate.title);
+    const titleKey = pinTitle.toLowerCase();
+
+    if (!pinTitle || seenTitles.has(titleKey)) continue;
+
+    seenKeys.add(candidate.key);
+    seenTitles.add(titleKey);
+
+    results.push({
+      key: candidate.key,
+      pinTitle,
+      overlayTitle,
+    });
+
+    if (results.length === 3) break;
+  }
+
+  if (results.length < 3) {
+    const fallbackTitles = [
+      `Inside ${baseTopic}`,
+      `Why ${baseTopic} matters`,
+      `${baseTopic} explained`,
+    ];
+
+    for (let i = 0; i < fallbackTitles.length && results.length < 3; i++) {
+      const pinTitle = buildPinterestTitle(fallbackTitles[i]);
+      const overlayTitle = buildOverlayTitle(fallbackTitles[i]);
+      const titleKey = pinTitle.toLowerCase();
+      const key = `fallback_${i + 1}`;
+
+      if (!seenTitles.has(titleKey)) {
+        results.push({ key, pinTitle, overlayTitle });
+        seenTitles.add(titleKey);
+      }
+    }
+  }
+
+  return results.slice(0, 3);
 }
 
 function buildDescription(card) {
@@ -565,40 +745,57 @@ function escapeXml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function wrapTitle(title, maxLineLength = 18, maxLines = 4) {
+function wrapTitle(title, maxLineLength = 20, maxLines = 3) {
   const words = safeStr(title).split(/\s+/).filter(Boolean);
   const lines = [];
   let current = "";
 
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
+
     if (candidate.length <= maxLineLength) {
       current = candidate;
-    } else {
-      if (current) lines.push(current);
-      current = word;
-      if (lines.length >= maxLines - 1) break;
+      continue;
     }
+
+    if (current) {
+      lines.push(current);
+      current = word;
+    } else {
+      lines.push(word);
+      current = "";
+    }
+
+    if (lines.length >= maxLines - 1) break;
   }
 
-  if (current && lines.length < maxLines) lines.push(current);
+  if (current && lines.length < maxLines) {
+    lines.push(current);
+  }
 
-  if (
-    lines.length === maxLines &&
-    words.join(" ").length > lines.join(" ").length
-  ) {
+  const joinedOriginal = words.join(" ");
+  const joinedLines = lines.join(" ");
+  if (lines.length === maxLines && joinedOriginal.length > joinedLines.length) {
     lines[maxLines - 1] =
-      lines[maxLines - 1].replace(/[.!?,:;-\s]*$/, "") + "…";
+      stripTrailingPunctuation(lines[maxLines - 1]).slice(
+        0,
+        maxLineLength - 1,
+      ) + "…";
   }
 
   return lines.slice(0, maxLines);
 }
 
 function buildOverlaySVG(title, category) {
-  const lines = wrapTitle(title);
-  const lineHeight = 86;
+  const lines = wrapTitle(title, 20, 3);
+  const lineHeight = 90;
   const blockHeight = lines.length * lineHeight;
-  const startY = 1500 - 180 - blockHeight;
+
+  // Flyttet litt ned sammenlignet med før
+  const startY = 1500 - 145 - blockHeight;
+
+  // Litt mer luft mellom kategori og tittel
+  const kickerGap = 56;
 
   const titleSvg = lines
     .map((line, i) => {
@@ -632,10 +829,11 @@ function buildOverlaySVG(title, category) {
     <defs>
       <linearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(0,0,0,0)" />
-        <stop offset="45%" stop-color="rgba(0,0,0,0.06)" />
-        <stop offset="68%" stop-color="rgba(0,0,0,0.22)" />
-        <stop offset="84%" stop-color="rgba(0,0,0,0.58)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.94)" />
+        <stop offset="28%" stop-color="rgba(0,0,0,0.02)" />
+        <stop offset="48%" stop-color="rgba(0,0,0,0.12)" />
+        <stop offset="64%" stop-color="rgba(0,0,0,0.30)" />
+        <stop offset="80%" stop-color="rgba(0,0,0,0.62)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.95)" />
       </linearGradient>
     </defs>
 
@@ -643,8 +841,8 @@ function buildOverlaySVG(title, category) {
 
     <text
       x="70"
-      y="${startY - 44}"
-      fill="rgba(255,255,255,0.92)"
+      y="${startY - kickerGap}"
+      fill="rgba(255,255,255,0.94)"
       font-size="28"
       font-weight="700"
       font-family="Arial, Helvetica, sans-serif"
@@ -655,7 +853,7 @@ function buildOverlaySVG(title, category) {
 
     <text
       x="68"
-      y="1430"
+      y="1432"
       fill="rgba(255,255,255,0.95)"
       font-size="30"
       font-weight="600"
@@ -801,9 +999,12 @@ async function run() {
       .filter(Boolean),
   );
 
-  for (const variant of variants) {
-    const pinterestTitle = buildPinterestTitle(variant.title);
+  console.log(
+    "Prepared Pinterest variants:",
+    variants.map((v) => `[${v.key}] ${v.pinTitle}`).join(" | "),
+  );
 
+  for (const variant of variants) {
     if (existingVariants.has(variant.key.toLowerCase())) {
       console.log(
         `Variant already handled for card ${card.id}: "${variant.key}". Skipping.`,
@@ -815,7 +1016,7 @@ async function run() {
 
     const pinterestFile = await createPinterestImage(
       card,
-      pinterestTitle,
+      variant.overlayTitle,
       variant.key,
     );
 
@@ -842,7 +1043,7 @@ async function run() {
         board_key: card.category,
         destination_url: articleUrl,
         image_url: pinterestImageUrl,
-        pin_title: pinterestTitle,
+        pin_title: variant.pinTitle,
         pin_description: description,
         status: "skipped",
       });
@@ -851,11 +1052,12 @@ async function run() {
       continue;
     }
 
-    console.log(`Posting to Pinterest: [${variant.key}] ${pinterestTitle}`);
+    console.log(`Posting to Pinterest: [${variant.key}] ${variant.pinTitle}`);
+    console.log(`Overlay title: ${variant.overlayTitle}`);
 
     const { res, data } = await postPin({
       boardId,
-      title: pinterestTitle,
+      title: variant.pinTitle,
       description,
       articleUrl,
       imageUrl: pinterestImageUrl,
@@ -876,7 +1078,7 @@ async function run() {
       board_key: card.category,
       destination_url: articleUrl,
       image_url: pinterestImageUrl,
-      pin_title: pinterestTitle,
+      pin_title: variant.pinTitle,
       pin_description: description,
       status: "posted",
     });
