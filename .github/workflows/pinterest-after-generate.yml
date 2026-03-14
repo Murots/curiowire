@@ -33,6 +33,8 @@ jobs:
       PINTEREST_BOARD_ID_MYSTERY: ${{ secrets.PINTEREST_BOARD_ID_MYSTERY }}
       PINTEREST_BOARD_ID_GENERAL: ${{ secrets.PINTEREST_BOARD_ID_GENERAL }}
 
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
     steps:
       - uses: actions/checkout@v4
 

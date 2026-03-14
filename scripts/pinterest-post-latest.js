@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import OpenAI from "openai";
 import sharp from "sharp";
 import fs from "fs";
 
@@ -8,6 +9,7 @@ const {
   PINTEREST_ACCESS_TOKEN,
   SITE_URL,
   PINTEREST_POSTING_ENABLED,
+  OPENAI_API_KEY,
 } = process.env;
 
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
@@ -15,8 +17,10 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
 }
 if (!SITE_URL) throw new Error("Missing SITE_URL");
+if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const PINTEREST_API_BASE_PROD = "https://api.pinterest.com";
 
@@ -224,7 +228,33 @@ function buildOverlayTitle(title) {
   return shortenNaturalByWords(title, 8, 62);
 }
 
-function buildTitleVariants(card) {
+function normalizeTitleForCompare(title) {
+  return normalizeWhitespace(title)
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .trim();
+}
+
+function isValidPinterestTitle(
+  title,
+  minWords = 3,
+  maxWords = 7,
+  maxChars = 60,
+) {
+  const cleaned = normalizeWhitespace(title);
+  if (!cleaned) return false;
+
+  const count = words(cleaned).length;
+  if (count < minWords || count > maxWords) return false;
+  if (cleaned.length > maxChars) return false;
+
+  return true;
+}
+
+function buildRuleBasedTitleVariants(
+  card,
+  existingNormalizedTitles = new Set(),
+) {
   const topic = extractPrimaryTopic(card.title);
   const secondary = extractSecondaryTopic(card.title);
   const angle = extractInterestingAngle(card);
@@ -236,12 +266,12 @@ function buildTitleVariants(card) {
 
   const rawCandidates = [
     { key: "secret", title: `The secret of ${baseTopic}` },
-    { key: "why", title: `Why ${baseTopic} matters` },
     { key: "inside", title: `Inside ${baseTopic}` },
     { key: "story", title: `The story of ${baseTopic}` },
     { key: "explained", title: `${baseTopic} explained` },
     { key: "truth", title: `The truth about ${baseTopic}` },
     { key: "mystery", title: `The mystery of ${baseTopic}` },
+    { key: "why", title: `Why ${baseTopic} mattered` },
     {
       key: "surprising",
       title: `The surprising ${categoryLabel} of ${baseTopic}`,
@@ -250,7 +280,7 @@ function buildTitleVariants(card) {
       key: "secondary",
       title: shortSecondary
         ? `${shortSecondary} in ${baseTopic}`
-        : `What makes ${baseTopic} special`,
+        : `What made ${baseTopic} essential`,
     },
     {
       key: "angle",
@@ -261,7 +291,7 @@ function buildTitleVariants(card) {
   ];
 
   const results = [];
-  const usedTitles = new Set();
+  const usedTitles = new Set(existingNormalizedTitles);
   const usedKeys = new Set();
 
   function tryAddVariant(key, sourceTitle) {
@@ -270,9 +300,10 @@ function buildTitleVariants(card) {
     const pinTitle = buildPinterestTitle(sourceTitle);
     const overlayTitle = buildOverlayTitle(sourceTitle);
 
-    if (!pinTitle || !overlayTitle) return false;
+    if (!isValidPinterestTitle(pinTitle, 3, 7, 60)) return false;
+    if (!overlayTitle) return false;
 
-    const normalizedPin = normalizeWhitespace(pinTitle).toLowerCase();
+    const normalizedPin = normalizeTitleForCompare(pinTitle);
     if (!normalizedPin || usedTitles.has(normalizedPin)) return false;
 
     results.push({
@@ -297,7 +328,7 @@ function buildTitleVariants(card) {
     const fallbackPool = [
       { key: "fallback_a", title: `${fallbackTopic} explained` },
       { key: "fallback_b", title: `Inside ${fallbackTopic}` },
-      { key: "fallback_c", title: `Why ${fallbackTopic} matters` },
+      { key: "fallback_c", title: `Why ${fallbackTopic} mattered` },
       { key: "fallback_d", title: `The story of ${fallbackTopic}` },
       { key: "fallback_e", title: `The secret of ${fallbackTopic}` },
       { key: "fallback_f", title: `What ${fallbackTopic} reveals` },
@@ -316,6 +347,117 @@ function buildTitleVariants(card) {
   }
 
   return results;
+}
+
+async function generatePinterestTitlesWithGPT(card) {
+  const prompt = `
+Create 3 Pinterest-friendly titles for this article.
+
+Rules:
+- Return ONLY valid JSON.
+- Write in English.
+- Each title must be maximum 7 words.
+- Prefer 5 to 7 words.
+- Make them curiosity-driven and clickable.
+- Keep them accurate to the article.
+- Do not use emojis.
+- Do not use quotation marks inside titles.
+- Do not use colons.
+- Do not repeat the article title structure.
+- Avoid generic phrases like "This story" or "Learn about".
+- Make all 3 titles meaningfully different.
+- Avoid weak filler like "interesting", "amazing", "incredible".
+- Avoid full-sentence headlines. These should feel like short Pinterest hooks.
+
+Return this exact JSON format:
+{
+  "titles": [
+    "title one",
+    "title two",
+    "title three"
+  ]
+}
+
+Article title: ${safeStr(card.title)}
+Category: ${safeStr(card.category)}
+SEO description: ${safeStr(card.seo_description)}
+Summary: ${stripHtml(card.summary_normalized).slice(0, 500)}
+Fun fact: ${stripHtml(card.fun_fact).slice(0, 300)}
+Card text: ${stripHtml(card.card_text).slice(0, 500)}
+`;
+
+  try {
+    const r = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 120,
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+    });
+
+    const content = r.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
+    return Array.isArray(parsed.titles) ? parsed.titles : [];
+  } catch (err) {
+    console.warn("GPT title generation failed:", err.message);
+    return [];
+  }
+}
+
+async function buildTitleVariants(card) {
+  const gptTitles = await generatePinterestTitlesWithGPT(card);
+
+  const results = [];
+  const usedTitles = new Set();
+
+  for (const [index, rawTitle] of gptTitles.entries()) {
+    const cleanedSource = stripTrailingPunctuation(
+      normalizeWhitespace(rawTitle),
+    );
+    const pinTitle = buildPinterestTitle(cleanedSource);
+    const overlayTitle = buildOverlayTitle(cleanedSource);
+
+    if (!isValidPinterestTitle(pinTitle, 3, 7, 60)) continue;
+    if (!overlayTitle) continue;
+
+    const normalized = normalizeTitleForCompare(pinTitle);
+    if (!normalized || usedTitles.has(normalized)) continue;
+
+    results.push({
+      key: `gpt_${index + 1}`,
+      pinTitle,
+      overlayTitle,
+    });
+
+    usedTitles.add(normalized);
+
+    if (results.length === 3) break;
+  }
+
+  if (results.length === 3) {
+    return results;
+  }
+
+  const fallback = buildRuleBasedTitleVariants(card, usedTitles);
+  const merged = [...results];
+
+  for (const variant of fallback) {
+    const normalized = normalizeTitleForCompare(variant.pinTitle);
+    if (!normalized || usedTitles.has(normalized)) continue;
+
+    merged.push(variant);
+    usedTitles.add(normalized);
+
+    if (merged.length === 3) break;
+  }
+
+  if (merged.length < 3) {
+    throw new Error(
+      `Could not build 3 unique Pinterest title variants for card "${card.title}". Generated: ${merged.length}`,
+    );
+  }
+
+  return merged.slice(0, 3);
 }
 
 function buildDescription(card) {
@@ -485,13 +627,13 @@ async function createPinterestImage(card, overlayTitle, variantKey) {
 
 async function uploadPinterestImage(filePath, cardId, variantKey) {
   try {
-    const storagePath = `pinterest/${cardId}-${variantKey}.jpg`;
+    const storagePath = `pinterest/${cardId}-${variantKey}-${Date.now()}.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("curiowire")
       .upload(storagePath, fs.readFileSync(filePath), {
         contentType: "image/jpeg",
-        upsert: true,
+        upsert: false,
       });
 
     if (uploadError) throw uploadError;
@@ -584,7 +726,7 @@ async function run() {
 
   const articleUrl = `${SITE_URL}/article/${card.id}`;
   const description = buildDescription(card);
-  const variants = buildTitleVariants(card);
+  const variants = await buildTitleVariants(card);
   const existing = await existingPostsForCard(card.id);
 
   const existingVariants = new Set(
