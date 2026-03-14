@@ -502,58 +502,50 @@ function normalizeWhitespace(str) {
   return safeStr(str).replace(/\s+/g, " ").trim();
 }
 
-function sentenceCase(str) {
-  const s = normalizeWhitespace(str);
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 function stripTrailingPunctuation(str) {
   return safeStr(str)
     .replace(/[.!?,:;…\-\s]+$/g, "")
     .trim();
 }
 
-function shortenNatural(str, maxLength = 60) {
-  let s = stripTrailingPunctuation(normalizeWhitespace(str));
+function stripParenthetical(str) {
+  return safeStr(str)
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sentenceCase(str) {
+  const s = normalizeWhitespace(str);
   if (!s) return "";
-
-  if (s.length <= maxLength) return s;
-
-  const truncated = s.slice(0, maxLength + 1);
-  const lastSpace = truncated.lastIndexOf(" ");
-  if (lastSpace > Math.floor(maxLength * 0.6)) {
-    s = truncated.slice(0, lastSpace);
-  } else {
-    s = s.slice(0, maxLength);
-  }
-
-  return stripTrailingPunctuation(s) + "…";
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function stripGenericLeadIns(str) {
-  return normalizeWhitespace(str)
-    .replace(
-      /^(discover|learn|find out|explore|see|read about|inside look at)\s+/i,
-      "",
-    )
-    .replace(/^how\s+/i, "")
-    .replace(/^why\s+/i, "");
-}
-
-function extractPrimaryTopic(title) {
+function splitTitleParts(title) {
   const raw = normalizeWhitespace(title);
-  if (!raw) return "CurioWire";
+  if (!raw) return { left: "", right: "" };
 
-  const separators = [" : ", ": ", " — ", " – ", " - ", " | "];
+  const separators = [":", "—", "–", "-", "|"];
   for (const sep of separators) {
-    const parts = raw.split(sep);
-    if (parts[0] && parts[0].trim().length >= 8) {
-      return stripTrailingPunctuation(parts[0].trim());
+    const idx = raw.indexOf(sep);
+    if (idx > 0) {
+      const left = raw.slice(0, idx).trim();
+      const right = raw.slice(idx + 1).trim();
+      if (left && right) return { left, right };
     }
   }
 
-  return stripTrailingPunctuation(raw);
+  return { left: raw, right: "" };
+}
+
+function extractPrimaryTopic(title) {
+  const { left } = splitTitleParts(title);
+  return stripTrailingPunctuation(stripParenthetical(left || title));
+}
+
+function extractSecondaryTopic(title) {
+  const { right } = splitTitleParts(title);
+  return stripTrailingPunctuation(stripParenthetical(right));
 }
 
 function extractInterestingAngle(card) {
@@ -568,24 +560,25 @@ function extractInterestingAngle(card) {
 
   for (const text of candidates) {
     const patterns = [
-      /(?:reveals?|show(?:s|ed)?|explains?|uncovers?|discovered?|suggests?)\s+(.*?)(?:[.?!]|$)/i,
+      /(?:reveals?|show(?:s|ed)?|explains?|uncovers?|suggests?)\s+(.*?)(?:[.?!]|$)/i,
       /(?:understanding of|evidence of|insight into)\s+(.*?)(?:[.?!]|$)/i,
-      /about\s+(.*?)(?:[.?!]|$)/i,
+      /(?:about)\s+(.*?)(?:[.?!]|$)/i,
     ];
 
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match?.[1]) {
-        const cleaned = stripGenericLeadIns(match[1])
-          .replace(/^(that|how)\s+/i, "")
-          .replace(/\bfrom over .*$/i, "")
-          .replace(/\bmore than .*$/i, "")
-          .replace(/\bover \d[\d,.\s-]* years? ago.*$/i, "")
-          .trim();
+        const cleaned = stripTrailingPunctuation(
+          normalizeWhitespace(
+            match[1]
+              .replace(/^(that|how)\s+/i, "")
+              .replace(/\bfrom over .*$/i, "")
+              .replace(/\bover \d[\d,.\s-]* years? ago.*$/i, "")
+              .replace(/\bmore than \d[\d,.\s-]* years? ago.*$/i, ""),
+          ),
+        );
 
-        if (cleaned.length >= 8) {
-          return stripTrailingPunctuation(cleaned);
-        }
+        if (cleaned.length >= 8) return cleaned;
       }
     }
   }
@@ -624,67 +617,116 @@ function categoryAngleLabel(category) {
   }
 }
 
+function words(str) {
+  return normalizeWhitespace(str).split(" ").filter(Boolean);
+}
+
+function limitWords(str, maxWords = 6) {
+  const w = words(stripTrailingPunctuation(str));
+  if (w.length <= maxWords) return w.join(" ");
+  return w.slice(0, maxWords).join(" ");
+}
+
+function shortenNaturalByWords(str, maxWords = 6, maxChars = 48) {
+  let s = stripTrailingPunctuation(normalizeWhitespace(str));
+  if (!s) return "";
+
+  let w = words(s);
+  if (w.length > maxWords) {
+    s = w.slice(0, maxWords).join(" ");
+  }
+
+  if (s.length <= maxChars) return s;
+
+  const trimmed = s.slice(0, maxChars + 1);
+  const lastSpace = trimmed.lastIndexOf(" ");
+  if (lastSpace > 0) {
+    s = trimmed.slice(0, lastSpace);
+  } else {
+    s = s.slice(0, maxChars);
+  }
+
+  return stripTrailingPunctuation(s) + "…";
+}
+
+function dedupeTitleCandidates(candidates) {
+  const seen = new Set();
+  const results = [];
+
+  for (const item of candidates) {
+    const normalized = normalizeWhitespace(item.title).toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    results.push(item);
+  }
+
+  return results;
+}
+
 function buildPinterestTitle(title) {
-  return shortenNatural(title, 58);
+  return shortenNaturalByWords(title, 6, 48);
 }
 
 function buildOverlayTitle(title) {
-  return shortenNatural(title, 46);
+  return shortenNaturalByWords(title, 7, 52);
 }
 
 function buildTitleVariants(card) {
   const topic = extractPrimaryTopic(card.title);
+  const secondary = extractSecondaryTopic(card.title);
   const angle = extractInterestingAngle(card);
   const categoryLabel = categoryAngleLabel(card.category);
 
-  const baseTopic = stripTrailingPunctuation(topic);
-  const cleanedAngle = stripTrailingPunctuation(sentenceCase(angle))
-    .replace(/^(The|A|An)\s+/i, (m) => m.trim() + " ")
-    .trim();
+  const baseTopic = stripTrailingPunctuation(topic) || "This Story";
+  const shortSecondary = secondary ? limitWords(secondary, 4) : "";
+  const shortAngle = angle ? limitWords(sentenceCase(angle), 4) : "";
 
-  const candidates = [
+  const candidates = dedupeTitleCandidates([
     {
       key: "secret",
-      title: `The secret behind ${baseTopic}`,
+      title: `The secret of ${baseTopic}`,
     },
     {
-      key: "reveals",
-      title: cleanedAngle
-        ? `What ${baseTopic} reveals about ${cleanedAngle}`
-        : `What ${baseTopic} reveals`,
+      key: "why",
+      title: `Why ${baseTopic} matters`,
+    },
+    {
+      key: "inside",
+      title: `Inside ${baseTopic}`,
     },
     {
       key: "surprising",
-      title:
-        categoryLabel === "story" || categoryLabel === "mystery"
-          ? `Why ${baseTopic} still fascinates people`
-          : `The surprising ${categoryLabel} behind ${baseTopic}`,
+      title: `The surprising ${categoryLabel} of ${baseTopic}`,
     },
     {
-      key: "amazes",
-      title: `Why ${baseTopic} still amazes researchers`,
+      key: "explained",
+      title: `${baseTopic} explained`,
     },
     {
-      key: "hidden",
-      title: `The hidden story in ${baseTopic}`,
+      key: "secondary",
+      title: shortSecondary
+        ? `${shortSecondary} in ${baseTopic}`
+        : `What makes ${baseTopic} special`,
     },
-  ];
+    {
+      key: "angle",
+      title: shortAngle
+        ? `${baseTopic} and ${shortAngle}`
+        : `What ${baseTopic} reveals`,
+    },
+    {
+      key: "story",
+      title: `The story of ${baseTopic}`,
+    },
+  ]);
 
   const results = [];
-  const seenTitles = new Set();
-  const seenKeys = new Set();
 
   for (const candidate of candidates) {
-    if (seenKeys.has(candidate.key)) continue;
-
     const pinTitle = buildPinterestTitle(candidate.title);
     const overlayTitle = buildOverlayTitle(candidate.title);
-    const titleKey = pinTitle.toLowerCase();
 
-    if (!pinTitle || seenTitles.has(titleKey)) continue;
-
-    seenKeys.add(candidate.key);
-    seenTitles.add(titleKey);
+    if (!pinTitle || !overlayTitle) continue;
 
     results.push({
       key: candidate.key,
@@ -696,22 +738,23 @@ function buildTitleVariants(card) {
   }
 
   if (results.length < 3) {
-    const fallbackTitles = [
-      `Inside ${baseTopic}`,
-      `Why ${baseTopic} matters`,
-      `${baseTopic} explained`,
+    const fallbacks = [
+      { key: "fallback_1", title: `${baseTopic} explained` },
+      { key: "fallback_2", title: `Inside ${baseTopic}` },
+      { key: "fallback_3", title: `Why ${baseTopic} matters` },
     ];
 
-    for (let i = 0; i < fallbackTitles.length && results.length < 3; i++) {
-      const pinTitle = buildPinterestTitle(fallbackTitles[i]);
-      const overlayTitle = buildOverlayTitle(fallbackTitles[i]);
-      const titleKey = pinTitle.toLowerCase();
-      const key = `fallback_${i + 1}`;
+    for (const fallback of fallbacks) {
+      if (results.length >= 3) break;
 
-      if (!seenTitles.has(titleKey)) {
-        results.push({ key, pinTitle, overlayTitle });
-        seenTitles.add(titleKey);
-      }
+      const exists = results.some((r) => r.key === fallback.key);
+      if (exists) continue;
+
+      results.push({
+        key: fallback.key,
+        pinTitle: buildPinterestTitle(fallback.title),
+        overlayTitle: buildOverlayTitle(fallback.title),
+      });
     }
   }
 
@@ -745,12 +788,12 @@ function escapeXml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function wrapTitle(title, maxLineLength = 20, maxLines = 3) {
-  const words = safeStr(title).split(/\s+/).filter(Boolean);
+function wrapTitle(title, maxLineLength = 18, maxLines = 4) {
+  const titleWords = safeStr(title).split(/\s+/).filter(Boolean);
   const lines = [];
   let current = "";
 
-  for (const word of words) {
+  for (const word of titleWords) {
     const candidate = current ? `${current} ${word}` : word;
 
     if (candidate.length <= maxLineLength) {
@@ -773,29 +816,25 @@ function wrapTitle(title, maxLineLength = 20, maxLines = 3) {
     lines.push(current);
   }
 
-  const joinedOriginal = words.join(" ");
-  const joinedLines = lines.join(" ");
-  if (lines.length === maxLines && joinedOriginal.length > joinedLines.length) {
-    lines[maxLines - 1] =
-      stripTrailingPunctuation(lines[maxLines - 1]).slice(
-        0,
-        maxLineLength - 1,
-      ) + "…";
+  const original = titleWords.join(" ");
+  const rendered = lines.join(" ");
+  if (lines.length === maxLines && original.length > rendered.length) {
+    lines[maxLines - 1] = stripTrailingPunctuation(lines[maxLines - 1]) + "…";
   }
 
   return lines.slice(0, maxLines);
 }
 
 function buildOverlaySVG(title, category) {
-  const lines = wrapTitle(title, 20, 3);
-  const lineHeight = 90;
+  const lines = wrapTitle(title, 18, 4);
+  const lineHeight = 78;
   const blockHeight = lines.length * lineHeight;
 
-  // Flyttet litt ned sammenlignet med før
-  const startY = 1500 - 145 - blockHeight;
+  // Tekst litt lenger ned enn før
+  const startY = 1500 - 135 - blockHeight;
 
   // Litt mer luft mellom kategori og tittel
-  const kickerGap = 56;
+  const kickerGap = 62;
 
   const titleSvg = lines
     .map((line, i) => {
@@ -807,7 +846,7 @@ function buildOverlaySVG(title, category) {
         x="70"
         y="${y + 3}"
         fill="rgba(0,0,0,0.45)"
-        font-size="74"
+        font-size="66"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>
@@ -815,7 +854,7 @@ function buildOverlaySVG(title, category) {
         x="68"
         y="${y}"
         fill="white"
-        font-size="74"
+        font-size="66"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>`;
@@ -829,11 +868,12 @@ function buildOverlaySVG(title, category) {
     <defs>
       <linearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(0,0,0,0)" />
-        <stop offset="28%" stop-color="rgba(0,0,0,0.02)" />
-        <stop offset="48%" stop-color="rgba(0,0,0,0.12)" />
-        <stop offset="64%" stop-color="rgba(0,0,0,0.30)" />
-        <stop offset="80%" stop-color="rgba(0,0,0,0.62)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.95)" />
+        <stop offset="18%" stop-color="rgba(0,0,0,0.02)" />
+        <stop offset="34%" stop-color="rgba(0,0,0,0.08)" />
+        <stop offset="50%" stop-color="rgba(0,0,0,0.18)" />
+        <stop offset="66%" stop-color="rgba(0,0,0,0.38)" />
+        <stop offset="82%" stop-color="rgba(0,0,0,0.68)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.96)" />
       </linearGradient>
     </defs>
 
@@ -853,7 +893,7 @@ function buildOverlaySVG(title, category) {
 
     <text
       x="68"
-      y="1432"
+      y="1434"
       fill="rgba(255,255,255,0.95)"
       font-size="30"
       font-weight="600"
@@ -1001,7 +1041,9 @@ async function run() {
 
   console.log(
     "Prepared Pinterest variants:",
-    variants.map((v) => `[${v.key}] ${v.pinTitle}`).join(" | "),
+    variants
+      .map((v) => `[${v.key}] pin="${v.pinTitle}" overlay="${v.overlayTitle}"`)
+      .join(" | "),
   );
 
   for (const variant of variants) {
