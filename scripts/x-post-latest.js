@@ -72,7 +72,7 @@ function words(str) {
   return normalizeWhitespace(str).split(" ").filter(Boolean);
 }
 
-function shortenNaturalByWords(str, maxWords = 6, maxChars = 46) {
+function shortenNaturalByWords(str, maxWords = 6, maxChars = 44) {
   let s = stripTrailingPunctuation(normalizeWhitespace(str));
   if (!s) return "";
 
@@ -145,8 +145,7 @@ function compactImageCredit(raw) {
 function buildFallbackHook(card) {
   const title = safeStr(card.title);
   if (!title) return "Curious Story";
-
-  return shortenNaturalByWords(title, 6, 46) || "Curious Story";
+  return shortenNaturalByWords(title, 6, 44) || "Curious Story";
 }
 
 function parseHashtags(raw, maxTags = 2) {
@@ -184,8 +183,10 @@ Rules:
 - No quotation marks.
 - No colon.
 - No filler words like "discover", "explore", "surprising", "amazing".
+- Avoid starting with "What if" unless it is essential.
 - It must look strong as large overlay text on an image.
 - Use Title Case.
+- Do not end with ellipsis.
 
 Return this exact JSON:
 {
@@ -211,7 +212,7 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
 
     const content = r.choices?.[0]?.message?.content || "{}";
     const parsed = JSON.parse(content);
-    const hook = shortenNaturalByWords(parsed.hook || "", 6, 46);
+    const hook = shortenNaturalByWords(parsed.hook || "", 6, 44);
 
     if (hook) return titleCase(hook);
   } catch (err) {
@@ -282,7 +283,7 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
 function buildFinalXText(postText, articleUrl, hashtagList = []) {
   const tags = hashtagList.join(" ").trim();
   const urlBlock = articleUrl;
-  const reserved = urlBlock.length + (tags ? tags.length + 4 : 2) + 2; // rough spacing buffer
+  const reserved = urlBlock.length + (tags ? tags.length + 4 : 2) + 2;
 
   const bodyBudget = Math.max(90, 280 - reserved);
   const body = truncateForX(postText, bodyBudget);
@@ -369,14 +370,14 @@ Return this exact JSON:
       );
     case "question":
       return truncateForX(
-        `What do you think is the strangest part of this story?`,
+        "What part of this story stands out most to you?",
         220,
       );
     case "context":
       return truncateForX(summary || seo || safeStr(card.title), 220);
     case "historical_angle":
       return truncateForX(
-        `Stories like this stand out because they don't fit the usual historical pattern.`,
+        "Stories like this stand out because they do not fit the pattern people usually expect.",
         220,
       );
     case "why_it_matters":
@@ -384,7 +385,7 @@ Return this exact JSON:
       return truncateForX(
         seo ||
           summary ||
-          `This matters because it reveals how unusual real-world history and geography can be.`,
+          "This matters because it shows how strange real history and geography can be.",
         220,
       );
   }
@@ -441,34 +442,34 @@ function wrapTitle(title, maxLineLength = 18, maxLines = 3) {
   return lines.slice(0, maxLines);
 }
 
-function buildCategoryBadgeSVG(category) {
+function buildCategoryBadgeSVG(category, x, y) {
   const label = escapeXml(titleCase(category || "CurioWire"));
   const fill = categoryColor(category);
-  const approxTextWidth = Math.max(64, label.length * 10.5);
+  const approxTextWidth = Math.max(68, label.length * 10.2);
   const width = approxTextWidth + 34;
   const height = 34;
   const radius = 17;
 
   return `
     <rect
-      x="54"
-      y="776"
+      x="${x}"
+      y="${y}"
       width="${width}"
       height="${height}"
       rx="${radius}"
       ry="${radius}"
       fill="${fill}"
-      opacity="0.95"
+      opacity="0.98"
     />
     <text
-      x="${54 + width / 2}"
-      y="799"
+      x="${x + width / 2}"
+      y="${y + 23}"
       text-anchor="middle"
       fill="white"
       font-size="16"
       font-weight="700"
       font-family="Arial, Helvetica, sans-serif"
-      letter-spacing="0.5"
+      letter-spacing="0.2"
     >${label}</text>
   `;
 }
@@ -478,9 +479,12 @@ function buildXOverlaySVG(title, category) {
   const height = 1200;
   const lines = wrapTitle(title, 18, 3);
 
-  const lineHeight = 58;
+  const lineHeight = 56;
   const blockHeight = lines.length * lineHeight;
-  const startY = height - 165 - blockHeight;
+
+  const startY = height - 150 - blockHeight;
+  const badgeY = startY - 58;
+  const badgeX = 56;
 
   const titleSvg = lines
     .map((line, i) => {
@@ -491,8 +495,8 @@ function buildXOverlaySVG(title, category) {
       <text
         x="58"
         y="${y + 2}"
-        fill="rgba(0,0,0,0.52)"
-        font-size="50"
+        fill="rgba(0,0,0,0.58)"
+        font-size="48"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>
@@ -500,7 +504,7 @@ function buildXOverlaySVG(title, category) {
         x="56"
         y="${y}"
         fill="white"
-        font-size="50"
+        font-size="48"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>`;
@@ -512,23 +516,24 @@ function buildXOverlaySVG(title, category) {
     <defs>
       <linearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(0,0,0,0)" />
-        <stop offset="30%" stop-color="rgba(0,0,0,0.03)" />
-        <stop offset="48%" stop-color="rgba(0,0,0,0.14)" />
-        <stop offset="66%" stop-color="rgba(0,0,0,0.34)" />
-        <stop offset="84%" stop-color="rgba(0,0,0,0.66)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.92)" />
+        <stop offset="24%" stop-color="rgba(0,0,0,0.04)" />
+        <stop offset="42%" stop-color="rgba(0,0,0,0.14)" />
+        <stop offset="58%" stop-color="rgba(0,0,0,0.32)" />
+        <stop offset="74%" stop-color="rgba(0,0,0,0.56)" />
+        <stop offset="88%" stop-color="rgba(0,0,0,0.78)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.94)" />
       </linearGradient>
     </defs>
 
     <rect x="0" y="0" width="${width}" height="${height}" fill="url(#bottomFade)" />
 
-    ${buildCategoryBadgeSVG(category)}
+    ${buildCategoryBadgeSVG(category, badgeX, badgeY)}
 
     ${titleSvg}
 
     <text
       x="56"
-      y="${height - 44}"
+      y="${height - 46}"
       fill="rgba(255,255,255,0.96)"
       font-size="24"
       font-weight="600"
@@ -544,15 +549,41 @@ async function createXImage(card, overlayTitle) {
     throw new Error(`Image download failed: ${res.status}`);
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer());
+  const originalBuffer = Buffer.from(await res.arrayBuffer());
+
+  const backgroundBuffer = await sharp(originalBuffer)
+    .resize(1200, 1200, { fit: "cover", position: "centre" })
+    .blur(22)
+    .modulate({ brightness: 0.72, saturation: 0.92 })
+    .jpeg({ quality: 88 })
+    .toBuffer();
+
+  const foregroundBuffer = await sharp(originalBuffer)
+    .resize(1080, 1080, {
+      fit: "contain",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      withoutEnlargement: true,
+    })
+    .png()
+    .toBuffer();
+
   const overlaySVG = buildXOverlaySVG(overlayTitle, card.category);
   const overlayBuffer = Buffer.from(overlaySVG);
 
   const filePath = `/tmp/x-${card.id}.jpg`;
 
-  await sharp(buffer)
-    .resize(1200, 1200, { fit: "cover", position: "centre" })
-    .composite([{ input: overlayBuffer }])
+  await sharp(backgroundBuffer)
+    .composite([
+      {
+        input: foregroundBuffer,
+        gravity: "centre",
+      },
+      {
+        input: overlayBuffer,
+        top: 0,
+        left: 0,
+      },
+    ])
     .jpeg({ quality: 90 })
     .toFile(filePath);
 
@@ -841,10 +872,34 @@ async function run() {
       throw new Error(`Fallback image download failed: ${res.status}`);
     }
 
-    const buffer = Buffer.from(await res.arrayBuffer());
+    const originalBuffer = Buffer.from(await res.arrayBuffer());
     localImagePath = `/tmp/x-fallback-${card.id}.jpg`;
-    await sharp(buffer)
+
+    const backgroundBuffer = await sharp(originalBuffer)
       .resize(1200, 1200, { fit: "cover", position: "centre" })
+      .blur(22)
+      .modulate({ brightness: 0.72, saturation: 0.92 })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    const foregroundBuffer = await sharp(originalBuffer)
+      .resize(1080, 1080, {
+        fit: "contain",
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+        withoutEnlargement: true,
+      })
+      .png()
+      .toBuffer();
+
+    const overlayBuffer = Buffer.from(
+      buildXOverlaySVG(overlayTitle, card.category),
+    );
+
+    await sharp(backgroundBuffer)
+      .composite([
+        { input: foregroundBuffer, gravity: "centre" },
+        { input: overlayBuffer, top: 0, left: 0 },
+      ])
       .jpeg({ quality: 90 })
       .toFile(localImagePath);
   }
