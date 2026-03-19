@@ -208,13 +208,34 @@ export default function ArticleModalClient({ card }) {
           .from("curiosity_cards")
           .select("id, title, image_url, category, created_at")
           .eq("status", "published")
+          .eq("is_listed", true)
           .eq("category", cat)
           .neq("id", id)
           .order("created_at", { ascending: false })
-          .limit(6);
+          .limit(12);
 
         if (!alive) return;
-        if (!error) setRelatedArticles(Array.isArray(data) ? data : []);
+        if (error || !Array.isArray(data) || data.length === 0) {
+          setRelatedArticles([]);
+          return;
+        }
+
+        // Stabil variasjon basert på artikkel-id
+        const pool = data;
+        const start = id % pool.length;
+
+        const picked = [
+          pool[start % pool.length],
+          pool[(start + 4) % pool.length],
+          pool[(start + 8) % pool.length],
+        ].filter(Boolean);
+
+        // Fjern evt duplikater
+        const unique = Array.from(
+          new Map(picked.map((a) => [a.id, a])).values(),
+        );
+
+        setRelatedArticles(unique);
       } catch {
         if (!alive) return;
         setRelatedArticles([]);
