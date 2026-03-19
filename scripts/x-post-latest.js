@@ -30,6 +30,23 @@ const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const X_API_BASE = "https://api.x.com";
 
+const CATEGORY_COLORS = {
+  science: "#005ae0",
+  space: "#9d00db",
+  history: "#b07a22",
+  nature: "#008f45",
+  world: "#c90500",
+
+  technology: "#0099d9",
+  culture: "#e84f1b",
+  health: "#c8006a",
+  sports: "#009f80",
+
+  products: "#e6b800",
+  crime: "#775232",
+  mystery: "#00d6d6",
+};
+
 function safeStr(v, fallback = "") {
   return typeof v === "string" && v.trim() ? v.trim() : fallback;
 }
@@ -55,7 +72,7 @@ function words(str) {
   return normalizeWhitespace(str).split(" ").filter(Boolean);
 }
 
-function shortenNaturalByWords(str, maxWords = 8, maxChars = 64) {
+function shortenNaturalByWords(str, maxWords = 6, maxChars = 46) {
   let s = stripTrailingPunctuation(normalizeWhitespace(str));
   if (!s) return "";
 
@@ -74,7 +91,7 @@ function shortenNaturalByWords(str, maxWords = 8, maxChars = 64) {
     s = s.slice(0, maxChars);
   }
 
-  return stripTrailingPunctuation(s) + "…";
+  return stripTrailingPunctuation(s);
 }
 
 function isPostingEnabled() {
@@ -105,25 +122,70 @@ function truncateForX(str, maxChars = 220) {
   return stripTrailingPunctuation(trimmed.slice(0, maxChars)) + "…";
 }
 
+function normalizeImageSource(source) {
+  return safeStr(source).toLowerCase();
+}
+
+function isWikimedia(card) {
+  return normalizeImageSource(card.image_source).includes("wikimedia");
+}
+
+function compactImageCredit(raw) {
+  const cleaned = normalizeWhitespace(
+    safeStr(raw)
+      .replace(/https?:\/\/\S+/gi, "")
+      .replace(/\([^)]*creativecommons[^)]*\)/gi, "")
+      .replace(/\s+/g, " "),
+  );
+
+  if (!cleaned) return "";
+  return truncateForX(cleaned, 120);
+}
+
 function buildFallbackHook(card) {
-  return shortenNaturalByWords(card.title || "Curious story", 8, 64);
+  const title = safeStr(card.title);
+  if (!title) return "Curious Story";
+
+  return shortenNaturalByWords(title, 6, 46) || "Curious Story";
+}
+
+function parseHashtags(raw, maxTags = 2) {
+  const tags = safeStr(raw).match(/#[\p{L}\p{N}_]+/gu) || [];
+  const deduped = [];
+  const seen = new Set();
+
+  for (const tag of tags) {
+    const normalized = tag.toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    deduped.push(tag);
+    if (deduped.length >= maxTags) break;
+  }
+
+  return deduped;
+}
+
+function categoryColor(category) {
+  return CATEGORY_COLORS[safeStr(category).toLowerCase()] || "#1f2937";
 }
 
 async function generateXHook(card) {
   const prompt = `
-Create 1 short X post hook for this article.
+Create 1 short overlay hook for an X image.
 
 Rules:
 - Return ONLY valid JSON.
 - Write in English.
-- Maximum 9 words.
-- Prefer 5 to 8 words.
-- Curiosity-driven, accurate, not exaggerated.
+- Maximum 6 words.
+- Prefer 4 to 6 words.
+- Clear, intriguing, accurate.
 - No emojis.
 - No hashtags.
 - No quotation marks.
 - No colon.
-- It should work as overlay text too.
+- No filler words like "discover", "explore", "surprising", "amazing".
+- It must look strong as large overlay text on an image.
+- Use Title Case.
 
 Return this exact JSON:
 {
@@ -149,31 +211,32 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
 
     const content = r.choices?.[0]?.message?.content || "{}";
     const parsed = JSON.parse(content);
-    const hook = shortenNaturalByWords(parsed.hook || "", 9, 64);
+    const hook = shortenNaturalByWords(parsed.hook || "", 6, 46);
 
-    if (hook) return hook;
+    if (hook) return titleCase(hook);
   } catch (err) {
     console.warn("X hook generation failed:", err.message);
   }
 
-  return buildFallbackHook(card);
+  return titleCase(buildFallbackHook(card));
 }
 
 async function generateXPostText(card, hook) {
   const prompt = `
-Write 1 concise X post for a news/discovery article.
+Write 1 concise X post for a discovery/news article.
 
 Rules:
 - Return ONLY valid JSON.
 - Write in English.
 - Conversational, clear, not clickbait.
-- No hashtags unless absolutely necessary.
 - Do not use all caps.
 - Keep it short.
 - Include NO URL in the generated text.
-- Maximum 180 characters.
+- Include NO image credit.
+- Include NO hashtags.
+- Maximum 170 characters.
 - It should feel native to X, not like SEO copy.
-- Avoid repeating the exact article title.
+- It must complement the hook without repeating it word-for-word.
 
 Return this exact JSON:
 {
@@ -200,7 +263,7 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
 
     const content = r.choices?.[0]?.message?.content || "{}";
     const parsed = JSON.parse(content);
-    const generated = truncateForX(parsed.post_text || "", 180);
+    const generated = truncateForX(parsed.post_text || "", 170);
 
     if (generated) return generated;
   } catch (err) {
@@ -213,11 +276,130 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
     stripHtml(card.fun_fact) ||
     safeStr(card.title);
 
-  return truncateForX(`${hook}. ${fallbackBase}`, 180);
+  return truncateForX(fallbackBase, 170);
 }
 
-function buildFinalXText(postText, articleUrl) {
-  return `${truncateForX(postText, 220)}\n\n${articleUrl}`;
+function buildFinalXText(postText, articleUrl, hashtagList = []) {
+  const tags = hashtagList.join(" ").trim();
+  const urlBlock = articleUrl;
+  const reserved = urlBlock.length + (tags ? tags.length + 4 : 2) + 2; // rough spacing buffer
+
+  const bodyBudget = Math.max(90, 280 - reserved);
+  const body = truncateForX(postText, bodyBudget);
+
+  if (tags) {
+    return `${body}\n\n${urlBlock}\n\n${tags}`;
+  }
+
+  return `${body}\n\n${urlBlock}`;
+}
+
+function getReplyVariant(cardId) {
+  const variants = [
+    "why_it_matters",
+    "fun_fact",
+    "question",
+    "context",
+    "historical_angle",
+  ];
+
+  const numeric = Number(cardId) || 0;
+  return variants[numeric % variants.length];
+}
+
+async function generateXReply(card, mainPostText, variant) {
+  const prompt = `
+Write 1 short follow-up X reply for an article thread.
+
+Rules:
+- Return ONLY valid JSON.
+- Write in English.
+- Maximum 220 characters before any optional image credit.
+- No hashtags.
+- No URL.
+- Do not repeat the main post.
+- Add complementary value only.
+- Sound natural on X.
+- One concise paragraph.
+
+Reply angle to use: ${variant}
+
+Main post:
+${safeStr(mainPostText)}
+
+Article title: ${safeStr(card.title)}
+Category: ${safeStr(card.category)}
+SEO description: ${safeStr(card.seo_description)}
+Summary: ${stripHtml(card.summary_normalized).slice(0, 500)}
+Fun fact: ${stripHtml(card.fun_fact).slice(0, 300)}
+Card text: ${stripHtml(card.card_text).slice(0, 500)}
+
+Return this exact JSON:
+{
+  "reply": "text here"
+}
+`;
+
+  try {
+    const r = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 140,
+      temperature: 0.8,
+      response_format: { type: "json_object" },
+    });
+
+    const content = r.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
+    const reply = truncateForX(parsed.reply || "", 220);
+    if (reply) return reply;
+  } catch (err) {
+    console.warn("X reply generation failed:", err.message);
+  }
+
+  const seo = safeStr(card.seo_description);
+  const summary = stripHtml(card.summary_normalized);
+  const funFact = stripHtml(card.fun_fact);
+
+  switch (variant) {
+    case "fun_fact":
+      return truncateForX(
+        funFact || summary || seo || safeStr(card.title),
+        220,
+      );
+    case "question":
+      return truncateForX(
+        `What do you think is the strangest part of this story?`,
+        220,
+      );
+    case "context":
+      return truncateForX(summary || seo || safeStr(card.title), 220);
+    case "historical_angle":
+      return truncateForX(
+        `Stories like this stand out because they don't fit the usual historical pattern.`,
+        220,
+      );
+    case "why_it_matters":
+    default:
+      return truncateForX(
+        seo ||
+          summary ||
+          `This matters because it reveals how unusual real-world history and geography can be.`,
+        220,
+      );
+  }
+}
+
+function buildReplyWithImageCredit(card, replyText) {
+  if (!isWikimedia(card) || !safeStr(card.image_credit)) {
+    return truncateForX(replyText, 240);
+  }
+
+  const credit = compactImageCredit(card.image_credit);
+  if (!credit) return truncateForX(replyText, 240);
+
+  const candidate = `${truncateForX(replyText, 200)}\n\nImage credit: ${credit}`;
+  return truncateForX(candidate, 280);
 }
 
 function escapeXml(str) {
@@ -228,7 +410,7 @@ function escapeXml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function wrapTitle(title, maxLineLength = 20, maxLines = 3) {
+function wrapTitle(title, maxLineLength = 18, maxLines = 3) {
   const titleWords = safeStr(title).split(/\s+/).filter(Boolean);
   const lines = [];
   let current = "";
@@ -256,83 +438,98 @@ function wrapTitle(title, maxLineLength = 20, maxLines = 3) {
     lines.push(current);
   }
 
-  const original = titleWords.join(" ");
-  const rendered = lines.join(" ");
-  if (lines.length === maxLines && original.length > rendered.length) {
-    lines[maxLines - 1] = stripTrailingPunctuation(lines[maxLines - 1]) + "…";
-  }
-
   return lines.slice(0, maxLines);
+}
+
+function buildCategoryBadgeSVG(category) {
+  const label = escapeXml(titleCase(category || "CurioWire"));
+  const fill = categoryColor(category);
+  const approxTextWidth = Math.max(64, label.length * 10.5);
+  const width = approxTextWidth + 34;
+  const height = 34;
+  const radius = 17;
+
+  return `
+    <rect
+      x="54"
+      y="776"
+      width="${width}"
+      height="${height}"
+      rx="${radius}"
+      ry="${radius}"
+      fill="${fill}"
+      opacity="0.95"
+    />
+    <text
+      x="${54 + width / 2}"
+      y="799"
+      text-anchor="middle"
+      fill="white"
+      font-size="16"
+      font-weight="700"
+      font-family="Arial, Helvetica, sans-serif"
+      letter-spacing="0.5"
+    >${label}</text>
+  `;
 }
 
 function buildXOverlaySVG(title, category) {
   const width = 1200;
-  const height = 675;
-  const lines = wrapTitle(title, 20, 3);
+  const height = 1200;
+  const lines = wrapTitle(title, 18, 3);
 
-  const lineHeight = 72;
+  const lineHeight = 58;
   const blockHeight = lines.length * lineHeight;
-  const startY = height - 120 - blockHeight;
-  const kickerGap = 48;
+  const startY = height - 165 - blockHeight;
 
   const titleSvg = lines
     .map((line, i) => {
       const y = startY + i * lineHeight;
-      const text = escapeXml(line);
+      const text = escapeXml(titleCase(line));
 
       return `
       <text
-        x="62"
-        y="${y + 3}"
-        fill="rgba(0,0,0,0.42)"
-        font-size="58"
+        x="58"
+        y="${y + 2}"
+        fill="rgba(0,0,0,0.52)"
+        font-size="50"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>
       <text
-        x="60"
+        x="56"
         y="${y}"
         fill="white"
-        font-size="58"
+        font-size="50"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>`;
     })
     .join("");
 
-  const kicker = escapeXml(titleCase(category || "CurioWire"));
-
   return `
   <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(0,0,0,0)" />
-        <stop offset="22%" stop-color="rgba(0,0,0,0.03)" />
-        <stop offset="40%" stop-color="rgba(0,0,0,0.10)" />
-        <stop offset="58%" stop-color="rgba(0,0,0,0.24)" />
-        <stop offset="76%" stop-color="rgba(0,0,0,0.52)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.88)" />
+        <stop offset="30%" stop-color="rgba(0,0,0,0.03)" />
+        <stop offset="48%" stop-color="rgba(0,0,0,0.14)" />
+        <stop offset="66%" stop-color="rgba(0,0,0,0.34)" />
+        <stop offset="84%" stop-color="rgba(0,0,0,0.66)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.92)" />
       </linearGradient>
     </defs>
 
     <rect x="0" y="0" width="${width}" height="${height}" fill="url(#bottomFade)" />
 
-    <text
-      x="60"
-      y="${startY - kickerGap}"
-      fill="rgba(255,255,255,0.94)"
-      font-size="24"
-      font-weight="700"
-      font-family="Arial, Helvetica, sans-serif"
-      letter-spacing="2"
-    >${kicker.toUpperCase()}</text>
+    ${buildCategoryBadgeSVG(category)}
 
     ${titleSvg}
 
     <text
-      x="60"
-      y="${height - 32}"
-      fill="rgba(255,255,255,0.95)"
+      x="56"
+      y="${height - 44}"
+      fill="rgba(255,255,255,0.96)"
       font-size="24"
       font-weight="600"
       font-family="Arial, Helvetica, sans-serif"
@@ -354,7 +551,7 @@ async function createXImage(card, overlayTitle) {
   const filePath = `/tmp/x-${card.id}.jpg`;
 
   await sharp(buffer)
-    .resize(1200, 675, { fit: "cover", position: "centre" })
+    .resize(1200, 1200, { fit: "cover", position: "centre" })
     .composite([{ input: overlayBuffer }])
     .jpeg({ quality: 90 })
     .toFile(filePath);
@@ -391,6 +588,14 @@ async function existingPostForCard(cardId) {
 
 async function insertXRow(payload) {
   const { error } = await supabase.from("x_posts").insert(payload);
+  if (error) throw error;
+}
+
+async function updateXRowByCardId(cardId, payload) {
+  const { error } = await supabase
+    .from("x_posts")
+    .update(payload)
+    .eq("card_id", cardId);
   if (error) throw error;
 }
 
@@ -509,6 +714,44 @@ async function createXPost({ text, mediaId }) {
   return String(postId);
 }
 
+async function createXReply({ text, replyToId }) {
+  const url = `${X_API_BASE}/2/tweets`;
+  const oauthHeader = getOAuthHeader(url, "POST");
+
+  const payload = {
+    text,
+    reply: {
+      in_reply_to_tweet_id: replyToId,
+    },
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      ...oauthHeader,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(
+      `X reply failed: ${res.status} ${JSON.stringify(data).slice(0, 800)}`,
+    );
+  }
+
+  const replyId = data?.data?.id;
+  if (!replyId) {
+    throw new Error(
+      `X reply missing id: ${JSON.stringify(data).slice(0, 800)}`,
+    );
+  }
+
+  return String(replyId);
+}
+
 async function run() {
   console.log("Fetching latest article...");
 
@@ -542,10 +785,17 @@ async function run() {
   const articleUrl = buildArticleUrl(card);
   const overlayTitle = await generateXHook(card);
   const xBody = await generateXPostText(card, overlayTitle);
-  const finalText = buildFinalXText(xBody, articleUrl);
+  const hashtagList = parseHashtags(card.hashtags, 2);
+  const finalText = buildFinalXText(xBody, articleUrl, hashtagList);
+
+  const replyVariant = getReplyVariant(card.id);
+  const rawReply = await generateXReply(card, xBody, replyVariant);
+  const replyText = buildReplyWithImageCredit(card, rawReply);
 
   console.log("Prepared X overlay:", overlayTitle);
   console.log("Prepared X text:", finalText);
+  console.log("Prepared X reply variant:", replyVariant);
+  console.log("Prepared X reply:", replyText);
 
   let xImageUrl = card.image_url;
   let localImagePath = null;
@@ -576,6 +826,9 @@ async function run() {
       status: "skipped",
       error_message: null,
       posted_at: null,
+      reply_text: replyText,
+      reply_post_id: null,
+      reply_variant: replyVariant,
     });
 
     console.log("X test row stored.");
@@ -583,15 +836,15 @@ async function run() {
   }
 
   if (!localImagePath) {
-    // If custom image failed completely, generate a local temp file from the source image.
     const res = await fetch(card.image_url);
-    if (!res.ok)
+    if (!res.ok) {
       throw new Error(`Fallback image download failed: ${res.status}`);
+    }
 
     const buffer = Buffer.from(await res.arrayBuffer());
     localImagePath = `/tmp/x-fallback-${card.id}.jpg`;
     await sharp(buffer)
-      .resize(1200, 675, { fit: "cover", position: "centre" })
+      .resize(1200, 1200, { fit: "cover", position: "centre" })
       .jpeg({ quality: 90 })
       .toFile(localImagePath);
   }
@@ -613,7 +866,34 @@ async function run() {
       status: "posted",
       error_message: null,
       posted_at: new Date().toISOString(),
+      reply_text: replyText,
+      reply_post_id: null,
+      reply_variant: replyVariant,
     });
+
+    if (replyText) {
+      try {
+        const replyPostId = await createXReply({
+          text: replyText,
+          replyToId: xPostId,
+        });
+
+        await updateXRowByCardId(card.id, {
+          reply_post_id: replyPostId,
+        });
+
+        console.log("X reply stored:", replyPostId);
+      } catch (replyErr) {
+        console.warn("Reply failed:", replyErr.message);
+
+        await updateXRowByCardId(card.id, {
+          error_message: truncateForX(
+            `Main post published, but reply failed: ${String(replyErr?.message || replyErr || "")}`,
+            800,
+          ),
+        });
+      }
+    }
 
     console.log("X post stored:", xPostId);
   } catch (err) {
@@ -627,6 +907,9 @@ async function run() {
       status: "failed",
       error_message: String(err?.message || err || "").slice(0, 800),
       posted_at: null,
+      reply_text: replyText,
+      reply_post_id: null,
+      reply_variant: replyVariant,
     });
 
     throw err;
