@@ -445,8 +445,10 @@ function wrapTitle(title, maxLineLength = 18, maxLines = 3) {
 function buildCategoryBadgeSVG(category, x, y) {
   const label = escapeXml(titleCase(category || "CurioWire"));
   const fill = categoryColor(category);
+
   const approxTextWidth = Math.max(76, label.length * 10.8);
   const width = approxTextWidth + 46;
+
   const height = 42;
   const radius = 21;
 
@@ -463,9 +465,9 @@ function buildCategoryBadgeSVG(category, x, y) {
     />
     <text
       x="${x + width / 2}"
-      y="${y + 26}"
+      y="${y + height / 2}"
       text-anchor="middle"
-      dominant-baseline="middle"
+      dominant-baseline="central"
       fill="white"
       font-size="22"
       font-weight="700"
