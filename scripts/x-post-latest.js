@@ -446,9 +446,9 @@ function buildCategoryBadgeSVG(category, x, y) {
   const label = escapeXml(titleCase(category || "CurioWire"));
   const fill = categoryColor(category);
   const approxTextWidth = Math.max(76, label.length * 10.8);
-  const width = approxTextWidth + 38;
-  const height = 38;
-  const radius = 19;
+  const width = approxTextWidth + 46;
+  const height = 46;
+  const radius = 23;
 
   return `
     <rect
@@ -463,10 +463,10 @@ function buildCategoryBadgeSVG(category, x, y) {
     />
     <text
       x="${x + width / 2}"
-      y="${y + 25}"
+      y="${y + 27}"
       text-anchor="middle"
       fill="white"
-      font-size="18"
+      font-size="22"
       font-weight="700"
       font-family="Arial, Helvetica, sans-serif"
       letter-spacing="0.2"
@@ -479,11 +479,11 @@ function buildXOverlaySVG(title, category) {
   const height = 1200;
   const lines = wrapTitle(title, 18, 3);
 
-  const lineHeight = 60;
+  const lineHeight = 68;
   const blockHeight = lines.length * lineHeight;
 
   const startY = height - 145 - blockHeight;
-  const badgeY = startY - 72;
+  const badgeY = startY - 88;
   const badgeX = 56;
 
   const titleSvg = lines
@@ -496,7 +496,7 @@ function buildXOverlaySVG(title, category) {
         x="58"
         y="${y + 2}"
         fill="rgba(0,0,0,0.62)"
-        font-size="52"
+        font-size="62"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>
@@ -504,7 +504,7 @@ function buildXOverlaySVG(title, category) {
         x="56"
         y="${y}"
         fill="white"
-        font-size="52"
+        font-size="62"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>`;
