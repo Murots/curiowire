@@ -72,7 +72,7 @@ function words(str) {
   return normalizeWhitespace(str).split(" ").filter(Boolean);
 }
 
-function shortenNaturalByWords(str, maxWords = 6, maxChars = 44) {
+function shortenNaturalByWords(str, maxWords = 6, maxChars = 42) {
   let s = stripTrailingPunctuation(normalizeWhitespace(str));
   if (!s) return "";
 
@@ -145,7 +145,7 @@ function compactImageCredit(raw) {
 function buildFallbackHook(card) {
   const title = safeStr(card.title);
   if (!title) return "Curious Story";
-  return shortenNaturalByWords(title, 6, 44) || "Curious Story";
+  return shortenNaturalByWords(title, 6, 42) || "Curious Story";
 }
 
 function parseHashtags(raw, maxTags = 2) {
@@ -176,17 +176,17 @@ Rules:
 - Return ONLY valid JSON.
 - Write in English.
 - Maximum 6 words.
-- Prefer 4 to 6 words.
+- Prefer 3 to 6 words.
 - Clear, intriguing, accurate.
 - No emojis.
 - No hashtags.
 - No quotation marks.
 - No colon.
 - No filler words like "discover", "explore", "surprising", "amazing".
-- Avoid starting with "What if" unless it is essential.
-- It must look strong as large overlay text on an image.
+- Avoid starting with "What if" unless essential.
 - Use Title Case.
 - Do not end with ellipsis.
+- It must look strong as large overlay text on an image.
 
 Return this exact JSON:
 {
@@ -212,7 +212,7 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
 
     const content = r.choices?.[0]?.message?.content || "{}";
     const parsed = JSON.parse(content);
-    const hook = shortenNaturalByWords(parsed.hook || "", 6, 44);
+    const hook = shortenNaturalByWords(parsed.hook || "", 6, 42);
 
     if (hook) return titleCase(hook);
   } catch (err) {
@@ -495,7 +495,7 @@ function buildXOverlaySVG(title, category) {
       <text
         x="58"
         y="${y + 2}"
-        fill="rgba(0,0,0,0.58)"
+        fill="rgba(0,0,0,0.62)"
         font-size="48"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
@@ -516,12 +516,12 @@ function buildXOverlaySVG(title, category) {
     <defs>
       <linearGradient id="bottomFade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(0,0,0,0)" />
-        <stop offset="24%" stop-color="rgba(0,0,0,0.04)" />
-        <stop offset="42%" stop-color="rgba(0,0,0,0.14)" />
-        <stop offset="58%" stop-color="rgba(0,0,0,0.32)" />
-        <stop offset="74%" stop-color="rgba(0,0,0,0.56)" />
-        <stop offset="88%" stop-color="rgba(0,0,0,0.78)" />
-        <stop offset="100%" stop-color="rgba(0,0,0,0.94)" />
+        <stop offset="22%" stop-color="rgba(0,0,0,0.04)" />
+        <stop offset="40%" stop-color="rgba(0,0,0,0.16)" />
+        <stop offset="56%" stop-color="rgba(0,0,0,0.36)" />
+        <stop offset="72%" stop-color="rgba(0,0,0,0.62)" />
+        <stop offset="86%" stop-color="rgba(0,0,0,0.82)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.96)" />
       </linearGradient>
     </defs>
 
@@ -550,40 +550,14 @@ async function createXImage(card, overlayTitle) {
   }
 
   const originalBuffer = Buffer.from(await res.arrayBuffer());
-
-  const backgroundBuffer = await sharp(originalBuffer)
-    .resize(1200, 1200, { fit: "cover", position: "centre" })
-    .blur(22)
-    .modulate({ brightness: 0.72, saturation: 0.92 })
-    .jpeg({ quality: 88 })
-    .toBuffer();
-
-  const foregroundBuffer = await sharp(originalBuffer)
-    .resize(1080, 1080, {
-      fit: "contain",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-      withoutEnlargement: true,
-    })
-    .png()
-    .toBuffer();
-
   const overlaySVG = buildXOverlaySVG(overlayTitle, card.category);
   const overlayBuffer = Buffer.from(overlaySVG);
 
   const filePath = `/tmp/x-${card.id}.jpg`;
 
-  await sharp(backgroundBuffer)
-    .composite([
-      {
-        input: foregroundBuffer,
-        gravity: "centre",
-      },
-      {
-        input: overlayBuffer,
-        top: 0,
-        left: 0,
-      },
-    ])
+  await sharp(originalBuffer)
+    .resize(1200, 1200, { fit: "cover", position: "centre" })
+    .composite([{ input: overlayBuffer, top: 0, left: 0 }])
     .jpeg({ quality: 90 })
     .toFile(filePath);
 
@@ -875,31 +849,13 @@ async function run() {
     const originalBuffer = Buffer.from(await res.arrayBuffer());
     localImagePath = `/tmp/x-fallback-${card.id}.jpg`;
 
-    const backgroundBuffer = await sharp(originalBuffer)
-      .resize(1200, 1200, { fit: "cover", position: "centre" })
-      .blur(22)
-      .modulate({ brightness: 0.72, saturation: 0.92 })
-      .jpeg({ quality: 88 })
-      .toBuffer();
-
-    const foregroundBuffer = await sharp(originalBuffer)
-      .resize(1080, 1080, {
-        fit: "contain",
-        background: { r: 0, g: 0, b: 0, alpha: 0 },
-        withoutEnlargement: true,
-      })
-      .png()
-      .toBuffer();
-
     const overlayBuffer = Buffer.from(
       buildXOverlaySVG(overlayTitle, card.category),
     );
 
-    await sharp(backgroundBuffer)
-      .composite([
-        { input: foregroundBuffer, gravity: "centre" },
-        { input: overlayBuffer, top: 0, left: 0 },
-      ])
+    await sharp(originalBuffer)
+      .resize(1200, 1200, { fit: "cover", position: "centre" })
+      .composite([{ input: overlayBuffer, top: 0, left: 0 }])
       .jpeg({ quality: 90 })
       .toFile(localImagePath);
   }
