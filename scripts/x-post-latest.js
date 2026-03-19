@@ -447,8 +447,8 @@ function buildCategoryBadgeSVG(category, x, y) {
   const fill = categoryColor(category);
   const approxTextWidth = Math.max(76, label.length * 10.8);
   const width = approxTextWidth + 46;
-  const height = 46;
-  const radius = 23;
+  const height = 42;
+  const radius = 21;
 
   return `
     <rect
@@ -463,8 +463,9 @@ function buildCategoryBadgeSVG(category, x, y) {
     />
     <text
       x="${x + width / 2}"
-      y="${y + 27}"
+      y="${y + 26}"
       text-anchor="middle"
+      dominant-baseline="middle"
       fill="white"
       font-size="22"
       font-weight="700"
@@ -483,7 +484,7 @@ function buildXOverlaySVG(title, category) {
   const blockHeight = lines.length * lineHeight;
 
   const startY = height - 145 - blockHeight;
-  const badgeY = startY - 88;
+  const badgeY = startY - 102;
   const badgeX = 56;
 
   const titleSvg = lines
@@ -496,7 +497,7 @@ function buildXOverlaySVG(title, category) {
         x="58"
         y="${y + 2}"
         fill="rgba(0,0,0,0.62)"
-        font-size="62"
+        font-size="66"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>
@@ -504,7 +505,7 @@ function buildXOverlaySVG(title, category) {
         x="56"
         y="${y}"
         fill="white"
-        font-size="62"
+        font-size="66"
         font-weight="700"
         font-family="Georgia, Times New Roman, serif"
       >${text}</text>`;
