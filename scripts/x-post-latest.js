@@ -134,8 +134,10 @@ function compactImageCredit(raw) {
   const cleaned = normalizeWhitespace(
     safeStr(raw)
       .replace(/https?:\/\/\S+/gi, "")
-      .replace(/\([^)]*creativecommons[^)]*\)/gi, "")
-      .replace(/\s+/g, " "),
+      .replace(/\([^)]*\)/g, "")
+      .replace(/\s+/g, " ")
+      .replace(/\s+[|,;:-]\s*$/g, "")
+      .replace(/[([]\s*$/g, ""),
   );
 
   if (!cleaned) return "";
