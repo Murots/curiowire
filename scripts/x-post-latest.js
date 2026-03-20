@@ -653,7 +653,6 @@ async function uploadMediaToX(filePath) {
   form.append("media", blob, "curiowire.jpg");
   form.append("media_category", "tweet_image");
   form.append("media_type", "image/jpeg");
-  form.append("shared", "false");
 
   const oauthHeader = getOAuthHeader(url, "POST");
 
