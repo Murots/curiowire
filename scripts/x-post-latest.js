@@ -794,7 +794,7 @@ async function run() {
   const articleUrl = buildArticleUrl(card);
   const overlayTitle = await generateXHook(card);
   const xBody = await generateXPostText(card, overlayTitle);
-  const hashtagList = parseHashtags(card.hashtags, 2);
+  const hashtagList = parseHashtags(card.hashtags, 3);
   const finalText = buildFinalXText(xBody, articleUrl, hashtagList);
 
   const replyVariant = getReplyVariant(card.id);
