@@ -1,20 +1,18 @@
-name: CurioWire Auto Article Generator
+name: CurioWire Weekly List Article Generator
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   # 📰 Articles: every 4 hours (6/day)
-  #   - cron: "0 */4 * * *"
   schedule:
-    # 📰 Articles: 5 times per day
-    - cron: "0 0,5,10,15,20 * * *"
+    # 📚 List article: twice a week, Mondays and Thursdays at 06:00 UTC
+    - cron: "0 6 * * 1"
+    - cron: "0 6 * * 4"
 
 concurrency:
-  group: curiowire-production
+  group: curiowire-list-production
   cancel-in-progress: false
 
 jobs:
-  generate:
+  generate-list:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: Production
@@ -24,10 +22,14 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
 
-      # Your article-check models
+      # Article-check models
       PREMISE_GATE_MODEL: ${{ secrets.PREMISE_GATE_MODEL }}
       FACTCHECK_MODEL: ${{ secrets.FACTCHECK_MODEL }}
       SALVAGE_MODEL: ${{ secrets.SALVAGE_MODEL }}
+
+      # Optional article model override
+      ARTICLE_MODEL: ${{ secrets.ARTICLE_MODEL }}
+      IMAGE_MODEL: ${{ secrets.IMAGE_MODEL }}
 
       # === Supabase ===
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -52,5 +54,5 @@ jobs:
 
       - run: npm ci
 
-      - name: 📰 Generate articles
-        run: node scripts/generate.js
+      - name: 📚 Generate weekly list article
+        run: node scripts/generateListArticle.js

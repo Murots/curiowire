@@ -1,11 +1,12 @@
 // ============================================================================
-// scripts/generate.js — CurioWire vNext (ALWAYS FACTCHECK + PREMISE SALVAGE)
-// One run = one article.
+// scripts/generateListArticle.js — CurioWire vNext LISTS
+// One run = one list article.
 // Flow:
+//   premise gate on list suggestion package
 //   attempt 1: generate -> summary -> refine -> factcheck
 //   if FAIL_PREMISE -> salvage decider -> attempt 2 (full rerun)
 //   if attempt 2 FAIL_PREMISE -> stop + flag
-//   if pass -> generate scene prompt + select image -> save
+//   if pass -> choose hero item -> image -> scene prompt -> save
 // ============================================================================
 
 import dotenv from "dotenv";
@@ -14,14 +15,14 @@ dotenv.config({ path: ".env.local" });
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
-import { buildPremiseGatePrompt } from "../app/api/utils/premiseGatePrompt.js";
-import { buildArticlePrompt } from "../app/api/utils/prompts.js";
-import { buildSummaryPrompt } from "../app/api/utils/summaryPrompt.js";
-import { buildRefinePackagePrompt } from "../app/api/utils/refinePackage.js";
-import { buildFactCheckPackagePrompt } from "../app/api/utils/factCheckPackage.js";
-import { buildPremiseSalvagePrompt } from "../app/api/utils/premiseSalvage.js";
+import { buildListPremiseGatePrompt } from "../app/api/utils/listPremiseGatePrompt.js";
+import { buildListArticlePrompt } from "../app/api/utils/listArticlePrompt.js";
+import { buildListSummaryPrompt } from "../app/api/utils/listSummaryPrompt.js";
+import { buildListRefinePackagePrompt } from "../app/api/utils/listRefinePackage.js";
+import { buildListFactCheckPackagePrompt } from "../app/api/utils/listFactCheckPackage.js";
+import { buildListPremiseSalvagePrompt } from "../app/api/utils/listPremiseSalvage.js";
 import { generateScenePrompt } from "../app/api/utils/scenePrompt.js";
-import { buildSourceResolverPrompt } from "../app/api/utils/sourceResolverPrompt.js";
+import { buildListSourceResolverPrompt } from "../app/api/utils/listSourceResolverPrompt.js";
 
 import { selectBestImage } from "../lib/imageSelector.js";
 import { updateAndPingSearchEngines } from "../app/api/utils/seoTools.js";
@@ -34,15 +35,14 @@ const {
   OPENAI_ORG_ID,
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
-
-  // OpenAI models
-  ARTICLE_MODEL, // default: "gpt-4o-mini"
+  ARTICLE_MODEL,
 } = process.env;
 
 if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY");
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
-if (!SUPABASE_SERVICE_ROLE_KEY)
+if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+}
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -54,7 +54,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // ----------------------------------------------------------------------------
 // Config
 // ----------------------------------------------------------------------------
-const MAX_PREMISE_ATTEMPTS = 2; // 1 original + 1 salvage retry (hard stop after)
+const MAX_PREMISE_ATTEMPTS = 2;
 
 // ----------------------------------------------------------------------------
 // Helpers
@@ -65,6 +65,10 @@ function nowIso() {
 
 function safeStr(v, fallback = "") {
   return typeof v === "string" && v.trim() ? v.trim() : fallback;
+}
+
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
 }
 
 function stripH1(html) {
@@ -100,7 +104,36 @@ function preview(s, n = 120) {
   return t.length > n ? t.slice(0, n) + "…" : t;
 }
 
-function splitPremiseGateOutput(text) {
+function tryParseJsonArray(text) {
+  try {
+    const parsed = JSON.parse(String(text || "").trim());
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function uniqueStrings(arr) {
+  return [
+    ...new Set((arr || []).map((x) => String(x || "").trim()).filter(Boolean)),
+  ];
+}
+
+function buildListSeedPackage(row) {
+  return {
+    title: safeStr(row?.title),
+    theme: safeStr(row?.theme),
+    angle: safeStr(row?.angle),
+    items: Array.isArray(row?.items)
+      ? row.items
+      : tryParseJsonArray(row?.items),
+  };
+}
+
+// ----------------------------------------------------------------------------
+// Premise gate parsing
+// ----------------------------------------------------------------------------
+function splitListPremiseGateOutput(text) {
   const s = String(text || "");
 
   const verdict = (s.match(/Verdict:\s*([^\n\r]+)/i)?.[1] || "")
@@ -109,19 +142,36 @@ function splitPremiseGateOutput(text) {
     .split(/\s|\|/)[0]
     .trim();
 
-  const correctedSeed = (
-    s.match(/CorrectedSeed:\s*([\s\S]*?)\nReason:\s*/i)?.[1] || ""
+  const correctedTitle = (
+    s.match(/CorrectedTitle:\s*([\s\S]*?)\nCorrectedTheme:\s*/i)?.[1] || ""
   ).trim();
-
+  const correctedTheme = (
+    s.match(/CorrectedTheme:\s*([\s\S]*?)\nCorrectedAngle:\s*/i)?.[1] || ""
+  ).trim();
+  const correctedAngle = (
+    s.match(/CorrectedAngle:\s*([\s\S]*?)\nCorrectedItems:\s*/i)?.[1] || ""
+  ).trim();
+  const correctedItemsRaw = (
+    s.match(/CorrectedItems:\s*([\s\S]*?)\nReason:\s*/i)?.[1] || ""
+  ).trim();
   const reason = (s.match(/Reason:\s*([\s\S]*)$/i)?.[1] || "").trim();
 
-  return { verdict, correctedSeed, reason };
+  return {
+    verdict,
+    correctedTitle,
+    correctedTheme,
+    correctedAngle,
+    correctedItems: tryParseJsonArray(correctedItemsRaw),
+    reason,
+  };
 }
 
-// premiseGateCheck (swap chat.completions -> responses + web_search)
-async function premiseGateCheck({ curiosity, categoryKey }) {
-  const prompt = buildPremiseGatePrompt({
-    curiosity,
+async function listPremiseGateCheck({ suggestionPackage, categoryKey }) {
+  const prompt = buildListPremiseGatePrompt({
+    title: suggestionPackage.title,
+    theme: suggestionPackage.theme,
+    angle: suggestionPackage.angle,
+    items: suggestionPackage.items,
     category: categoryKey,
   });
 
@@ -134,26 +184,60 @@ async function premiseGateCheck({ curiosity, categoryKey }) {
   });
 
   const out = (resp.output_text || "").trim();
-  if (!out)
-    return { verdict: "FAIL", correctedSeed: "", reason: "Empty output" };
+  if (!out) {
+    return {
+      verdict: "FAIL",
+      correctedTitle: "",
+      correctedTheme: "",
+      correctedAngle: "",
+      correctedItems: [],
+      reason: "Empty output",
+    };
+  }
 
-  return splitPremiseGateOutput(out);
+  return splitListPremiseGateOutput(out);
 }
+
 // ----------------------------------------------------------------------------
-// Curiosity picking rules (STRICT)
+// Pick suggestion
 // ----------------------------------------------------------------------------
-async function fetchOneCuriositySuggestion() {
-  const { data, error } = await supabase.rpc("pick_curiosity_suggestion", {
-    p_category: null,
-  });
+async function fetchOneListSuggestion() {
+  // 1) Prefer verified
+  let { data, error } = await supabase
+    .from("curiosity_list_suggestions")
+    .select("*")
+    .eq("status", "verified")
+    .eq("times_used", 0)
+    .order("wow_score", { ascending: false })
+    .order("last_used_at", { ascending: true, nullsFirst: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data) {
+    return { table: "curiosity_list_suggestions", row: data };
+  }
+
+  // 2) Fallback to null-status suggestions
+  ({ data, error } = await supabase
+    .from("curiosity_list_suggestions")
+    .select("*")
+    .is("status", null)
+    .eq("times_used", 0)
+    .order("wow_score", { ascending: false })
+    .order("last_used_at", { ascending: true, nullsFirst: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle());
 
   if (error) throw error;
   if (!data) return null;
 
-  return { table: "curiosity_suggestions", row: data };
+  return { table: "curiosity_list_suggestions", row: data };
 }
 
-async function markSuggestionFailed(sourceTable, id, reason) {
+async function markListSuggestionFailed(sourceTable, id, reason) {
   try {
     await supabase
       .from(sourceTable)
@@ -163,20 +247,22 @@ async function markSuggestionFailed(sourceTable, id, reason) {
       })
       .eq("id", id);
   } catch (err) {
-    console.warn("⚠️ markSuggestionFailed failed:", err.message);
+    console.warn("⚠️ markListSuggestionFailed failed:", err.message);
   }
 }
 
-async function flagSuggestionAndMaybeFailCard({
+async function flagListSuggestionAndMaybeFailCard({
   suggestionId,
+  categoryKey,
+  seedTitle,
+  wowScore,
   reason = "",
   makeFailedCard = false,
-  failedCardPayload = null,
 }) {
   const note = String(reason || "").slice(0, 400);
 
   await supabase
-    .from("curiosity_suggestions")
+    .from("curiosity_list_suggestions")
     .update({
       status: "flagged",
       review_note: `FACTCHECK_FAIL: ${note}`,
@@ -184,9 +270,23 @@ async function flagSuggestionAndMaybeFailCard({
     })
     .eq("id", suggestionId);
 
-  if (makeFailedCard && failedCardPayload) {
+  if (makeFailedCard) {
     await supabase.from(process.env.CARDS_TABLE || "curiosity_cards").insert({
-      ...failedCardPayload,
+      suggestion_id: null,
+      source_suggestion_id: suggestionId,
+      article_type: "list",
+      category: categoryKey,
+      title: safeStr(seedTitle),
+      card_text: "",
+      video_script: null,
+      summary_normalized: null,
+      fun_fact: null,
+      scene_prompt: null,
+      seo_title: null,
+      seo_description: null,
+      seo_keywords: null,
+      hashtags: null,
+      wow_score: wowScore,
       status: "failed",
       created_at: nowIso(),
       updated_at: nowIso(),
@@ -197,8 +297,18 @@ async function flagSuggestionAndMaybeFailCard({
 // ----------------------------------------------------------------------------
 // Generate article (raw)
 // ----------------------------------------------------------------------------
-async function generateArticleHtml({ topic, categoryKey, tone, factualFrame }) {
-  const prompt = buildArticlePrompt(topic, categoryKey, tone, factualFrame);
+async function generateListArticleHtml({
+  suggestionPackage,
+  categoryKey,
+  tone,
+  factualFrame,
+}) {
+  const prompt = buildListArticlePrompt(
+    suggestionPackage,
+    categoryKey,
+    tone,
+    factualFrame,
+  );
 
   const resp = await openai.chat.completions.create({
     model: ARTICLE_MODEL || "gpt-4o-mini",
@@ -206,17 +316,17 @@ async function generateArticleHtml({ topic, categoryKey, tone, factualFrame }) {
   });
 
   const text = resp.choices[0]?.message?.content?.trim();
-  if (!text || text.length < 400)
-    throw new Error("Article generation returned too little text.");
+  if (!text || text.length < 500) {
+    throw new Error("List article generation returned too little text.");
+  }
   return text;
 }
 
 // ----------------------------------------------------------------------------
-// Summary + FunFact (pre-refine, pre-factcheck)
+// Summary + FunFact
 // ----------------------------------------------------------------------------
 function splitSummaryOutput(text) {
   const out = { summary_normalized: null, fun_fact: null };
-
   const s = String(text || "");
 
   const sum = s.match(/Summary:\s*([\s\S]*?)\s*FunFact:\s*/i);
@@ -225,8 +335,9 @@ function splitSummaryOutput(text) {
   const ff = s.match(/FunFact:\s*([\s\S]*)$/i);
   if (ff) out.fun_fact = ff[1].trim();
 
-  if (out.summary_normalized && out.summary_normalized.length < 10)
+  if (out.summary_normalized && out.summary_normalized.length < 10) {
     out.summary_normalized = null;
+  }
 
   if (out.fun_fact) {
     let cleaned = out.fun_fact.trim();
@@ -240,7 +351,7 @@ function splitSummaryOutput(text) {
 }
 
 async function generateSummaryAndFunFact({ cardText }) {
-  const prompt = buildSummaryPrompt(cardText);
+  const prompt = buildListSummaryPrompt(cardText);
 
   const resp = await openai.chat.completions.create({
     model: process.env.SUMMARY_MODEL || ARTICLE_MODEL || "gpt-4o-mini",
@@ -254,7 +365,7 @@ async function generateSummaryAndFunFact({ cardText }) {
 }
 
 // ----------------------------------------------------------------------------
-// REFINE (light language polish)
+// REFINE
 // ----------------------------------------------------------------------------
 function splitRefinePackageOutput(text) {
   const s = String(text || "");
@@ -275,14 +386,14 @@ function splitRefinePackageOutput(text) {
   };
 }
 
-async function refinePackage({
+async function refineListPackage({
   title,
   card_text,
   video_script,
   summary_normalized,
   fun_fact,
 }) {
-  const prompt = buildRefinePackagePrompt({
+  const prompt = buildListRefinePackagePrompt({
     title,
     card_text,
     video_script,
@@ -310,7 +421,7 @@ async function refinePackage({
 }
 
 // ----------------------------------------------------------------------------
-// FACTCHECK (demonstrably-false + risky precision)
+// FACTCHECK
 // ----------------------------------------------------------------------------
 function splitFactCheckPackageOutput(text) {
   const s = String(text || "");
@@ -333,14 +444,14 @@ function splitFactCheckPackageOutput(text) {
   };
 }
 
-async function factCheckPackage({
+async function factCheckListPackage({
   title,
   card_text,
   video_script,
   summary_normalized,
   fun_fact,
 }) {
-  const prompt = buildFactCheckPackagePrompt({
+  const prompt = buildListFactCheckPackagePrompt({
     title,
     card_text,
     video_script,
@@ -356,11 +467,9 @@ async function factCheckPackage({
   });
 
   const out = (resp.output_text || "").trim();
-
-  if (!out) throw new Error("FactCheck returned empty output.");
+  if (!out) throw new Error("List FactCheck returned empty output.");
 
   const parsed = splitFactCheckPackageOutput(out);
-
   const verdict = (parsed.verdict || "").trim().toUpperCase();
   const isFailPremise = verdict.includes("FAIL_PREMISE");
 
@@ -377,27 +486,16 @@ async function factCheckPackage({
 }
 
 // ----------------------------------------------------------------------------
-// SOURCE RESOLVER (ONE URL after PASS)
+// SOURCE RESOLVER
 // ----------------------------------------------------------------------------
-function splitSourceResolverOutput(text) {
-  const s = String(text || "").trim();
-  const firstLine = s.split(/\r?\n/)[0]?.trim() || "";
-  const m = firstLine.match(/^URL:\s*(.+)\s*$/i);
-  const raw = (m?.[1] || "").trim();
-
-  if (!raw) return null;
-  if (raw.toUpperCase() === "NONE") return null;
-
-  // basic safety: only accept http(s)
-  if (!/^https?:\/\/\S+$/i.test(raw)) return null;
-
-  // strip trailing punctuation sometimes produced by LLMs
-  const cleaned = raw.replace(/[)\].,;:]+$/, "");
-  return cleaned;
+function splitListSourceResolverOutput(text) {
+  return uniqueStrings(tryParseJsonArray(text)).filter((url) =>
+    /^https?:\/\/\S+$/i.test(url),
+  );
 }
 
-async function resolveOneSourceUrl({ title, summary_normalized, category }) {
-  const prompt = buildSourceResolverPrompt({
+async function resolveListSourceUrls({ title, summary_normalized, category }) {
+  const prompt = buildListSourceResolverPrompt({
     title,
     summary_normalized,
     category,
@@ -414,33 +512,58 @@ async function resolveOneSourceUrl({ title, summary_normalized, category }) {
   });
 
   const out = (resp.output_text || "").trim();
-  const url = splitSourceResolverOutput(out);
+  const urls = splitListSourceResolverOutput(out);
 
-  console.log(`🔗 SourceResolver: ${url ? "FOUND" : "NONE"}`);
-  if (url) console.log(`   source_url=${url}`);
+  console.log(`🔗 List SourceResolver: ${urls.length ? "FOUND" : "NONE"}`);
+  if (urls.length) console.log(`   source_urls=${urls.join(" | ")}`);
 
-  return url; // string | null
+  return urls;
 }
 
 // ----------------------------------------------------------------------------
-// PREMISE SALVAGE (only used after FAIL_PREMISE)
+// PREMISE SALVAGE
 // ----------------------------------------------------------------------------
-function splitPremiseSalvageOutput(text) {
+function splitListPremiseSalvageOutput(text) {
   const s = String(text || "");
 
   const salvage = (s.match(/Salvage:\s*([^\n\r]+)/i)?.[1] || "").trim();
-  const replacementSeed = (
-    s.match(/ReplacementSeed:\s*([\s\S]*)$/i)?.[1] || ""
+  const replacementTitle = (
+    s.match(/ReplacementTitle:\s*([\s\S]*?)\nReplacementTheme:\s*/i)?.[1] || ""
+  ).trim();
+  const replacementTheme = (
+    s.match(/ReplacementTheme:\s*([\s\S]*?)\nReplacementAngle:\s*/i)?.[1] || ""
+  ).trim();
+  const replacementAngle = (
+    s.match(/ReplacementAngle:\s*([\s\S]*?)\nReplacementItems:\s*/i)?.[1] || ""
+  ).trim();
+  const replacementItemsRaw = (
+    s.match(/ReplacementItems:\s*([\s\S]*)$/i)?.[1] || ""
   ).trim();
 
   return {
     salvageYes: salvage.toUpperCase().includes("YES"),
-    replacementSeed: replacementSeed || "",
+    replacementTitle,
+    replacementTheme,
+    replacementAngle,
+    replacementItems: tryParseJsonArray(replacementItemsRaw),
   };
 }
 
-async function premiseSalvageDecider({ title, card_text, reason }) {
-  const prompt = buildPremiseSalvagePrompt({ title, card_text, reason });
+async function listPremiseSalvageDecider({
+  title,
+  card_text,
+  reason,
+  originalSuggestionPackage,
+}) {
+  const prompt = buildListPremiseSalvagePrompt({
+    title,
+    card_text,
+    reason,
+    original_list_title: originalSuggestionPackage.title,
+    original_theme: originalSuggestionPackage.theme,
+    original_angle: originalSuggestionPackage.angle,
+    original_items: originalSuggestionPackage.items,
+  });
 
   const resp = await openai.responses.create({
     model: process.env.SALVAGE_MODEL || process.env.FACTCHECK_MODEL || "gpt-5",
@@ -450,9 +573,17 @@ async function premiseSalvageDecider({ title, card_text, reason }) {
   });
 
   const out = (resp.output_text || "").trim();
-  if (!out) return { salvageYes: false, replacementSeed: "" };
+  if (!out) {
+    return {
+      salvageYes: false,
+      replacementTitle: "",
+      replacementTheme: "",
+      replacementAngle: "",
+      replacementItems: [],
+    };
+  }
 
-  return splitPremiseSalvageOutput(out);
+  return splitListPremiseSalvageOutput(out);
 }
 
 // ----------------------------------------------------------------------------
@@ -488,19 +619,15 @@ function splitGenerated(text) {
 }
 
 // ----------------------------------------------------------------------------
-// Extract <title>, <description>, <keywords> from SEO block (best-effort)
+// Extract <title>, <description>, <keywords> from SEO block
 // ----------------------------------------------------------------------------
 function cleanTagValue(s) {
-  return (
-    String(s || "")
-      // remove any <title>...</title> wrappers AND stray closing/opening tags
-      .replace(/<\/?\s*title\s*>/gi, "")
-      .replace(/<\/?\s*description\s*>/gi, "")
-      .replace(/<\/?\s*keywords\s*>/gi, "")
-      // also strip any remaining angle-bracket tags just in case
-      .replace(/<[^>]*>/g, "")
-      .trim()
-  );
+  return String(s || "")
+    .replace(/<\/?\s*title\s*>/gi, "")
+    .replace(/<\/?\s*description\s*>/gi, "")
+    .replace(/<\/?\s*keywords\s*>/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .trim();
 }
 
 function grab(block, tag) {
@@ -525,16 +652,59 @@ function parseSeo(seoBlock) {
 }
 
 // ----------------------------------------------------------------------------
-// One attempt: generate -> summary -> refine -> factcheck (returns everything)
+// Hero item selection
 // ----------------------------------------------------------------------------
-async function generateRefineAndFactcheck({
-  topic,
+function normalizeItemForHero(item) {
+  if (!item || typeof item !== "object") return null;
+
+  return {
+    title: safeStr(item.title),
+    curiosity: safeStr(item.curiosity),
+    anchor_entity: safeStr(item.anchor_entity).replace(/_/g, " "),
+    topic_tag: safeStr(item.topic_tag).replace(/_/g, " "),
+    wow_score: clamp(parseInt(item.wow_score ?? 50, 10) || 50, 0, 100),
+  };
+}
+
+function chooseHeroItem(items = []) {
+  const genericRx =
+    /\b(effect|circulation|controversy|market|boost|music|songs?|records?|audiences?|censorship|pressings?|ban)\b/i;
+
+  const normalized = items.map(normalizeItemForHero).filter(Boolean);
+  if (!normalized.length) return null;
+
+  let best = normalized[0];
+  let bestScore = -Infinity;
+
+  for (const item of normalized) {
+    let score = item.wow_score;
+
+    if (item.anchor_entity && !genericRx.test(item.anchor_entity)) score += 10;
+    if (item.anchor_entity.split(/\s+/).length >= 2) score += 5;
+    if (/[A-Z]/.test(item.title)) score += 3;
+    if (genericRx.test(item.title)) score -= 5;
+    if (genericRx.test(item.anchor_entity)) score -= 7;
+
+    if (score > bestScore) {
+      best = item;
+      bestScore = score;
+    }
+  }
+
+  return best;
+}
+
+// ----------------------------------------------------------------------------
+// One attempt: generate -> summary -> refine -> factcheck
+// ----------------------------------------------------------------------------
+async function generateRefineAndFactcheckList({
+  suggestionPackage,
   categoryKey,
   tone,
   factualFrame,
 }) {
-  const raw = await generateArticleHtml({
-    topic,
+  const raw = await generateListArticleHtml({
+    suggestionPackage,
     categoryKey,
     tone,
     factualFrame,
@@ -543,21 +713,21 @@ async function generateRefineAndFactcheck({
   const parts = splitGenerated(raw);
 
   console.log(
-    `🧱 Generated raw: headline?=${Boolean(parts.headline)} cardLen=${(parts.cardText || "").length} videoLen=${(parts.videoScript || "").length}`,
+    `🧱 Generated raw list: headline?=${Boolean(parts.headline)} cardLen=${(parts.cardText || "").length} videoLen=${(parts.videoScript || "").length}`,
   );
 
   const headlineRaw = parts.headline || "";
-  const headline = stripH1(headlineRaw) || safeStr(topic, "Untitled Curiosity");
+  const headline =
+    stripH1(headlineRaw) || safeStr(suggestionPackage.title, "Untitled List");
 
   const seo = parseSeo(parts.seoBlock);
-
   const meta = await generateSummaryAndFunFact({ cardText: parts.cardText });
 
   console.log(
     `🧾 Summary: ${meta.summary_normalized ? "yes" : "no"} | FunFact: ${meta.fun_fact ? "yes" : "no"}`,
   );
 
-  const refined = await refinePackage({
+  const refined = await refineListPackage({
     title: headline,
     card_text: parts.cardText,
     video_script: parts.videoScript || "<p></p>",
@@ -591,7 +761,7 @@ async function generateRefineAndFactcheck({
   const finalSummary = refined?.summary_normalized || meta.summary_normalized;
   const finalFunFact = refined?.fun_fact || meta.fun_fact;
 
-  const checked = await factCheckPackage({
+  const checked = await factCheckListPackage({
     title: finalTitle,
     card_text: finalCardText,
     video_script: finalVideoScript || "<p></p>",
@@ -600,7 +770,7 @@ async function generateRefineAndFactcheck({
   });
 
   console.log(
-    `🧪 FactCheck: verdict=${checked.verdict} premiseFail=${checked.isFailPremise ? "YES" : "NO"} reason="${preview(checked.reason, 160)}"`,
+    `🧪 List FactCheck: verdict=${checked.verdict} premiseFail=${checked.isFailPremise ? "YES" : "NO"} reason="${preview(checked.reason, 160)}"`,
   );
 
   return { parts, seo, checked };
@@ -610,114 +780,86 @@ async function generateRefineAndFactcheck({
 // MAIN
 // ----------------------------------------------------------------------------
 async function run() {
-  console.log("🧠 CurioWire generate.js (vNext) — starting");
+  console.log("🧠 CurioWire generateListArticle.js — starting");
 
-  const found = await fetchOneCuriositySuggestion();
+  const found = await fetchOneListSuggestion();
   if (!found) {
-    console.log("😴 No eligible curiosity suggestion found.");
+    console.log("😴 No eligible list suggestion found.");
     return;
   }
-
-  // const FORCE_SUGGESTION_ID = process.env.FORCE_SUGGESTION_ID || null;
-
-  // let found;
-
-  // if (FORCE_SUGGESTION_ID) {
-  //   const { data, error } = await supabase
-  //     .from("curiosity_suggestions")
-  //     .select("*")
-  //     .eq("id", FORCE_SUGGESTION_ID)
-  //     .single();
-
-  //   if (error || !data) {
-  //     throw new Error("Forced suggestion not found");
-  //   }
-
-  //   found = { table: "curiosity_suggestions", row: data };
-  //   console.log("🧪 FORCE MODE — using suggestion", FORCE_SUGGESTION_ID);
-  // } else {
-  //   found = await fetchOneCuriositySuggestion();
-  //   if (!found) {
-  //     console.log("😴 No eligible curiosity suggestion found.");
-  //     return;
-  //   }
-  // }
 
   const { table: sourceTable, row } = found;
 
   const suggestionId = row.id;
-  const topic = safeStr(row.curiosity, "Untitled Curiosity");
   const categoryKey = normalizeCategoryKey(row.category);
   const wowScoreFromSuggestion = Number.isFinite(Number(row.wow_score))
     ? Number(row.wow_score)
     : 50;
 
+  const originalSuggestionPackage = buildListSeedPackage(row);
+  let initialPackage = { ...originalSuggestionPackage };
+
   const tone = "neutral";
   const factualFrame = "";
 
-  console.log(`🧩 Picked curiosity from "${sourceTable}" id=${suggestionId}`);
-  console.log(`   curiosity="${topic}" category="${categoryKey}"`);
+  console.log(
+    `🧩 Picked list suggestion from "${sourceTable}" id=${suggestionId}`,
+  );
+  console.log(
+    `   title="${initialPackage.title}" category="${categoryKey}" status="${row.status ?? "null"}"`,
+  );
 
   // ✅ Premise gate — before spending tokens on full generation
-  let initialTopic = topic;
+  console.log("🧪 List premise gate — checking suggestion realism...");
 
-  console.log("🧪 Premise gate — checking suggestion realism...");
-
-  const gate = await premiseGateCheck({
-    curiosity: topic,
+  let gate = await listPremiseGateCheck({
+    suggestionPackage: initialPackage,
     categoryKey,
   });
 
   const okVerdicts = new Set(["PASS", "FIX", "FAIL"]);
   if (!okVerdicts.has(gate.verdict)) {
     console.log(
-      "⚠️ Premise gate returned unknown verdict — treating as FAIL:",
+      "⚠️ List premise gate returned unknown verdict — treating as FAIL:",
       gate.verdict,
     );
     gate.verdict = "FAIL";
   }
 
-  if (gate.verdict === "FIX" && !gate.correctedSeed) {
-    console.log("⚠️ Premise gate FIX without CorrectedSeed — treating as FAIL");
-    gate.verdict = "FAIL";
+  if (gate.verdict === "FIX") {
+    const fixedItems =
+      Array.isArray(gate.correctedItems) && gate.correctedItems.length
+        ? gate.correctedItems
+        : initialPackage.items;
+
+    initialPackage = {
+      title: safeStr(gate.correctedTitle, initialPackage.title),
+      theme: safeStr(gate.correctedTheme, initialPackage.theme),
+      angle: safeStr(gate.correctedAngle, initialPackage.angle),
+      items: fixedItems,
+    };
   }
 
   console.log(
-    `🧪 Premise gate verdict=${gate.verdict} ${
-      gate.correctedSeed ? " (has correction)" : ""
-    }`,
+    `🧪 List premise gate verdict=${gate.verdict}${gate.verdict === "FIX" ? " (using corrected package)" : ""}`,
   );
 
   if (gate.verdict === "FAIL") {
-    console.log("🧯 Premise gate FAIL — flagging and stopping:", gate.reason);
+    console.log(
+      "🧯 List premise gate FAIL — flagging and stopping:",
+      gate.reason,
+    );
 
-    await flagSuggestionAndMaybeFailCard({
+    await flagListSuggestionAndMaybeFailCard({
       suggestionId,
-      reason: `PREMISE_GATE_FAIL: ${gate.reason} | seed="${topic}"`,
+      categoryKey,
+      seedTitle: originalSuggestionPackage.title,
+      wowScore: wowScoreFromSuggestion,
+      reason: `PREMISE_GATE_FAIL: ${gate.reason} | seed="${originalSuggestionPackage.title}"`,
       makeFailedCard: true,
-      failedCardPayload: {
-        suggestion_id: suggestionId,
-        category: categoryKey,
-        title: safeStr(topic),
-        card_text: "",
-        video_script: null,
-        summary_normalized: null,
-        fun_fact: null,
-        scene_prompt: null,
-        seo_title: null,
-        seo_description: null,
-        seo_keywords: null,
-        hashtags: null,
-        wow_score: wowScoreFromSuggestion,
-      },
     });
 
     return;
-  }
-
-  if (gate.verdict === "FIX" && gate.correctedSeed) {
-    console.log("🛠️ Premise gate FIX — corrected seed:", gate.correctedSeed);
-    initialTopic = gate.correctedSeed;
   }
 
   let image_url = null;
@@ -727,18 +869,18 @@ async function run() {
   let scene_prompt = null;
 
   try {
-    // Always factcheck: do up to 2 attempts (original + salvage rebuild)
-    let currentTopic = initialTopic;
+    let currentPackage = { ...initialPackage };
     let finalPack = null;
+    let finalSeedPackage = { ...initialPackage };
     let lastFailReason = "";
 
     for (let attempt = 1; attempt <= MAX_PREMISE_ATTEMPTS; attempt++) {
       console.log(
-        `🧪 Attempt ${attempt}/${MAX_PREMISE_ATTEMPTS}: "${currentTopic}"`,
+        `🧪 List attempt ${attempt}/${MAX_PREMISE_ATTEMPTS}: "${currentPackage.title}"`,
       );
 
-      const pack = await generateRefineAndFactcheck({
-        topic: currentTopic,
+      const pack = await generateRefineAndFactcheckList({
+        suggestionPackage: currentPackage,
         categoryKey,
         tone,
         factualFrame,
@@ -746,51 +888,57 @@ async function run() {
 
       if (!pack.checked.isFailPremise) {
         finalPack = pack;
+        finalSeedPackage = { ...currentPackage };
         break;
       }
 
-      lastFailReason = pack.checked.reason || "Premise demonstrably false";
-      console.log("🧯 FAIL_PREMISE —", lastFailReason);
+      lastFailReason = pack.checked.reason || "List premise demonstrably false";
+      console.log("🧯 LIST FAIL_PREMISE —", lastFailReason);
 
       if (attempt === MAX_PREMISE_ATTEMPTS) break;
 
-      const salvage = await premiseSalvageDecider({
+      const salvage = await listPremiseSalvageDecider({
         title: pack.checked.title,
         card_text: pack.checked.card_text,
         reason: lastFailReason,
+        originalSuggestionPackage,
       });
 
-      if (!salvage.salvageYes || !salvage.replacementSeed) {
-        console.log("🚫 Salvage NO — stopping.");
+      if (
+        !salvage.salvageYes ||
+        !salvage.replacementTitle ||
+        !Array.isArray(salvage.replacementItems) ||
+        !salvage.replacementItems.length
+      ) {
+        console.log("🚫 List salvage NO — stopping.");
         break;
       }
 
-      console.log("🛟 Salvage YES — rebuilding on:", salvage.replacementSeed);
-      currentTopic = salvage.replacementSeed;
+      console.log(
+        "🛟 List salvage YES — rebuilding on:",
+        salvage.replacementTitle,
+      );
+
+      currentPackage = {
+        title: safeStr(salvage.replacementTitle),
+        theme: safeStr(salvage.replacementTheme),
+        angle: safeStr(salvage.replacementAngle),
+        items: salvage.replacementItems,
+      };
     }
 
     if (!finalPack) {
-      console.log("🧯 Premise could not be salvaged — flagging and stopping.");
+      console.log(
+        "🧯 List premise could not be salvaged — flagging and stopping.",
+      );
 
-      await flagSuggestionAndMaybeFailCard({
+      await flagListSuggestionAndMaybeFailCard({
         suggestionId,
-        reason: lastFailReason || "Premise false; no salvage",
+        categoryKey,
+        seedTitle: originalSuggestionPackage.title,
+        wowScore: wowScoreFromSuggestion,
+        reason: lastFailReason || "List premise false; no salvage",
         makeFailedCard: true,
-        failedCardPayload: {
-          suggestion_id: suggestionId,
-          category: categoryKey,
-          title: safeStr(topic),
-          card_text: "",
-          video_script: null,
-          summary_normalized: null,
-          fun_fact: null,
-          scene_prompt: null,
-          seo_title: null,
-          seo_description: null,
-          seo_keywords: null,
-          hashtags: null,
-          wow_score: wowScoreFromSuggestion,
-        },
       });
 
       return;
@@ -804,20 +952,29 @@ async function run() {
     const fcSummary = checked.summary_normalized;
     const fcFunFact = checked.fun_fact;
 
-    // Source URL (ONE) — after PASS
+    // Source URL(s)
     let source_url = null;
-    try {
-      source_url = await resolveOneSourceUrl({
-        title: fcTitle,
-        summary_normalized: fcSummary || "",
-        category: categoryKey,
-      });
-    } catch (e) {
-      console.warn("⚠️ SourceResolver failed:", e.message);
-      source_url = null;
+    let sources = uniqueStrings(row.source_urls || []);
+
+    if (sources.length) {
+      source_url = sources[0];
+      sources = sources.slice(0, 3);
+    } else {
+      try {
+        sources = await resolveListSourceUrls({
+          title: fcTitle,
+          summary_normalized: fcSummary || "",
+          category: categoryKey,
+        });
+        source_url = sources[0] || null;
+      } catch (e) {
+        console.warn("⚠️ SourceResolver failed:", e.message);
+        source_url = null;
+        sources = [];
+      }
     }
 
-    // Scene prompt (GPT) — after pass
+    // Scene prompt
     try {
       scene_prompt = await generateScenePrompt({
         openai,
@@ -832,18 +989,20 @@ async function run() {
       scene_prompt = null;
     }
 
-    const seoTitle = seo.title || fcTitle || null;
-    const description = seo.description || null;
-    const keywords = seo.keywords || null;
+    // Choose one hero item for image retrieval
+    const heroItem = chooseHeroItem(finalSeedPackage.items);
+    const imageTitle = heroItem?.title || fcTitle;
+    const imageText = heroItem?.curiosity || fcCardText || "";
+    const imageSummary = heroItem?.curiosity || fcSummary || "";
 
-    // Image selection — after pass
+    // Image selection
     try {
       const img = await selectBestImage(
-        fcTitle,
-        fcCardText,
+        imageTitle,
+        imageText,
         categoryKey,
         null,
-        fcSummary || "",
+        imageSummary,
       );
 
       if (img?.imageUrl) {
@@ -853,12 +1012,9 @@ async function run() {
         image_credit =
           img.attribution ||
           (img.provider
-            ? `Image source: ${img.provider}${
-                img.license ? ` (${img.license})` : ""
-              }`
+            ? `Image source: ${img.provider}${img.license ? ` (${img.license})` : ""}`
             : null);
 
-        // ✅ Force credit for DALL·E when attribution is missing
         const src = String(img.source || img.provider || "").toUpperCase();
         if (
           !image_credit &&
@@ -873,16 +1029,22 @@ async function run() {
         }
       }
 
-      console.log("🖼️ Image:", image_url ? "selected" : "none");
+      console.log("🖼️ List image:", image_url ? "selected" : "none");
+      if (heroItem?.title) console.log(`   hero_item="${heroItem.title}"`);
     } catch (e) {
-      console.warn("⚠️ Image selection failed:", e.message);
+      console.warn("⚠️ List image selection failed:", e.message);
     }
 
-    // Save article
+    const seoTitle = seo.title || fcTitle || null;
+    const description = seo.description || null;
+    const keywords = seo.keywords || null;
+
     const cardsTable = process.env.CARDS_TABLE || "curiosity_cards";
 
     const insertPayload = {
-      suggestion_id: suggestionId,
+      suggestion_id: null,
+      source_suggestion_id: suggestionId,
+      article_type: "list",
       category: categoryKey,
 
       title: fcTitle,
@@ -890,6 +1052,7 @@ async function run() {
       video_script: fcVideoScript,
 
       source_url: source_url || null,
+      sources: sources || [],
 
       summary_normalized: fcSummary,
       fun_fact: fcFunFact,
@@ -908,6 +1071,8 @@ async function run() {
       scene_prompt,
 
       status: "published",
+      is_listed: true,
+
       created_at: nowIso(),
       updated_at: nowIso(),
     };
@@ -920,14 +1085,27 @@ async function run() {
 
     if (insertErr) throw insertErr;
 
-    console.log(`📝 Card saved to "${cardsTable}" id=${inserted?.id}`);
+    console.log(`📝 List card saved to "${cardsTable}" id=${inserted?.id}`);
+
+    // mark suggestion used
+    const { error: updateErr } = await supabase
+      .from("curiosity_list_suggestions")
+      .update({
+        times_used: (row.times_used || 0) + 1,
+        last_used_at: nowIso(),
+        updated_at: nowIso(),
+        review_note: null,
+      })
+      .eq("id", suggestionId);
+
+    if (updateErr) throw updateErr;
 
     await updateAndPingSearchEngines();
 
-    console.log("✅ Done");
+    console.log("✅ List article done");
   } catch (err) {
-    console.error("❌ generate.js failed:", err.message);
-    await markSuggestionFailed(sourceTable, suggestionId, err.message);
+    console.error("❌ generateListArticle.js failed:", err.message);
+    await markListSuggestionFailed(sourceTable, suggestionId, err.message);
     process.exitCode = 1;
   }
 }

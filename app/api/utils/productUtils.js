@@ -21,7 +21,6 @@ Return only the category in 1–2 words.
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: categoryPrompt }],
       max_tokens: 10,
-      temperature: 0,
     });
 
     productCategory =
@@ -37,22 +36,22 @@ Return only the category in 1–2 words.
       const summaryHint = topicSummary
         .toLowerCase()
         .match(
-          /\b(craftsmanship|design|tool|device|material|product|invention|item|object)\b/
+          /\b(craftsmanship|design|tool|device|material|product|invention|item|object)\b/,
         );
       if (summaryHint) {
         productCategory = summaryHint[1];
         console.log(
-          `🧩 Fallback category derived from summary: "${productCategory}"`
+          `🧩 Fallback category derived from summary: "${productCategory}"`,
         );
       } else if (
         linkedStory &&
         linkedStory.match(/\b(hat|pen|watch|car|machine|toy|tool)\b/i)
       ) {
         productCategory = linkedStory.match(
-          /\b(hat|pen|watch|car|machine|toy|tool)\b/i
+          /\b(hat|pen|watch|car|machine|toy|tool)\b/i,
         )[1];
         console.log(
-          `🧩 Fallback category derived from linkedStory: "${productCategory}"`
+          `🧩 Fallback category derived from linkedStory: "${productCategory}"`,
         );
       } else {
         productCategory = "product";
@@ -71,7 +70,7 @@ export async function findAffiliateProduct(
   title,
   topic,
   article,
-  existingName
+  existingName,
 ) {
   let productName = existingName || null;
   let source_url = null;
@@ -84,7 +83,6 @@ export async function findAffiliateProduct(
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: productPrompt }],
         max_tokens: 50,
-        temperature: 0.3,
       });
       productName = productSearch.choices[0]?.message?.content?.trim();
     } catch (err) {

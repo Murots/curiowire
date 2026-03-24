@@ -36,3 +36,56 @@ jobs:
 
       - name: Post latest article to X
         run: node scripts/x-post-latest.js
+
+# name: CurioWire X Poster
+
+# on:
+#   workflow_dispatch:
+#   workflow_run:
+#     workflows: ["CurioWire Auto Article Generator"]
+#     types: [completed]
+#   schedule:
+#     - cron: "15 */3 * * *"
+
+# jobs:
+#   x-post:
+#     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+#     runs-on: ubuntu-latest
+#     environment: Production
+
+#     env:
+#       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+#       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+#       SITE_URL: ${{ secrets.SITE_URL }}
+
+#       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#       OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+
+#       X_POSTING_ENABLED: ${{ secrets.X_POSTING_ENABLED }}
+#       X_DISCOVERY_ENABLED: ${{ secrets.X_DISCOVERY_ENABLED }}
+#       X_REPLY_EXECUTION_ENABLED: ${{ secrets.X_REPLY_EXECUTION_ENABLED }}
+
+#       X_API_KEY: ${{ secrets.X_API_KEY }}
+#       X_API_KEY_SECRET: ${{ secrets.X_API_KEY_SECRET }}
+#       X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+#       X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+
+#       X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: 20
+
+#       - run: npm ci
+
+#       - name: Post latest article to X
+#         run: node scripts/x-post-latest.js
+
+#       - name: Build engagement queue
+#         run: node scripts/x-build-engagement-queue.js
+
+#       - name: Post approved engagement replies
+#         run: node scripts/x-reply-approved.js
