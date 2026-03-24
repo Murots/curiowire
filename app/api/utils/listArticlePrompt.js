@@ -63,7 +63,10 @@ LIST ARTICLE RULES
 - Start with 2 short intro paragraphs.
 - Then cover the items one by one.
 - Use exactly one <h2> per item.
+- Each <h2> MUST start with the item number. For example: "1. The Lost City of Atlantis"
 - Under each <h2>, write 1–2 short <p> paragraphs.
+- Number the items sequentially from 1 to N.
+- The number must be part of the <h2> text.
 - End with 1 short closing <p>.
 - Keep momentum high.
 - Each item section should quickly explain:
@@ -83,7 +86,8 @@ GLOBAL FORMAT RULES (STRICT)
 - Return ONLY the required sections. No extra text.
 - No emojis, no decorative symbols, no divider lines, no arrows, no ASCII art.
 - No markdown (no **, *, backticks).
-- No lists of any kind (no bullets, numbering, <ul>/<ol>/<li>).
+- Do NOT use HTML list tags like <ul>, <ol>, or <li>.
+- Numbered <h2> headings are allowed and required for the item sections.
 - Allowed HTML tags:
   - Headline: <h1>
   - Card: <h2>, <p>
