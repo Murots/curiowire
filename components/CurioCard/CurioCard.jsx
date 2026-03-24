@@ -300,7 +300,9 @@ export default function CurioCard({ card, isTrending = false, onOpen }) {
 
           {/* 🗒️ list article icon (under trending if both exist) */}
           {isListArticle ? (
-            <ListBadge aria-label="List article">🗒️</ListBadge>
+            <ListBadge $hasTrending={isTrending} aria-label="List article">
+              🗒️
+            </ListBadge>
           ) : null}
 
           {/* ✅ MetaRow over bildet, i bunn */}

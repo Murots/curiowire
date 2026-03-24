@@ -378,7 +378,7 @@ export const FireBadge = styled.div`
 export const ListBadge = styled.div`
   position: absolute;
   right: 12px;
-  top: 50px; /* ✅ plassert under trending-badge */
+  top: ${({ $hasTrending }) => ($hasTrending ? "50px" : "12px")};
   z-index: 3;
 
   font-size: 1.05rem;
