@@ -131,6 +131,37 @@ function normalizeSourceUrl(url) {
   return s.replace(/[)\].,;:]+$/, "");
 }
 
+function parseSourceList(value) {
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function getDisplaySources(card) {
+  const articleType = String(card.article_type || "").toLowerCase();
+  const sourceList = parseSourceList(card.sources)
+    .map(normalizeSourceUrl)
+    .filter(Boolean);
+
+  const singleSource = normalizeSourceUrl(card.source_url);
+
+  if (articleType === "list") {
+    if (sourceList.length) return sourceList;
+    return singleSource ? [singleSource] : [];
+  }
+
+  return singleSource ? [singleSource] : sourceList;
+}
+
 export default function ArticleView({
   card,
   // nav
@@ -168,10 +199,7 @@ export default function ArticleView({
     [card.summary_normalized],
   );
 
-  const sourceUrl = useMemo(
-    () => normalizeSourceUrl(card.source_url),
-    [card.source_url],
-  );
+  const displaySources = useMemo(() => getDisplaySources(card), [card]);
 
   const showRelated = (relatedArticles || []).length > 0;
 
@@ -254,20 +282,29 @@ export default function ArticleView({
           </div>
         ) : null}
 
-        {sourceUrl ? (
+        {displaySources.length ? (
           <div style={{ marginTop: 18 }}>
-            <h2 className="source">Source</h2>
+            <h2 className="source">
+              {displaySources.length === 1 ? "Source" : "Sources"}
+            </h2>
             <Divider />
-            <p style={{ marginTop: 10 }}>
-              <a
-                href={sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ textDecoration: "underline", wordBreak: "break-word" }}
-              >
-                {sourceUrl}
-              </a>
-            </p>
+            <div style={{ marginTop: 10 }}>
+              {displaySources.map((url) => (
+                <p key={url} style={{ marginTop: 0, marginBottom: 10 }}>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      textDecoration: "underline",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {url}
+                  </a>
+                </p>
+              ))}
+            </div>
           </div>
         ) : null}
 
