@@ -10,6 +10,7 @@ const {
   SUPABASE_SERVICE_ROLE_KEY,
   SITE_URL,
   OPENAI_API_KEY,
+  X_OPENAI_MODEL,
 
   X_POSTING_ENABLED,
   X_API_KEY,
@@ -24,6 +25,8 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
 }
 if (!SITE_URL) throw new Error("Missing SITE_URL");
 if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY");
+
+const MODEL = X_OPENAI_MODEL || "gpt-4o-mini";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -205,7 +208,7 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
 
   try {
     const r = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: MODEL,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 80,
       temperature: 0.7,
@@ -257,7 +260,7 @@ Card text: ${stripHtml(card.card_text).slice(0, 500)}
 
   try {
     const r = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: MODEL,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 140,
       temperature: 0.7,
@@ -345,7 +348,7 @@ Return this exact JSON:
 
   try {
     const r = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: MODEL,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 140,
       temperature: 0.8,
