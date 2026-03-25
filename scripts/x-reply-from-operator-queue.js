@@ -226,7 +226,7 @@ async function run() {
   );
 
   if (failedCount > 0) {
-    throw new Error(`${failedCount} reply attempt(s) failed`);
+    console.warn(`${failedCount} reply attempt(s) failed`);
   }
 }
 

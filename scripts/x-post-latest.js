@@ -173,6 +173,11 @@ function categoryColor(category) {
   return CATEGORY_COLORS[safeStr(category).toLowerCase()] || "#1f2937";
 }
 
+function shouldPostThreadReply(cardId) {
+  const numeric = Number(cardId) || 0;
+  return numeric % 2 === 0;
+}
+
 async function generateXHook(card) {
   const prompt = `
 Create 1 short overlay hook for an X image.
@@ -803,11 +808,13 @@ async function run() {
   const replyVariant = getReplyVariant(card.id);
   const rawReply = await generateXReply(card, xBody, replyVariant);
   const replyText = buildReplyWithImageCredit(card, rawReply);
+  const shouldPostReply = shouldPostThreadReply(card.id);
 
   console.log("Prepared X overlay:", overlayTitle);
   console.log("Prepared X text:", finalText);
   console.log("Prepared X reply variant:", replyVariant);
   console.log("Prepared X reply:", replyText);
+  console.log("Prepared X thread reply enabled:", shouldPostReply);
 
   let xImageUrl = card.image_url;
   let localImagePath = null;
@@ -838,9 +845,9 @@ async function run() {
       status: "skipped",
       error_message: null,
       posted_at: null,
-      reply_text: replyText,
+      reply_text: shouldPostReply ? replyText : null,
       reply_post_id: null,
-      reply_variant: replyVariant,
+      reply_variant: shouldPostReply ? replyVariant : null,
     });
 
     console.log("X test row stored.");
@@ -884,12 +891,12 @@ async function run() {
       status: "posted",
       error_message: null,
       posted_at: new Date().toISOString(),
-      reply_text: replyText,
+      reply_text: shouldPostReply ? replyText : null,
       reply_post_id: null,
-      reply_variant: replyVariant,
+      reply_variant: shouldPostReply ? replyVariant : null,
     });
 
-    if (replyText) {
+    if (replyText && shouldPostReply) {
       try {
         const replyPostId = await createXReply({
           text: replyText,
@@ -911,6 +918,8 @@ async function run() {
           ),
         });
       }
+    } else {
+      console.log("Skipping automatic thread reply for this card.");
     }
 
     console.log("X post stored:", xPostId);
@@ -925,9 +934,9 @@ async function run() {
       status: "failed",
       error_message: String(err?.message || err || "").slice(0, 800),
       posted_at: null,
-      reply_text: replyText,
+      reply_text: shouldPostReply ? replyText : null,
       reply_post_id: null,
-      reply_variant: replyVariant,
+      reply_variant: shouldPostReply ? replyVariant : null,
     });
 
     throw err;
