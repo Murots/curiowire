@@ -12,8 +12,9 @@ const {
 } = process.env;
 
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
-if (!SUPABASE_SERVICE_ROLE_KEY)
+if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -42,6 +43,21 @@ function pickReply(row) {
   if (row.selected_option === "3") return truncate(row.option_3, 180);
 
   return "";
+}
+
+function formatErrorMessage(err) {
+  return String(err?.message || err || "").slice(0, 800);
+}
+
+function isReplyRestrictionError(message) {
+  const normalized = safeStr(message).toLowerCase();
+
+  return (
+    normalized.includes("reply to this conversation is not allowed") ||
+    normalized.includes(
+      "you have not been mentioned or otherwise engaged by the author",
+    )
+  );
 }
 
 async function getApprovedReplyQueue(limit = 5) {
@@ -93,6 +109,7 @@ async function markDone(queueId) {
     .update({
       decision: "done",
       executed_at: new Date().toISOString(),
+      note: null,
     })
     .eq("id", queueId);
 
@@ -126,6 +143,18 @@ async function syncEngagementPost(sourceRowId, replyText, replyPostId) {
   if (error) throw error;
 }
 
+async function markEngagementPostFailed(sourceRowId, errorMessage) {
+  const { error } = await supabase
+    .from("x_engagement_posts")
+    .update({
+      action_status: "failed",
+      error_message: String(errorMessage || "").slice(0, 800),
+    })
+    .eq("id", sourceRowId);
+
+  if (error) throw error;
+}
+
 async function run() {
   if (!isTrue(X_REPLY_EXECUTION_ENABLED)) {
     console.log("X_REPLY_EXECUTION_ENABLED is false. Skipping.");
@@ -134,24 +163,70 @@ async function run() {
 
   const rows = await getApprovedReplyQueue(5);
 
+  if (!rows.length) {
+    console.log("No approved reply rows found.");
+    return;
+  }
+
+  let successCount = 0;
+  let failedCount = 0;
+
   for (const row of rows) {
     try {
       const replyText = pickReply(row);
+
       if (!replyText) {
-        await markFailed(row.id, "No selected_option or custom_response");
+        const message = "No selected_option or custom_response";
+        await markFailed(row.id, message);
+        await markEngagementPostFailed(row.source_row_id, message);
+        failedCount += 1;
+        console.error(`Reply failed for queue row ${row.id}: ${message}`);
         continue;
       }
 
       const original = await getOriginalPost(row.source_row_id);
+
+      if (!safeStr(original?.x_post_id)) {
+        const message = "Missing original x_post_id on x_engagement_posts row";
+        await markFailed(row.id, message);
+        await markEngagementPostFailed(row.source_row_id, message);
+        failedCount += 1;
+        console.error(`Reply failed for queue row ${row.id}: ${message}`);
+        continue;
+      }
+
       const replyPostId = await createReply(original.x_post_id, replyText);
+
+      if (!replyPostId) {
+        throw new Error("X reply succeeded but no reply post id was returned");
+      }
 
       await markDone(row.id);
       await syncEngagementPost(row.source_row_id, replyText, replyPostId);
 
-      console.log(`Reply sent for queue row ${row.id}`);
+      successCount += 1;
+      console.log(`Reply sent for queue row ${row.id} -> ${replyPostId}`);
     } catch (err) {
-      await markFailed(row.id, err?.message || err);
+      const rawMessage = formatErrorMessage(err);
+      const message = isReplyRestrictionError(rawMessage)
+        ? `Blocked by X reply settings: ${rawMessage}`
+        : rawMessage;
+
+      failedCount += 1;
+
+      console.error(`Reply failed for queue row ${row.id}: ${message}`);
+
+      await markFailed(row.id, message);
+      await markEngagementPostFailed(row.source_row_id, message);
     }
+  }
+
+  console.log(
+    `Reply worker finished. Success: ${successCount}, Failed: ${failedCount}`,
+  );
+
+  if (failedCount > 0) {
+    throw new Error(`${failedCount} reply attempt(s) failed`);
   }
 }
 

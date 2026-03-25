@@ -20,8 +20,9 @@ const {
 } = process.env;
 
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
-if (!SUPABASE_SERVICE_ROLE_KEY)
+if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+}
 if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY");
 if (!X_BEARER_TOKEN) throw new Error("Missing X_BEARER_TOKEN");
 
@@ -300,6 +301,33 @@ function buildFallbackQueries(card, topicPayload) {
   ]).slice(0, 5);
 }
 
+function isReplyablePost(post) {
+  return safeStr(post?.reply_settings) === "everyone";
+}
+
+function summarizeReplyability(posts = []) {
+  const summary = {
+    total: posts.length,
+    everyone: 0,
+    restricted: 0,
+    unknown: 0,
+  };
+
+  for (const post of posts) {
+    const replySettings = safeStr(post?.reply_settings);
+
+    if (replySettings === "everyone") {
+      summary.everyone += 1;
+    } else if (replySettings) {
+      summary.restricted += 1;
+    } else {
+      summary.unknown += 1;
+    }
+  }
+
+  return summary;
+}
+
 async function searchPosts(postQueries) {
   const posts = [];
   const usersById = new Map();
@@ -313,7 +341,7 @@ async function searchPosts(postQueries) {
         sort_order: "recency",
         expansions: "author_id",
         "tweet.fields":
-          "author_id,conversation_id,created_at,lang,public_metrics,text",
+          "author_id,conversation_id,created_at,lang,public_metrics,reply_settings,text",
         "user.fields":
           "username,name,description,public_metrics,profile_image_url,verified",
       },
@@ -333,7 +361,9 @@ async function searchPosts(postQueries) {
 
   const byId = new Map();
   for (const post of posts) {
-    if (post?.id && !byId.has(post.id)) byId.set(post.id, post);
+    if (post?.id && !byId.has(post.id)) {
+      byId.set(post.id, post);
+    }
   }
 
   return {
@@ -570,20 +600,30 @@ async function run() {
   );
 
   try {
-    let { posts, usersById } = await searchPosts(usedQueries);
+    let searchResult = await searchPosts(usedQueries);
+    let posts = searchResult.posts;
+    let usersById = searchResult.usersById;
 
-    if (!posts.length) {
+    let replyability = summarizeReplyability(posts);
+    let replyablePosts = posts.filter(isReplyablePost);
+
+    if (!replyablePosts.length) {
       const fallbackQueries = buildFallbackQueries(card, topicPayload);
+
       if (fallbackQueries.length) {
         searchStage = "fallback";
         usedQueries = fallbackQueries;
 
         console.log(
-          `No direct matches for card ${card.id}. Trying fallback queries:`,
+          `No replyable direct matches for card ${card.id}. Trying fallback queries:`,
           fallbackQueries,
         );
 
-        ({ posts, usersById } = await searchPosts(fallbackQueries));
+        searchResult = await searchPosts(fallbackQueries);
+        posts = searchResult.posts;
+        usersById = searchResult.usersById;
+        replyability = summarizeReplyability(posts);
+        replyablePosts = posts.filter(isReplyablePost);
 
         await updateRunSearchQueries(runId, {
           stage: searchStage,
@@ -592,7 +632,11 @@ async function run() {
       }
     }
 
-    const rankedPosts = posts
+    console.log(
+      `Replyability summary for card ${card.id}: total=${replyability.total}, everyone=${replyability.everyone}, restricted=${replyability.restricted}, unknown=${replyability.unknown}`,
+    );
+
+    const rankedPosts = replyablePosts
       .map((post) => {
         const author = usersById.get(post.author_id);
         if (!author) return null;
