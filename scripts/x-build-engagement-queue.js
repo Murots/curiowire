@@ -6,6 +6,7 @@ import {
   truncate,
   normalizeWhitespace,
   xGetWithBearer,
+  xGetWithOAuth1,
   isTrue,
   sleep,
 } from "./x-shared.js";
@@ -17,6 +18,11 @@ const {
   X_OPENAI_MODEL,
   X_BEARER_TOKEN,
   X_DISCOVERY_ENABLED,
+
+  X_API_KEY,
+  X_API_KEY_SECRET,
+  X_ACCESS_TOKEN,
+  X_ACCESS_TOKEN_SECRET,
 } = process.env;
 
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
@@ -148,16 +154,19 @@ async function searchUsers(userQueries) {
   const allUsers = [];
 
   for (const q of (userQueries || []).slice(0, 5)) {
-    const data = await xGetWithBearer(
-      "/2/users/search",
-      {
+    const data = await xGetWithOAuth1({
+      path: "/2/users/search",
+      params: {
         query: q,
         max_results: 20,
         "user.fields":
           "created_at,description,public_metrics,profile_image_url,verified",
       },
-      X_BEARER_TOKEN,
-    );
+      apiKey: X_API_KEY,
+      apiKeySecret: X_API_KEY_SECRET,
+      accessToken: X_ACCESS_TOKEN,
+      accessTokenSecret: X_ACCESS_TOKEN_SECRET,
+    });
 
     for (const user of data.data || []) {
       allUsers.push(user);

@@ -105,6 +105,52 @@ export async function xGetWithBearer(path, params = {}, bearerToken) {
   return data;
 }
 
+/*
+NEW: OAuth1 GET support (needed for /2/users/search)
+*/
+export async function xGetWithOAuth1({
+  path,
+  params = {},
+  apiKey,
+  apiKeySecret,
+  accessToken,
+  accessTokenSecret,
+}) {
+  const url = new URL(`${X_API_BASE}${path}`);
+
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") {
+      url.searchParams.set(k, String(v));
+    }
+  }
+
+  const oauthHeader = getOAuthHeader({
+    url: url.toString(),
+    method: "GET",
+    apiKey,
+    apiKeySecret,
+    accessToken,
+    accessTokenSecret,
+  });
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      ...oauthHeader,
+    },
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(
+      `X GET failed: ${res.status} ${JSON.stringify(data).slice(0, 1000)}`,
+    );
+  }
+
+  return data;
+}
+
 export async function xPostWithOAuth1({
   path,
   body,
