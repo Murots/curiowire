@@ -328,25 +328,67 @@ function summarizeReplyability(posts = []) {
   return summary;
 }
 
+function isRetriableXError(err) {
+  const message = String(err?.message || err || "");
+  return (
+    message.includes("X GET failed: 429") ||
+    message.includes("X GET failed: 500") ||
+    message.includes("X GET failed: 502") ||
+    message.includes("X GET failed: 503") ||
+    message.includes("X GET failed: 504")
+  );
+}
+
+async function searchRecentPostsWithRetry(params, maxAttempts = 4) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await xGetWithBearer(
+        "/2/tweets/search/recent",
+        params,
+        X_BEARER_TOKEN,
+      );
+    } catch (err) {
+      lastError = err;
+
+      if (!isRetriableXError(err) || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const delayMs = attempt * 2000;
+
+      console.warn(
+        `X recent search failed (attempt ${attempt}/${maxAttempts}). Retrying in ${delayMs}ms...`,
+      );
+      console.warn(String(err?.message || err || ""));
+
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+}
+
 async function searchPosts(postQueries) {
   const posts = [];
   const usersById = new Map();
 
   for (const q of (postQueries || []).slice(0, 5)) {
-    const data = await xGetWithBearer(
-      "/2/tweets/search/recent",
-      {
-        query: `${buildRecentSearchQuery(q)} -from:CurioWire`,
-        max_results: 20,
-        sort_order: "recency",
-        expansions: "author_id",
-        "tweet.fields":
-          "author_id,conversation_id,created_at,lang,public_metrics,reply_settings,text",
-        "user.fields":
-          "username,name,description,public_metrics,profile_image_url,verified",
-      },
-      X_BEARER_TOKEN,
-    );
+    const normalizedQuery = `${buildRecentSearchQuery(q)} -from:CurioWire`;
+
+    console.log(`Searching X posts for query: ${normalizedQuery}`);
+
+    const data = await searchRecentPostsWithRetry({
+      query: normalizedQuery,
+      max_results: 20,
+      sort_order: "recency",
+      expansions: "author_id",
+      "tweet.fields":
+        "author_id,conversation_id,created_at,lang,public_metrics,reply_settings,text",
+      "user.fields":
+        "username,name,description,public_metrics,profile_image_url,verified",
+    });
 
     for (const user of data.includes?.users || []) {
       usersById.set(user.id, user);
@@ -360,6 +402,7 @@ async function searchPosts(postQueries) {
   }
 
   const byId = new Map();
+
   for (const post of posts) {
     if (post?.id && !byId.has(post.id)) {
       byId.set(post.id, post);
