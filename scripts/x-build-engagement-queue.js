@@ -79,6 +79,17 @@ async function createOrGetRun(cardId, xPostRowId, topicPayload, searchQueries) {
   return data.id;
 }
 
+async function updateRunSearchQueries(runId, searchQueries) {
+  const { error } = await supabase
+    .from("x_engagement_runs")
+    .update({
+      search_queries: searchQueries,
+    })
+    .eq("id", runId);
+
+  if (error) throw error;
+}
+
 async function finishRun(runId, status, errorMessage = null) {
   const { error } = await supabase
     .from("x_engagement_runs")
@@ -154,6 +165,139 @@ Card text: ${stripHtml(card.card_text).slice(0, 1200)}
 function buildRecentSearchQuery(q) {
   const base = normalizeWhitespace(q);
   return `${base} lang:en -is:retweet -is:reply`;
+}
+
+function uniqueStrings(items = []) {
+  const seen = new Set();
+  const out = [];
+
+  for (const item of items) {
+    const value = normalizeWhitespace(item);
+    if (!value) continue;
+
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    out.push(value);
+  }
+
+  return out;
+}
+
+function buildFallbackQueries(card, topicPayload) {
+  const category = safeStr(card.category).toLowerCase();
+
+  const keywordFallbacks = (topicPayload.keywords || [])
+    .map((kw) => normalizeWhitespace(kw))
+    .filter(Boolean)
+    .map((kw) => {
+      const words = kw.split(/\s+/).filter(Boolean);
+      return words.slice(0, 5).join(" ");
+    });
+
+  const communityFallbacks = (topicPayload.communities || [])
+    .map((c) => normalizeWhitespace(c))
+    .filter(Boolean)
+    .map((c) => {
+      const words = c.split(/\s+/).filter(Boolean);
+      return words.slice(0, 4).join(" ");
+    });
+
+  const categoryMap = {
+    space: [
+      "Kepler telescope",
+      "K2 mission",
+      "exoplanet research",
+      "NASA astronomy",
+      "space telescope",
+      "space science",
+      "astronomy",
+    ],
+    science: [
+      "scientific discovery",
+      "new study",
+      "research findings",
+      "science news",
+      "scientific research",
+    ],
+    health: [
+      "medical research",
+      "public health",
+      "new study health",
+      "health science",
+      "disease research",
+    ],
+    history: [
+      "historical artifact",
+      "museum history",
+      "history facts",
+      "cultural heritage",
+      "historical landmark",
+    ],
+    technology: [
+      "technology innovation",
+      "engineering breakthrough",
+      "new tech",
+      "tech research",
+      "innovation",
+    ],
+    nature: [
+      "wildlife science",
+      "nature research",
+      "ecosystem",
+      "conservation",
+      "environment science",
+    ],
+    culture: [
+      "cultural history",
+      "museum",
+      "heritage",
+      "culture history",
+      "historical culture",
+    ],
+    world: [
+      "world affairs",
+      "international news",
+      "global issue",
+      "world history",
+      "global politics",
+    ],
+    sports: [
+      "sports history",
+      "sports science",
+      "athlete history",
+      "sports research",
+      "sports culture",
+    ],
+    mystery: [
+      "historical mystery",
+      "unsolved history",
+      "strange mystery",
+      "weird history",
+      "mysterious discovery",
+    ],
+    crime: [
+      "true crime",
+      "criminal case",
+      "investigation",
+      "crime history",
+      "crime documentary",
+    ],
+    products: [
+      "product history",
+      "consumer technology",
+      "product innovation",
+      "device history",
+      "tech product",
+    ],
+  };
+
+  return uniqueStrings([
+    ...keywordFallbacks,
+    ...communityFallbacks,
+    ...(categoryMap[category] || []),
+  ]).slice(0, 5);
 }
 
 async function searchPosts(postQueries) {
@@ -410,21 +554,43 @@ async function run() {
   const { card, xPost } = await getLatestCardAndXPost();
   const topicPayload = await analyzeTopics(card);
 
-  const searchQueries = {
-    post_queries: topicPayload.post_queries || [],
+  let usedQueries = topicPayload.post_queries || [];
+  let searchStage = "primary";
+
+  const initialSearchQueries = {
+    stage: searchStage,
+    post_queries: usedQueries,
   };
 
   const runId = await createOrGetRun(
     card.id,
     xPost?.id || null,
     topicPayload,
-    searchQueries,
+    initialSearchQueries,
   );
 
   try {
-    const { posts, usersById } = await searchPosts(
-      topicPayload.post_queries || [],
-    );
+    let { posts, usersById } = await searchPosts(usedQueries);
+
+    if (!posts.length) {
+      const fallbackQueries = buildFallbackQueries(card, topicPayload);
+      if (fallbackQueries.length) {
+        searchStage = "fallback";
+        usedQueries = fallbackQueries;
+
+        console.log(
+          `No direct matches for card ${card.id}. Trying fallback queries:`,
+          fallbackQueries,
+        );
+
+        ({ posts, usersById } = await searchPosts(fallbackQueries));
+
+        await updateRunSearchQueries(runId, {
+          stage: searchStage,
+          post_queries: usedQueries,
+        });
+      }
+    }
 
     const rankedPosts = posts
       .map((post) => {
@@ -461,6 +627,10 @@ async function run() {
     await finishRun(runId, "completed");
 
     console.log(`Built engagement queue for card ${card.id}`);
+    console.log(`Search stage used: ${searchStage}`);
+    console.log(`Queries used: ${JSON.stringify(usedQueries)}`);
+    console.log(`Stored posts: ${Math.min(rankedPosts.length, 10)}`);
+    console.log(`Stored accounts: ${Math.min(rankedUsers.length, 10)}`);
   } catch (err) {
     await finishRun(
       runId,
