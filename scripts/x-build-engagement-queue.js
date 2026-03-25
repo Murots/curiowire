@@ -6,7 +6,6 @@ import {
   truncate,
   normalizeWhitespace,
   xGetWithBearer,
-  xGetWithOAuth1,
   isTrue,
   sleep,
 } from "./x-shared.js";
@@ -18,11 +17,6 @@ const {
   X_OPENAI_MODEL,
   X_BEARER_TOKEN,
   X_DISCOVERY_ENABLED,
-
-  X_API_KEY,
-  X_API_KEY_SECRET,
-  X_ACCESS_TOKEN,
-  X_ACCESS_TOKEN_SECRET,
 } = process.env;
 
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
@@ -111,17 +105,13 @@ Rules:
 - Avoid generic words unless useful
 - 4 to 8 keywords
 - 3 to 5 post search queries
-- 3 to 5 user search queries
-- 4 to 6 likely communities/audiences
 - 4 to 6 reply angles
 
 Return:
 {
   "keywords": ["..."],
-  "entities": ["..."],
   "communities": ["..."],
   "post_queries": ["..."],
-  "user_queries": ["..."],
   "reply_angles": ["..."]
 }
 
@@ -148,39 +138,6 @@ Card text: ${stripHtml(card.card_text).slice(0, 1200)}
 function buildRecentSearchQuery(q) {
   const base = normalizeWhitespace(q);
   return `${base} lang:en -is:retweet -is:reply`;
-}
-
-async function searchUsers(userQueries) {
-  const allUsers = [];
-
-  for (const q of (userQueries || []).slice(0, 5)) {
-    const data = await xGetWithOAuth1({
-      path: "/2/users/search",
-      params: {
-        query: q,
-        max_results: 20,
-        "user.fields":
-          "created_at,description,public_metrics,profile_image_url,verified",
-      },
-      apiKey: X_API_KEY,
-      apiKeySecret: X_API_KEY_SECRET,
-      accessToken: X_ACCESS_TOKEN,
-      accessTokenSecret: X_ACCESS_TOKEN_SECRET,
-    });
-
-    for (const user of data.data || []) {
-      allUsers.push(user);
-    }
-
-    await sleep(400);
-  }
-
-  const byId = new Map();
-  for (const user of allUsers) {
-    if (user?.id && !byId.has(user.id)) byId.set(user.id, user);
-  }
-
-  return [...byId.values()];
 }
 
 async function searchPosts(postQueries) {
@@ -229,7 +186,6 @@ function scoreUser(user, topicPayload) {
   const metrics = user.public_metrics || {};
   const followers = metrics.followers_count || 0;
   const following = metrics.following_count || 1;
-  const tweets = metrics.tweet_count || 0;
 
   const haystack = [
     safeStr(user.name),
@@ -243,37 +199,20 @@ function scoreUser(user, topicPayload) {
   const reasons = [];
 
   for (const kw of topicPayload.keywords || []) {
-    const k = String(kw).toLowerCase();
-    if (haystack.includes(k)) {
+    if (haystack.includes(String(kw).toLowerCase())) {
       score += 10;
       reasons.push(`keyword:${kw}`);
-    }
-  }
-
-  for (const c of topicPayload.communities || []) {
-    const k = String(c).toLowerCase();
-    if (haystack.includes(k)) {
-      score += 8;
-      reasons.push(`community:${c}`);
     }
   }
 
   if (followers >= 1000 && followers <= 200000) {
     score += 18;
     reasons.push("good audience size");
-  } else if (followers > 200000) {
-    score += 8;
-    reasons.push("large audience");
   }
 
   if (followers / Math.max(following, 1) > 1.5) {
     score += 6;
     reasons.push("healthy ratio");
-  }
-
-  if (tweets > 1000) {
-    score += 6;
-    reasons.push("active account");
   }
 
   if (user.verified) {
@@ -295,8 +234,7 @@ function scorePost(post, author, topicPayload) {
   const reasons = [];
 
   for (const kw of topicPayload.keywords || []) {
-    const k = String(kw).toLowerCase();
-    if (text.includes(k)) {
+    if (text.includes(String(kw).toLowerCase())) {
       score += 14;
       reasons.push(`keyword:${kw}`);
     }
@@ -348,10 +286,9 @@ Rules:
 - No URL
 - No hashtags
 - No promo tone
-- Do not mention our article unless completely natural
-- One should be insight-driven
-- One should be context-driven
-- One can be a thoughtful question
+- One insight
+- One contextual reply
+- One thoughtful question
 
 Return:
 {
@@ -362,22 +299,15 @@ Return:
   ]
 }
 
-Our article:
-Title: ${safeStr(card.title)}
-SEO description: ${safeStr(card.seo_description)}
-Summary: ${stripHtml(card.summary_normalized).slice(0, 600)}
-Fun fact: ${stripHtml(card.fun_fact).slice(0, 250)}
+Article:
+${safeStr(card.title)}
+${safeStr(card.seo_description)}
 
 Target author:
 @${safeStr(author?.username)}
-${safeStr(author?.name)}
-Bio: ${safeStr(author?.description)}
 
 Target post:
 ${safeStr(targetPost.text)}
-
-Suggested angles:
-${(topicPayload.reply_angles || []).join(", ")}
 `;
 
   const r = await openai.chat.completions.create({
@@ -463,7 +393,6 @@ async function run() {
 
   const searchQueries = {
     post_queries: topicPayload.post_queries || [],
-    user_queries: topicPayload.user_queries || [],
   };
 
   const runId = await createOrGetRun(
@@ -474,15 +403,6 @@ async function run() {
   );
 
   try {
-    const users = await searchUsers(topicPayload.user_queries || []);
-    const rankedUsers = users
-      .map((user) => {
-        const scored = scoreUser(user, topicPayload);
-        return { user, ...scored };
-      })
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score);
-
     const { posts, usersById } = await searchPosts(
       topicPayload.post_queries || [],
     );
@@ -496,6 +416,14 @@ async function run() {
         return { post, author, ...scored };
       })
       .filter(Boolean)
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    const rankedUsers = [...usersById.values()]
+      .map((user) => {
+        const scored = scoreUser(user, topicPayload);
+        return { user, ...scored };
+      })
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score);
 
@@ -514,10 +442,6 @@ async function run() {
     await finishRun(runId, "completed");
 
     console.log(`Built engagement queue for card ${card.id}`);
-    console.log(
-      `Stored ${Math.min(rankedUsers.length, 10)} account suggestions`,
-    );
-    console.log(`Stored ${Math.min(rankedPosts.length, 10)} post suggestions`);
   } catch (err) {
     await finishRun(
       runId,
