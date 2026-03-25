@@ -100,12 +100,18 @@ Goal:
 Create discovery inputs for X engagement research around this article.
 
 Rules:
-- Write in English
-- Be concrete and niche-aware
-- Avoid generic words unless useful
-- 4 to 8 keywords
-- 3 to 5 post search queries
-- 4 to 6 reply angles
+- Write in English.
+- Be concrete and niche-aware.
+- Focus on terms people actually use in X posts.
+- Avoid generic words unless useful.
+- Avoid full questions.
+- Do NOT start queries with words like "what", "why", "how", "where", "when".
+- Post search queries must be SHORT keyword-style search phrases.
+- Each post query should usually be 2 to 5 words.
+- Prefer named entities, locations, artifacts, events, topics, and common discussion terms.
+- 4 to 8 keywords.
+- 3 to 5 post search queries.
+- 4 to 6 reply angles.
 
 Return:
 {
@@ -114,6 +120,16 @@ Return:
   "post_queries": ["..."],
   "reply_angles": ["..."]
 }
+
+Good post query examples:
+- "Statue of Liberty torch"
+- "original torch liberty"
+- "Liberty Island history"
+- "copper torch museum"
+
+Bad post query examples:
+- "What happened to the Statue of Liberty's original torch?"
+- "Why was the torch removed from the Statue of Liberty?"
 
 Article title: ${safeStr(card.title)}
 Category: ${safeStr(card.category)}
@@ -127,7 +143,7 @@ Card text: ${stripHtml(card.card_text).slice(0, 1200)}
     model: MODEL,
     messages: [{ role: "user", content: prompt }],
     max_tokens: 500,
-    temperature: 0.4,
+    temperature: 0.3,
     response_format: { type: "json_object" },
   });
 
@@ -308,6 +324,9 @@ Target author:
 
 Target post:
 ${safeStr(targetPost.text)}
+
+Suggested angles:
+${(topicPayload?.reply_angles || []).join(", ")}
 `;
 
   const r = await openai.chat.completions.create({
