@@ -164,7 +164,7 @@ async function searchPosts(postQueries) {
     const data = await xGetWithBearer(
       "/2/tweets/search/recent",
       {
-        query: buildRecentSearchQuery(q),
+        query: `${buildRecentSearchQuery(q)} -from:CurioWire`,
         max_results: 20,
         sort_order: "recency",
         expansions: "author_id",
