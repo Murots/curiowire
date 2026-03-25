@@ -37,9 +37,9 @@ function pickReply(row) {
     return truncate(row.custom_response, 180);
   }
 
-  if (row.selected_option === 1) return truncate(row.option_1, 180);
-  if (row.selected_option === 2) return truncate(row.option_2, 180);
-  if (row.selected_option === 3) return truncate(row.option_3, 180);
+  if (row.selected_option === "1") return truncate(row.option_1, 180);
+  if (row.selected_option === "2") return truncate(row.option_2, 180);
+  if (row.selected_option === "3") return truncate(row.option_3, 180);
 
   return "";
 }
