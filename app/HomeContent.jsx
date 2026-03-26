@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import Breadcrumbs from "@/components/Breadcrumbs/Breadcrumbs";
 import CurioCard from "@/components/CurioCard/CurioCard";
 import {
   Wrapper,
@@ -23,7 +24,10 @@ import {
   Divider,
   SeoNote,
   SeoNoteTitle,
+  MainWrapper,
+  BreadcrumbSlot,
 } from "./page.styles";
+import { getCategoryColor } from "@/lib/categoryColors";
 
 const PAGE_SIZE = 30;
 const TRENDING_LIMIT = 10;
@@ -722,6 +726,12 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const hasSearch = !!q;
   const hasCategory = categoryQ !== "all";
 
+  const breadcrumbItems = hasCategory
+    ? [{ label: "Home", href: "/" }, { label: formatHeading(categoryQ) }]
+    : null;
+
+  const breadcrumbColor = hasCategory ? getCategoryColor(categoryQ) : null;
+
   const emptyMessage = hasSearch
     ? `No curiosities matched “${q}”.`
     : hasCategory
@@ -740,75 +750,82 @@ export default function HomeContent({ initialCards, initialQuery }) {
       : "Check back soon — new stories are published daily.";
 
   return (
-    <Wrapper>
-      <TopBar>
-        <div>
-          <Title>{formatHeading(categoryQ)}</Title>
-          <Divider />
-        </div>
-
-        <Controls>
-          <Select
-            value={categoryQ}
-            onChange={(e) => setQuery({ category: e.target.value })}
-          >
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c === "all" ? "All categories" : c}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            value={sortQ}
-            onChange={(e) => setQuery({ sort: e.target.value })}
-          >
-            <option value="newest">Newest</option>
-            <option value="trending">Trending</option>
-            <option value="random">Random</option>
-            <option value="lists">List Curios</option>
-          </Select>
-        </Controls>
-      </TopBar>
-
-      <SeoNote>
-        <SeoNoteTitle>
-          {categoryQ === "all"
-            ? "Read all about it!"
-            : `About ${formatHeading(categoryQ)}`}
-        </SeoNoteTitle>
-
-        <p>
-          {categoryQ === "all"
-            ? "CurioWire publishes fresh curiosities from science, history, nature, technology, space, culture and more. Each day we share short, fascinating stories, unusual discoveries and remarkable facts from around the world. Explore daily curiosities and discover something new."
-            : CATEGORY_DESCRIPTIONS[categoryQ] ||
-              "Explore fascinating curiosities published daily on CurioWire."}
-        </p>
-      </SeoNote>
-
-      {isEmpty ? (
-        <Loader>
-          {emptyMessage} <span style={{ opacity: 0.7 }}>{emptyHint}</span>
-        </Loader>
-      ) : (
-        <Grid>
-          {cards.map((c) => (
-            <CurioCard
-              key={c.id}
-              card={c}
-              isTrending={hydrated && trendingIds.has(Number(c.id))}
-              onOpen={rememberFeedContext}
-            />
-          ))}
-        </Grid>
+    <>
+      {breadcrumbItems && (
+        <BreadcrumbSlot $bg={breadcrumbColor}>
+          <Breadcrumbs items={breadcrumbItems} />
+        </BreadcrumbSlot>
       )}
+      <MainWrapper>
+        <Wrapper>
+          <TopBar>
+            <div>
+              <Title>{formatHeading(categoryQ)}</Title>
+              <Divider />
+            </div>
 
-      {!isEmpty && hasMore && !isTrendingMode && !isRandomMode && (
-        <LoadMore onClick={() => setPage((p) => p + 1)} disabled={loading}>
-          {loading ? "Loading…" : "Load more"}
-        </LoadMore>
-      )}
-      {/* <SeoNote>
+            <Controls>
+              <Select
+                value={categoryQ}
+                onChange={(e) => setQuery({ category: e.target.value })}
+              >
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c === "all" ? "All categories" : c}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                value={sortQ}
+                onChange={(e) => setQuery({ sort: e.target.value })}
+              >
+                <option value="newest">Newest</option>
+                <option value="trending">Trending</option>
+                <option value="random">Random</option>
+                <option value="lists">List Curios</option>
+              </Select>
+            </Controls>
+          </TopBar>
+
+          <SeoNote>
+            <SeoNoteTitle>
+              {categoryQ === "all"
+                ? "Read all about it!"
+                : `About ${formatHeading(categoryQ)}`}
+            </SeoNoteTitle>
+
+            <p>
+              {categoryQ === "all"
+                ? "CurioWire publishes fresh curiosities from science, history, nature, technology, space, culture and more. Each day we share short, fascinating stories, unusual discoveries and remarkable facts from around the world. Explore daily curiosities and discover something new."
+                : CATEGORY_DESCRIPTIONS[categoryQ] ||
+                  "Explore fascinating curiosities published daily on CurioWire."}
+            </p>
+          </SeoNote>
+
+          {isEmpty ? (
+            <Loader>
+              {emptyMessage} <span style={{ opacity: 0.7 }}>{emptyHint}</span>
+            </Loader>
+          ) : (
+            <Grid>
+              {cards.map((c) => (
+                <CurioCard
+                  key={c.id}
+                  card={c}
+                  isTrending={hydrated && trendingIds.has(Number(c.id))}
+                  onOpen={rememberFeedContext}
+                />
+              ))}
+            </Grid>
+          )}
+
+          {!isEmpty && hasMore && !isTrendingMode && !isRandomMode && (
+            <LoadMore onClick={() => setPage((p) => p + 1)} disabled={loading}>
+              {loading ? "Loading…" : "Load more"}
+            </LoadMore>
+          )}
+          {/* <SeoNote>
         <SeoNoteTitle>
           {categoryQ === "all"
             ? "Read all about it!"
@@ -822,6 +839,8 @@ export default function HomeContent({ initialCards, initialQuery }) {
               "Explore fascinating curiosities published daily on CurioWire."}
         </p>
       </SeoNote> */}
-    </Wrapper>
+        </Wrapper>
+      </MainWrapper>
+    </>
   );
 }

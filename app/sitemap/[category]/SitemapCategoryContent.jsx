@@ -14,7 +14,10 @@ import {
   Timestamp,
   Pagination,
   PageButton,
+  MainWrapper,
+  BreadcrumbSlot,
 } from "../sitemap.styles";
+import Breadcrumbs from "@/components/Breadcrumbs/Breadcrumbs";
 
 function SitemapCategoryContentInner({
   pageSize = 20,
@@ -28,7 +31,7 @@ function SitemapCategoryContentInner({
   const page = parseInt(searchParams?.get("page") || "1", 10);
 
   const [cards, setCards] = useState(() =>
-    Array.isArray(initialCards) ? initialCards : []
+    Array.isArray(initialCards) ? initialCards : [],
   );
   const [totalCount, setTotalCount] = useState(() => Number(initialCount) || 0);
   const [loading, setLoading] = useState(() => page !== 1); // if landing directly on page>1, show loading
@@ -94,7 +97,7 @@ function SitemapCategoryContentInner({
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil((totalCount || 0) / pageSize)),
-    [totalCount, pageSize]
+    [totalCount, pageSize],
   );
 
   if (!category) {
@@ -116,51 +119,64 @@ function SitemapCategoryContentInner({
   const formattedCategory =
     category.charAt(0).toUpperCase() + category.slice(1);
 
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    { label: "Sitemap", href: "/sitemap" },
+    { label: formattedCategory },
+  ];
+
   return (
-    <Wrapper>
-      <Title>{formattedCategory}</Title>
+    <>
+      <BreadcrumbSlot>
+        <Breadcrumbs items={breadcrumbItems} />
+      </BreadcrumbSlot>
+      <MainWrapper>
+        <Wrapper>
+          <Title>{formattedCategory}</Title>
 
-      <Info>
-        Showing {cards.length} of {totalCount} curiosities
-      </Info>
+          <Info>
+            Showing {cards.length} of {totalCount} curiosities
+          </Info>
 
-      {cards.length === 0 ? (
-        <Info>No curiosities found in this category yet.</Info>
-      ) : (
-        <List>
-          {cards.map((c) => (
-            <Item key={c.id}>
-              <LinkStyled href={`/article/${c.id}`}>
-                {c.title || "Untitled"}
-              </LinkStyled>
-              <Timestamp>
-                {new Date(c.created_at).toLocaleDateString()}
-              </Timestamp>
-            </Item>
-          ))}
-        </List>
-      )}
-
-      {totalPages > 1 && (
-        <Pagination>
-          {page > 1 && (
-            <PageButton href={`/sitemap/${category}?page=${page - 1}`}>
-              ← Previous
-            </PageButton>
+          {cards.length === 0 ? (
+            <Info>No curiosities found in this category yet.</Info>
+          ) : (
+            <List>
+              {cards.map((c) => (
+                <Item key={c.id}>
+                  <LinkStyled href={`/article/${c.id}`}>
+                    {c.title || "Untitled"}
+                  </LinkStyled>
+                  <Timestamp>
+                    {new Date(c.created_at).toLocaleDateString()}
+                  </Timestamp>
+                </Item>
+              ))}
+            </List>
           )}
 
-          <span>
-            Page {page} of {totalPages}
-          </span>
+          {totalPages > 1 && (
+            <Pagination>
+              {page > 1 && (
+                <PageButton href={`/sitemap/${category}?page=${page - 1}`}>
+                  ← Previous
+                </PageButton>
+              )}
 
-          {page < totalPages && (
-            <PageButton href={`/sitemap/${category}?page=${page + 1}`}>
-              Next →
-            </PageButton>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+
+              {page < totalPages && (
+                <PageButton href={`/sitemap/${category}?page=${page + 1}`}>
+                  Next →
+                </PageButton>
+              )}
+            </Pagination>
           )}
-        </Pagination>
-      )}
-    </Wrapper>
+        </Wrapper>
+      </MainWrapper>
+    </>
   );
 }
 

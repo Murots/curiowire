@@ -140,6 +140,39 @@ export default async function ArticlePage({ params }) {
   const headline = cleanInlineText(card.seo_title || card.title);
   const desc = cleanInlineText(card.seo_description || card.summary_normalized);
 
+  const categorySlug = String(card.category || "").toLowerCase();
+  const categoryLabel =
+    categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
+
+  const breadcrumbData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      ...(categorySlug
+        ? [
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: categoryLabel,
+              item: `${baseUrl}/${categorySlug}`,
+            },
+          ]
+        : []),
+      {
+        "@type": "ListItem",
+        position: categorySlug ? 3 : 2,
+        name: headline || "CurioWire curiosity",
+        item: url,
+      },
+    ],
+  };
+
   // ✅ For schema: prefer real hero image; fallback to local OM image (not OGImage)
   const imageUrl = card.image_url
     ? `${card.image_url}?width=1200&quality=78&format=webp`
@@ -195,7 +228,9 @@ export default async function ArticlePage({ params }) {
         id={`structured-data-article-${card.id}`}
         type="application/ld+json"
         strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([articleJsonLd, breadcrumbData]),
+        }}
       />
       <ArticlePageClient card={card} />
     </>

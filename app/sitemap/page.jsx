@@ -11,7 +11,10 @@ import {
   Info,
   CategoryList,
   CategoryItem,
+  MainWrapper,
+  BreadcrumbSlot,
 } from "./sitemap.styles";
+import Breadcrumbs from "@/components/Breadcrumbs/Breadcrumbs";
 
 /* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata() {
@@ -63,6 +66,27 @@ export default function SitemapPage() {
   const baseUrl = "https://curiowire.com";
   const pageUrl = `${baseUrl}/sitemap`;
 
+  const breadcrumbItems = [{ label: "Home", href: "/" }, { label: "Sitemap" }];
+
+  const breadcrumbData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Sitemap",
+        item: pageUrl,
+      },
+    ],
+  };
+
   // ✅ Structured data for CollectionPage
   const structuredData = {
     "@context": "https://schema.org",
@@ -90,39 +114,46 @@ export default function SitemapPage() {
   };
 
   return (
-    <Wrapper>
-      <Script
-        id="structured-data-sitemap"
-        type="application/ld+json"
-        strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData),
-        }}
-      />
+    <>
+      <BreadcrumbSlot>
+        <Breadcrumbs items={breadcrumbItems} />
+      </BreadcrumbSlot>
+      <MainWrapper>
+        <Wrapper>
+          <Script
+            id="structured-data-sitemap"
+            type="application/ld+json"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify([structuredData, breadcrumbData]),
+            }}
+          />
 
-      <Title>CurioWire Sitemap</Title>
+          <Title>CurioWire Sitemap</Title>
 
-      <Info>
-        Explore the world of CurioWire — stories organized by category, updated
-        automatically as new articles are generated.
-      </Info>
+          <Info>
+            Explore the world of CurioWire — stories organized by category,
+            updated automatically as new articles are generated.
+          </Info>
 
-      <CategoryList>
-        {Object.keys(categories).map((key) => (
-          <CategoryItem key={key}>
-            <Link href={`/sitemap/${key}`}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}
-            </Link>
-          </CategoryItem>
-        ))}
-      </CategoryList>
+          <CategoryList>
+            {Object.keys(categories).map((key) => (
+              <CategoryItem key={key}>
+                <Link href={`/sitemap/${key}`}>
+                  {key.charAt(0).toUpperCase() + key.slice(1)}
+                </Link>
+              </CategoryItem>
+            ))}
+          </CategoryList>
 
-      <Info>
-        Looking for the XML version for search engines?{" "}
-        <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer">
-          View sitemap.xml
-        </a>
-      </Info>
-    </Wrapper>
+          <Info>
+            Looking for the XML version for search engines?{" "}
+            <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer">
+              View sitemap.xml
+            </a>
+          </Info>
+        </Wrapper>
+      </MainWrapper>
+    </>
   );
 }

@@ -42,12 +42,12 @@ export const GlobalStyle = createGlobalStyle`
   }
 
   main {
-    padding: 3rem 15% 6rem 15%;
-    max-width: 1600px;
-    margin: 0 auto;
+    // padding: 3rem 15% 6rem 15%;
+    // max-width: 1600px;
+    // margin: 0 auto;
 
-    @media (max-width: 770px) {
-      padding: 4rem 5% 4rem 5%;
-    }
+    // @media (max-width: 770px) {
+    //   padding: 4rem 5% 4rem 5%;
+    // }
   }
 `;

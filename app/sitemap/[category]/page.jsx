@@ -128,6 +128,31 @@ export default async function SitemapCategoryPage(props) {
       ? `${baseUrl}/sitemap/${category}?page=${page}`
       : `${baseUrl}/sitemap/${category}`;
 
+  const breadcrumbData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Sitemap",
+        item: `${baseUrl}/sitemap`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: formattedCategory,
+        item: canonicalUrl,
+      },
+    ],
+  };
+
   // ✅ Structured Data should match what is visible.
   // - For page 1: use SSR-fetched initialCards
   // - For page > 1: emit a lightweight CollectionPage without itemListElement
@@ -189,7 +214,7 @@ export default async function SitemapCategoryPage(props) {
         type="application/ld+json"
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData),
+          __html: JSON.stringify([structuredData, breadcrumbData]),
         }}
       />
 

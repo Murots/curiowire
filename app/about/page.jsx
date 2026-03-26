@@ -3,7 +3,15 @@
 export const dynamic = "force-static";
 
 import Script from "next/script";
-import { Wrapper, Headline, Paragraph, Highlight } from "./about.styles";
+import {
+  Wrapper,
+  Headline,
+  Paragraph,
+  Highlight,
+  MainWrapper,
+  BreadcrumbSlot,
+} from "./about.styles";
+import Breadcrumbs from "@/components/Breadcrumbs/Breadcrumbs";
 
 /* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata() {
@@ -58,6 +66,27 @@ export default function AboutPage() {
   const pageUrl = `${baseUrl}/about`;
   const image = `${baseUrl}/icon.png`;
 
+  const breadcrumbItems = [{ label: "Home", href: "/" }, { label: "About" }];
+
+  const breadcrumbData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "About",
+        item: pageUrl,
+      },
+    ],
+  };
+
   // ✅ Structured data
   const structuredData = {
     "@context": "https://schema.org",
@@ -88,44 +117,53 @@ export default function AboutPage() {
   };
 
   return (
-    <Wrapper>
-      <Script
-        id="structured-data-about"
-        type="application/ld+json"
-        strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData),
-        }}
-      />
+    <>
+      <BreadcrumbSlot>
+        <Breadcrumbs items={breadcrumbItems} />
+      </BreadcrumbSlot>
+      <MainWrapper>
+        <Wrapper>
+          <Script
+            id="structured-data-about"
+            type="application/ld+json"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify([structuredData, breadcrumbData]),
+            }}
+          />
 
-      <Headline>About CurioWire</Headline>
+          <Headline>About CurioWire</Headline>
 
-      <Paragraph>
-        <Highlight>CurioWire</Highlight> is a digital newspaper built on
-        automation, design and curiosity. Inspired by early twentieth-century
-        editorial craft, it reimagines how stories are found, written and shared
-        — blending algorithmic precision with the tone of classic print.
-      </Paragraph>
+          <Paragraph>
+            <Highlight>CurioWire</Highlight> is a digital newspaper built on
+            automation, design and curiosity. Inspired by early
+            twentieth-century editorial craft, it reimagines how stories are
+            found, written and shared — blending algorithmic precision with the
+            tone of classic print.
+          </Paragraph>
 
-      <Paragraph>
-        Founded in <strong>2025</strong>, CurioWire began as an experiment in
-        automated journalism. The idea was simple: could artificial intelligence
-        rediscover the forgotten wonders of science, history and culture — and
-        tell them as if reported from a bustling newsroom a century ago?
-      </Paragraph>
+          <Paragraph>
+            Founded in <strong>2025</strong>, CurioWire began as an experiment
+            in automated journalism. The idea was simple: could artificial
+            intelligence rediscover the forgotten wonders of science, history
+            and culture — and tell them as if reported from a bustling newsroom
+            a century ago?
+          </Paragraph>
 
-      <Paragraph>
-        Each story is collected from public data archives, re-written with
-        editorial balance, and presented with a deliberate visual calm. The
-        goal: to celebrate knowledge, invention and the timeless art of human
-        curiosity.
-      </Paragraph>
+          <Paragraph>
+            Each story is collected from public data archives, re-written with
+            editorial balance, and presented with a deliberate visual calm. The
+            goal: to celebrate knowledge, invention and the timeless art of
+            human curiosity.
+          </Paragraph>
 
-      <Paragraph>
-        Every headline published by CurioWire seeks the same thing — that small
-        spark of wonder that once made people stop, read, and say:
-        <em> “Now that’s curious.”</em>
-      </Paragraph>
-    </Wrapper>
+          <Paragraph>
+            Every headline published by CurioWire seeks the same thing — that
+            small spark of wonder that once made people stop, read, and say:
+            <em> “Now that’s curious.”</em>
+          </Paragraph>
+        </Wrapper>
+      </MainWrapper>
+    </>
   );
 }

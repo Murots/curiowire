@@ -1,6 +1,27 @@
 // app/page.styles.js
 import styled from "styled-components";
 
+export const MainWrapper = styled.div`
+  padding: 3rem 15% 6rem 15%;
+  max-width: 1600px;
+  margin: 0 auto;
+
+  @media (max-width: 770px) {
+    padding: 4rem 5% 4rem 5%;
+  }
+`;
+
+// export const BreadcrumbSlot = styled.div`
+//   width: 100%;
+//   padding: 3px 20px;
+//   background-color: ${({ theme }) => theme.colors.muted};
+// `;
+export const BreadcrumbSlot = styled.div`
+  width: 100%;
+  padding: 3px 20px;
+  background-color: ${({ $bg, theme }) => $bg || theme.colors.muted};
+`;
+
 export const Wrapper = styled.div`
   width: 100%;
   max-width: 1400px;

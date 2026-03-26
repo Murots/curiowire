@@ -58,6 +58,25 @@ export default function ContactPage() {
   const pageUrl = `${baseUrl}/contact`;
   const image = `${baseUrl}/icon.png`;
 
+  const breadcrumbData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Contact",
+        item: pageUrl,
+      },
+    ],
+  };
+
   // ✅ Structured data for ContactPage
   const structuredData = {
     "@context": "https://schema.org",
@@ -100,7 +119,7 @@ export default function ContactPage() {
         type="application/ld+json"
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData),
+          __html: JSON.stringify([structuredData, breadcrumbData]),
         }}
       />
 

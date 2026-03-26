@@ -6,11 +6,29 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import ArticleView from "@/components/ArticleView/ArticleView";
 import styled from "styled-components";
+import Breadcrumbs from "@/components/Breadcrumbs/Breadcrumbs";
+import { getCategoryColor } from "@/lib/categoryColors";
+
+export const MainWrapper = styled.div`
+  padding: 3rem 15% 6rem 15%;
+  max-width: 1600px;
+  margin: 0 auto;
+
+  @media (max-width: 770px) {
+    padding: 4rem 5% 4rem 5%;
+  }
+`;
 
 const PageWrap = styled.div`
   max-width: 1080px;
   margin: 0 auto;
   // padding: 18px 18px 40px;
+`;
+
+export const BreadcrumbSlot = styled.div`
+  width: 100%;
+  padding: 3px 20px;
+  background-color: ${({ $bg, theme }) => $bg || theme.colors.muted};
 `;
 
 const TopBack = styled.a`
@@ -186,9 +204,32 @@ export default function ArticlePageClient({ card }) {
     };
   }, [card.id, card.category]);
 
+  const categoryHref = `/${String(card.category || "").toLowerCase()}`;
+
+  const categoryLabel =
+    String(card.category || "")
+      .charAt(0)
+      .toUpperCase() +
+    String(card.category || "")
+      .slice(1)
+      .toLowerCase();
+
+  const breadcrumbItems = [
+    { label: "Home", href: "/" },
+    ...(card.category ? [{ label: categoryLabel, href: categoryHref }] : []),
+    { label: card.title || "Article" },
+  ];
+
+  const breadcrumbColor = getCategoryColor(card.category);
+
   return (
-    <PageWrap>
-      <TopBack
+    <>
+      <BreadcrumbSlot $bg={breadcrumbColor}>
+        <Breadcrumbs items={breadcrumbItems} />
+      </BreadcrumbSlot>
+      <MainWrapper>
+        <PageWrap>
+          {/* <TopBack
         href={nav.returnHref || "/"}
         onClick={(e) => {
           e.preventDefault();
@@ -196,20 +237,22 @@ export default function ArticlePageClient({ card }) {
         }}
       >
         ← Back to feed
-      </TopBack>
+      </TopBack> */}
 
-      <ArticleView
-        variant="page"
-        card={card}
-        prevId={nav.prevId}
-        nextId={nav.nextId}
-        positionText={nav.positionText}
-        onPrev={onPrev}
-        onNext={onNext}
-        relatedArticles={relatedArticles}
-        relatedLoading={relatedLoading}
-        onOpenRelated={onOpenRelated}
-      />
-    </PageWrap>
+          <ArticleView
+            variant="page"
+            card={card}
+            prevId={nav.prevId}
+            nextId={nav.nextId}
+            positionText={nav.positionText}
+            onPrev={onPrev}
+            onNext={onNext}
+            relatedArticles={relatedArticles}
+            relatedLoading={relatedLoading}
+            onOpenRelated={onOpenRelated}
+          />
+        </PageWrap>
+      </MainWrapper>
+    </>
   );
 }
