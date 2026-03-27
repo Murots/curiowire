@@ -9,6 +9,7 @@ import {
   CategoryLinks,
   SocialLinks,
   SocialRow,
+  FooterMark,
 } from "./Footer.styles";
 
 const CATEGORIES = [
@@ -29,6 +30,7 @@ const CATEGORIES = [
 export default function Footer() {
   return (
     <FooterWrapper>
+      <FooterMark src="/Styling.svg" alt="" aria-hidden="true" />
       <Copy>
         © {new Date().getFullYear()} CurioWire — From the digital wire.
       </Copy>

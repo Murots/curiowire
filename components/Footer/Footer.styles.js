@@ -19,6 +19,9 @@ export const FooterWrapper = styled.footer`
   border-width: 4px;
   border-color: #6b0000;
 
+  position: relative;
+  overflow: hidden;
+
   @media (max-width: 770px) {
     padding: 28px 16px;
     font-size: 0.8rem;
@@ -33,6 +36,8 @@ export const FooterWrapper = styled.footer`
 `;
 
 export const Copy = styled.div`
+  position: relative;
+  z-index: 1;
   font-size: 0.9rem;
   color: var(--color-text);
 
@@ -46,6 +51,8 @@ export const Copy = styled.div`
 `;
 
 export const Links = styled.div`
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -70,7 +77,6 @@ export const Links = styled.div`
     user-select: none;
   }
 
-  /* 📱 Små skjermer: gi mer luft og bedre radbryting */
   @media (max-width: 770px) {
     gap: 10px 14px;
     line-height: 1.8;
@@ -86,6 +92,8 @@ export const Links = styled.div`
 `;
 
 export const CategoryLinks = styled.div`
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -113,6 +121,8 @@ export const CategoryLinks = styled.div`
 `;
 
 export const SocialRow = styled.div`
+  position: relative;
+  z-index: 1;
   width: 100%;
   padding: 12px 0;
   border-top: 1px solid #6b0000;
@@ -145,5 +155,29 @@ export const SocialLinks = styled.div`
     display: block;
     width: 28px;
     height: 28px;
+  }
+`;
+
+export const FooterMark = styled.img`
+  position: absolute;
+  top: 20px;
+  right: -20px;
+
+  height: 116%;
+  width: auto;
+
+  opacity: 0.08;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+
+  @media (max-width: 770px) {
+    height: 112%;
+    opacity: 0.08;
+  }
+
+  @media (max-width: 480px) {
+    height: 112%;
+    opacity: 0.08;
   }
 `;
