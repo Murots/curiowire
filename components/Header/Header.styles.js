@@ -7,7 +7,9 @@ export const HeaderWrapper = styled.header`
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: solid;
+  border-width: 3px;
+  border-color: ${({ theme }) => theme.colors.accent};
 `;
 
 export const Inner = styled.div`
@@ -64,7 +66,13 @@ export const SearchInput = styled.input`
   border-radius: 18px;
   padding: 8px 38px 8px 12px;
 
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
     sans-serif;
   font-size: 0.85rem;
   color: ${({ theme }) => theme.colors.text};
@@ -192,7 +200,13 @@ export const MobileRow = styled.div`
 `;
 
 export const MobileLabel = styled.div`
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
     sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
@@ -212,7 +226,13 @@ export const MobileSelect = styled.select`
   padding: 11px 42px 11px 12px;
   border-radius: 6px;
 
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
     sans-serif;
   font-size: 0.85rem;
   font-weight: 500;

@@ -15,7 +15,7 @@ export const MainWrapper = styled.div`
   margin: 0 auto;
 
   @media (max-width: 770px) {
-    padding: 4rem 5% 4rem 5%;
+    padding: 3rem 5% 4rem 5%;
   }
 `;
 
