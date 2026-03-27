@@ -15,8 +15,8 @@ const CATEGORIES = new Set([
   "mystery",
 ]);
 
-export function middleware(req) {
-  const url = req.nextUrl;
+export function proxy(req) {
+  const url = req.nextUrl.clone();
   const category = (url.searchParams.get("category") || "").toLowerCase();
 
   // Bare hvis vi faktisk har en gyldig kategori i query
@@ -27,7 +27,9 @@ export function middleware(req) {
   // Redirect kun når query kun er category (ingen q/sort/etc)
   const allowedKeys = new Set(["category"]);
   for (const key of url.searchParams.keys()) {
-    if (!allowedKeys.has(key)) return NextResponse.next();
+    if (!allowedKeys.has(key)) {
+      return NextResponse.next();
+    }
   }
 
   url.searchParams.delete("category");
