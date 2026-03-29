@@ -29,6 +29,10 @@ jobs:
       FACTCHECK_MODEL: ${{ secrets.FACTCHECK_MODEL }}
       SALVAGE_MODEL: ${{ secrets.SALVAGE_MODEL }}
 
+      # Scene prompt models
+      SCENE_BLUEPRINT_MODEL: ${{ secrets.SCENE_BLUEPRINT_MODEL }}
+      SCENE_FORMAT_MODEL: ${{ secrets.SCENE_FORMAT_MODEL }}
+
       # === Supabase ===
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
