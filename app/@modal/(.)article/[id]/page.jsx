@@ -4,6 +4,22 @@ import ArticleModalClient from "@/components/ArticleModal/ArticleModalClient";
 
 export const revalidate = 900;
 
+async function fetchVideo(articleId) {
+  const sb = supabaseServer();
+
+  const { data } = await sb
+    .from("videos")
+    .select("youtube_video_id, youtube_url, posted_at")
+    .eq("article_id", Number(articleId))
+    .eq("status", "posted")
+    .not("youtube_video_id", "is", null)
+    .order("posted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data || null;
+}
+
 export default async function ArticleModalPage({ params }) {
   // Next App Router can hand you params in slightly different shapes.
   const resolved = await Promise.resolve(params);
@@ -29,5 +45,7 @@ export default async function ArticleModalPage({ params }) {
   if (error) return null;
   if (!card) return null;
 
-  return <ArticleModalClient card={card} />;
+  const video = await fetchVideo(card.id);
+
+  return <ArticleModalClient card={card} video={video} />;
 }

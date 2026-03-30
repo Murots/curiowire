@@ -303,7 +303,7 @@ import { Overlay, Modal, CloseWrap, CloseLink } from "./ArticleModal.styles";
 
 import ArticleView from "@/components/ArticleView/ArticleView";
 
-export default function ArticleModalClient({ card }) {
+export default function ArticleModalClient({ card, video }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -322,9 +322,6 @@ export default function ArticleModalClient({ card }) {
 
   const [relatedArticles, setRelatedArticles] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
-
-  // ✅ NEW: video state
-  const [video, setVideo] = useState(null);
 
   // ---------------------------------------------------------------------------
   // Body scroll lock
@@ -413,47 +410,6 @@ export default function ArticleModalClient({ card }) {
         returnHref: "/",
       });
     }
-  }, [card.id, isArticleRoute]);
-
-  // ---------------------------------------------------------------------------
-  // ✅ NEW: Fetch video
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (!isArticleRoute) return;
-
-    let alive = true;
-
-    async function loadVideo() {
-      try {
-        const { data, error } = await supabase
-          .from("videos")
-          .select("youtube_video_id, youtube_url")
-          .eq("article_id", Number(card.id))
-          .eq("status", "posted")
-          .not("youtube_video_id", "is", null)
-          .order("posted_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (!alive) return;
-
-        if (error || !data) {
-          setVideo(null);
-          return;
-        }
-
-        setVideo(data);
-      } catch {
-        if (!alive) return;
-        setVideo(null);
-      }
-    }
-
-    loadVideo();
-
-    return () => {
-      alive = false;
-    };
   }, [card.id, isArticleRoute]);
 
   // ---------------------------------------------------------------------------
