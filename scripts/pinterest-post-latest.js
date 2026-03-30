@@ -1332,7 +1332,7 @@ function buildCategoryBadgeSVG(category, x, y) {
   const fill = categoryColor(category);
 
   const approxTextWidth = Math.max(108, label.length * 13.2);
-  const width = approxTextWidth + 54;
+  const width = approxTextWidth + 68;
 
   const height = 48;
   const radius = 24;
@@ -1408,7 +1408,7 @@ function buildOverlaySVG(title, category) {
 
   const badgeX = 70;
   const badgeHeight = 48;
-  const badgeToTitleGap = 78;
+  const badgeToTitleGap = 62;
   const badgeY = startY - badgeToTitleGap - badgeHeight;
 
   const titleSvg = lines
