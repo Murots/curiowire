@@ -75,8 +75,7 @@ function resolveEnvVideoSelection() {
 function modelForEnv({ provider, preset }) {
   if (provider === "kling") {
     return (
-      process.env.KLING_TEXT_MODEL ||
-      "fal-ai/kling-video/v2.5-turbo/pro/text-to-video"
+      process.env.KLING_TEXT_MODEL || "fal-ai/kling-video/v3/pro/text-to-video"
     );
   }
 

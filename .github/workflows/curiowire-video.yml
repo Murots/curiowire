@@ -12,11 +12,12 @@ on:
         required: true
         default: "kling"
   schedule:
-    # Weekdays ≈ 4 PM US East
-    - cron: "15 20 * * 1-5"
+    schedule:
+      # Weekdays only — optimized for US evening peak
+      - cron: "15 22 * * 1-5"
 
-    # Weekend ≈ 10 AM US East
-    - cron: "15 14 * * 6,0"
+    # # Weekend ≈ 10 AM US East
+    # - cron: "15 14 * * 6,0"
 
   # schedule:
   #   # 🎬 Videos: twice per day (00:05 and 12:05 UTC) - tidligere klokkeslett
@@ -70,6 +71,21 @@ jobs:
       PIKA_IMAGE_MODEL_FALLBACK: ${{ secrets.PIKA_IMAGE_MODEL_FALLBACK }}
 
       # =============================
+      # TTS / VOICE
+      # =============================
+      TTS_PROVIDER: ${{ secrets.TTS_PROVIDER }}
+      TTS_VOICE: ${{ secrets.TTS_VOICE }}
+      TTS_FALLBACK_PROVIDER: ${{ secrets.TTS_FALLBACK_PROVIDER }}
+
+      OPENAI_TTS_MODEL: ${{ secrets.OPENAI_TTS_MODEL }}
+      OPENAI_TTS_VOICE: ${{ secrets.OPENAI_TTS_VOICE }}
+
+      ELEVEN_TTS_MODEL: ${{ secrets.ELEVEN_TTS_MODEL }}
+      ELEVEN_TTS_STABILITY: ${{ secrets.ELEVEN_TTS_STABILITY }}
+      ELEVEN_LANGUAGE_CODE: ${{ secrets.ELEVEN_LANGUAGE_CODE }}
+      ELEVEN_APPLY_TEXT_NORMALIZATION: ${{ secrets.ELEVEN_APPLY_TEXT_NORMALIZATION }}
+
+      # =============================
       # SOCIAL
       # =============================
       YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
@@ -115,6 +131,15 @@ jobs:
           echo "KLING_CFG_SCALE=${KLING_CFG_SCALE}"
           echo "PIKA_SCENES_MODEL=${PIKA_SCENES_MODEL}"
           echo "PIKA_TEXT_MODEL=${PIKA_TEXT_MODEL}"
+          echo "TTS_PROVIDER=${TTS_PROVIDER}"
+          echo "TTS_VOICE=${TTS_VOICE}"
+          echo "TTS_FALLBACK_PROVIDER=${TTS_FALLBACK_PROVIDER}"
+          echo "OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL}"
+          echo "OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE}"
+          echo "ELEVEN_TTS_MODEL=${ELEVEN_TTS_MODEL}"
+          echo "ELEVEN_TTS_STABILITY=${ELEVEN_TTS_STABILITY}"
+          echo "ELEVEN_LANGUAGE_CODE=${ELEVEN_LANGUAGE_CODE}"
+          echo "ELEVEN_APPLY_TEXT_NORMALIZATION=${ELEVEN_APPLY_TEXT_NORMALIZATION}"
 
       # Optional: queue a job (manual only)
       - name: 🎬 Schedule single video
