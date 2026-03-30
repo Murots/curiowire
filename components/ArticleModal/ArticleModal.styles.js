@@ -623,3 +623,38 @@ export const CategoryLink = styled.a`
   text-decoration: none;
   color: inherit;
 `;
+
+export const VideoWrap = styled.div`
+  margin: 22px 0 28px;
+
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 16; /* Shorts format */
+
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+
+  iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+`;
+
+export const VideoMeta = styled.div`
+  margin-top: 8px;
+  font-size: 0.8rem;
+  opacity: 0.7;
+
+  a {
+    color: ${({ theme }) => theme.colors.accent};
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+`;

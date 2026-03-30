@@ -7,3 +7,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://curiowire.com/sitemap.xml
+Sitemap: https://curiowire.com/video-sitemap.xml
