@@ -625,10 +625,10 @@ export const CategoryLink = styled.a`
 `;
 
 export const VideoWrap = styled.div`
-  margin: 22px 0 28px;
+  margin: 0px auto 0px;
 
   position: relative;
-  width: 100%;
+  width: min(100%, 240px);
   aspect-ratio: 9 / 16; /* Shorts format */
 
   border-radius: 12px;
@@ -645,9 +645,10 @@ export const VideoWrap = styled.div`
 `;
 
 export const VideoMeta = styled.div`
-  margin-top: 8px;
+  margin-top: 5px;
   font-size: 0.8rem;
   opacity: 0.7;
+  text-align: center;
 
   a {
     color: ${({ theme }) => theme.colors.accent};

@@ -640,9 +640,26 @@ export default function ArticleView({
       ) : null}
 
       <Body>
+        {summaryHtml ? (
+          <div dangerouslySetInnerHTML={{ __html: summaryHtml }} />
+        ) : null}
+
+        <div dangerouslySetInnerHTML={{ __html: card.card_text || "" }} />
+
+        {card.fun_fact ? (
+          <div style={{ marginTop: 18 }}>
+            <h2 className="did-you-know">Did You Know?</h2>
+            <Divider />
+            <div dangerouslySetInnerHTML={{ __html: card.fun_fact }} />
+          </div>
+        ) : null}
+
         {/* 🎬 VIDEO */}
         {youtubeId ? (
-          <>
+          <div style={{ marginTop: 18 }}>
+            <h2 className="watch-video">Watch the short video</h2>
+            <Divider />
+
             {!playVideo ? (
               <VideoWrap
                 onClick={() => setPlayVideo(true)}
@@ -691,20 +708,6 @@ export default function ArticleView({
                 </a>
               </VideoMeta>
             ) : null}
-          </>
-        ) : null}
-
-        {summaryHtml ? (
-          <div dangerouslySetInnerHTML={{ __html: summaryHtml }} />
-        ) : null}
-
-        <div dangerouslySetInnerHTML={{ __html: card.card_text || "" }} />
-
-        {card.fun_fact ? (
-          <div style={{ marginTop: 18 }}>
-            <h2 className="did-you-know">Did You Know?</h2>
-            <Divider />
-            <div dangerouslySetInnerHTML={{ __html: card.fun_fact }} />
           </div>
         ) : null}
 
