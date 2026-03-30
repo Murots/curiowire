@@ -1,5 +1,5 @@
 // ============================================================================
-// CurioWire — generateCuriositySuggestions.v2.3.js
+// CurioWire — generateCuriositySuggestions.v2.4.js
 // Goal: Generate HIGH-WOW "curiosity suggestions" with strong anti-duplication
 // and stronger editorial quality control.
 //
@@ -11,12 +11,12 @@
 // ✅ Soft caps how often the same anchor can appear per category
 // ✅ Verifies via Wikipedia when possible, then LLM judge+rewrite for the rest
 //
-// v2.3 — step 1 + editorial quality layer:
-// - Universal curiosity definition across generation + verification
-// - Internal multi-score quality model (novelty / retellability / specificity / generic-risk)
-// - Only total wow_score is stored in DB
-// - Editorial filter rejects generic, spec-sheet, summary-like curiosities before insert
-// - Dedupe and verification flow unchanged in structure
+// v2.4 — technology quality upgrade:
+// - Dedicated technology style rules aimed at mass-market fascinating curiosities
+// - Rejects boring/niche security history and dry exploit material
+// - Still allows spectacular cyber events (major hacks, ransomware, large crypto thefts, etc.)
+// - Adds technology-specific editorial filters + category-specific wow threshold
+// - Keeps existing generation / dedupe / verification flow intact
 // ============================================================================
 
 import OpenAI from "openai";
@@ -44,6 +44,12 @@ const MIN_SPECIFICITY_SCORE = parseInt(
 );
 const MAX_GENERIC_FACT_RISK = parseInt(
   process.env.CURIO_MAX_GENERIC_RISK ?? "38",
+  10,
+);
+
+// Technology can be held to a slightly higher editorial bar
+const TECHNOLOGY_MIN_WOW_TO_KEEP = parseInt(
+  process.env.CURIO_TECH_MIN_WOW ?? "80",
   10,
 );
 
@@ -204,6 +210,14 @@ function wikiUrlFromTitle(title) {
   )}`;
 }
 
+function minWowForCategory(category) {
+  const c = String(category || "").toLowerCase();
+  if (c === "technology") {
+    return Math.max(MIN_WOW_TO_KEEP, TECHNOLOGY_MIN_WOW_TO_KEEP);
+  }
+  return MIN_WOW_TO_KEEP;
+}
+
 function looksLikeListicleOrFiller(s) {
   const t = (s || "").toLowerCase();
   if (!t) return true;
@@ -305,6 +319,103 @@ function looksLikeBroadSummary(s) {
   return false;
 }
 
+function looksLikeBoringSecurityTech(s) {
+  const t = (s || "").toLowerCase();
+
+  return /\b(vulnerability|vulnerabilities|exploit|exploits|browser add-on|browser extension|session hijacking|cookie theft|packet sniffing|sniffing tool|unsecured network|wi-fi security|wifi security|credential theft|proof of concept|researchers found|security researcher|raised awareness|demonstration tool|browser attack|login cookie|cookie hijack)\b/i.test(
+    t,
+  );
+}
+
+function looksLikeSpectacularCyberEvent(s) {
+  const t = (s || "").toLowerCase();
+
+  return /\b(ransomware|worm|virus|global outage|major outage|massive breach|largest breach|millions of users|billions|stolen funds|crypto theft|crypto heist|heist|cyberheist|cyber heist|state-backed|north korea|lazarus|wannacry|notpetya|stuxnet|colonial pipeline|sony hack|exchange hack|crippled hospitals|major breach|large-scale attack|supply-chain attack|supply chain attack)\b/i.test(
+    t,
+  );
+}
+
+function looksLikeDryTechHistory(s) {
+  const t = (s || "").toLowerCase();
+
+  if (
+    /\b(exposed a vulnerability|raised awareness|sparked concern|changed the internet|transformed online security|wake-up call)\b/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /\b(in \d{4}, .* tool|a browser add-on|a software tool|a security researcher|developer .* created)\b/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function looksLikeAbstractTech(s) {
+  const t = (s || "").toLowerCase();
+
+  return /\b(protocol|framework|infrastructure|backend|database engine|network stack|enterprise platform|server architecture|deployment pipeline|cloud service|authentication flow|encryption standard|identity provider|api gateway|container orchestration)\b/i.test(
+    t,
+  );
+}
+
+function looksLikeUnfamiliarOrNerdyTechAnchor(anchor = "", curiosity = "") {
+  const a = normText(anchor);
+  const c = normText(curiosity);
+
+  if (!a && !c) return true;
+
+  const familiarSignals = [
+    "keyboard",
+    "phone",
+    "iphone",
+    "android",
+    "camera",
+    "printer",
+    "remote",
+    "television",
+    "tv",
+    "screen",
+    "speaker",
+    "headphone",
+    "earbud",
+    "mouse",
+    "trackpad",
+    "usb",
+    "wifi",
+    "bluetooth",
+    "emoji",
+    "keyboard shortcut",
+    "video game",
+    "controller",
+    "cassette",
+    "vhs",
+    "dvd",
+    "cd",
+    "floppy",
+    "modem",
+    "alarm clock",
+    "smartwatch",
+    "calculator",
+    "camera shutter",
+    "touchscreen",
+    "mp3 player",
+    "game boy",
+    "walkman",
+    "remote control",
+    "flash drive",
+    "router",
+  ];
+
+  return !familiarSignals.some((x) => a.includes(x) || c.includes(x));
+}
+
 function computeCompositeWow({
   novelty = 50,
   retellability = 50,
@@ -354,15 +465,45 @@ function passesInternalScoreThresholds(scores) {
   return true;
 }
 
-function editorialRejectReason({ curiosity, topicTag = "", scores = null }) {
+function editorialRejectReason({
+  category = "",
+  curiosity,
+  topicTag = "",
+  anchorEntity = "",
+  scores = null,
+}) {
   if (looksLikeListicleOrFiller(curiosity)) return "listicle_or_filler";
   if (looksLikeThemeSentence(curiosity)) return "theme_sentence";
   if (looksLikeSpecOrCapabilitySentence(curiosity)) return "spec_or_capability";
   if (looksLikeBroadSummary(curiosity)) return "broad_summary";
 
+  const categoryKey = String(category || "").toLowerCase();
+  const isSpectacularCyber = looksLikeSpectacularCyberEvent(curiosity);
+
+  if (categoryKey === "technology") {
+    if (looksLikeBoringSecurityTech(curiosity) && !isSpectacularCyber) {
+      return "technology_boring_security";
+    }
+
+    if (looksLikeDryTechHistory(curiosity) && !isSpectacularCyber) {
+      return "technology_dry_history";
+    }
+
+    if (looksLikeAbstractTech(curiosity) && !isSpectacularCyber) {
+      return "technology_abstract";
+    }
+
+    if (
+      looksLikeUnfamiliarOrNerdyTechAnchor(anchorEntity, curiosity) &&
+      !isSpectacularCyber
+    ) {
+      return "technology_unfamiliar_anchor";
+    }
+  }
+
   const topicNorm = normText(topicTag);
   if (
-    /\b(battery life|performance|specifications|resolution|refresh rate|processor|features|benefits|biography)\b/i.test(
+    /\b(battery life|performance|specifications|resolution|refresh rate|processor|features|benefits|biography|internet security|cybersecurity|browser security|privacy issue|security flaw|software tool|wireless security|session hijacking)\b/i.test(
       topicNorm,
     )
   ) {
@@ -498,6 +639,49 @@ PRODUCTS STYLE:
 `.trim();
   }
 
+  if (category === "technology") {
+    return `
+${COMMON_BANS}
+
+TECHNOLOGY STYLE:
+- Prefer mass-market, everyday, consumer-facing technology that ordinary people instantly recognize or can picture.
+- Focus on hidden histories, strange design decisions, weird standards, accidental uses, legacy quirks, interface oddities, unusual constraints, failed formats, or unexpected consequences.
+- The best technology curiosities should make a general reader think: "Wait, really?" or "I use that and never knew why."
+
+PRIORITIZE THESE TECHNOLOGY SUBTYPES:
+- hidden origins of everyday tech
+- weird interface decisions
+- strange symbols, sounds, icons, signals, or default settings
+- legacy standards that survived for odd reasons
+- failed gadgets, dead-end formats, and near-miss technologies
+- accidental design wins or unintended uses
+- consumer tech shaped by human behavior, habit, or misunderstanding
+- physical quirks in devices people know: phones, keyboards, cameras, TVs, remotes, game controllers, printers, speakers, cars, watches, household gadgets
+
+CYBER / HACKING RULE:
+- Avoid ordinary vulnerabilities, proof-of-concept exploits, browser add-ons, old security warnings, and niche infosec history.
+- Allow cyber topics ONLY when the event is spectacular, iconic, or widely consequential: massive thefts, global malware outbreaks, state-backed attacks, major breaches, or bizarre attacks with clear public impact.
+- If the story would mainly interest security professionals rather than a general reader, discard it.
+
+GOOD TECHNOLOGY CURIOSITIES FEEL LIKE:
+- a weird reason something looks, sounds, or behaves the way it does
+- a product or standard that survived because of habit, culture, or an old compromise
+- a surprising real-world detail about a familiar device, interface, or format
+- a technology that became famous for an odd limitation, side effect, or unintended use
+- in cyber, a dramatic and concrete event with obvious scale, consequence, or absurdity
+
+AVOID IN TECHNOLOGY:
+- enterprise software, infrastructure, backend systems, or B2B tech
+- spec-sheet facts, capability claims, feature lists, performance claims, or marketing-like product descriptions
+- broad "this changed everything" tech-history summaries
+- old security issues unless they were truly massive, iconic, or socially shocking
+
+HARD FILTER:
+- If the curiosity sounds like a warning, a feature description, a dry Wikipedia summary, or a niche infosec anecdote, discard it.
+- Prefer things a normal reader can instantly picture, retell, and care about.
+`.trim();
+  }
+
   return `
 ${COMMON_BANS}
 
@@ -505,6 +689,27 @@ CATEGORY STYLE:
 - Stay clearly within the category, but do not narrow it to one sub-type.
 - Prefer a specific anchor, a surprising detail, and meaningful context.
 - Avoid dry, technical, or specialist framing if a more vivid real-world angle exists.
+`.trim();
+}
+
+function buildCategoryFewShotHints(category) {
+  if (category !== "technology") return "";
+
+  return `
+TECHNOLOGY EXAMPLES OF THE RIGHT FEEL:
+- a familiar device kept an odd design choice for a reason most users never noticed
+- a common icon, sound, or interface behavior survived long after its original technology disappeared
+- a failed gadget or format left behind a habit people still use
+- a product became memorable because of a strange limitation, workaround, or accidental use
+- a design compromise in everyday tech shaped how millions of people still interact with devices
+- a cyber event became globally notorious because the scale, absurdity, or consequence was obvious even to non-technical people
+
+TECHNOLOGY EXAMPLES OF THE WRONG FEEL:
+- old proof-of-concept attack tools
+- routine vulnerabilities or niche exploits
+- dry software/security history
+- abstract privacy scares with no vivid real-world hook
+- feature/spec/performance facts
 `.trim();
 }
 
@@ -525,6 +730,8 @@ It should not read like a summary, definition, specification, or generic fact.
 Prefer rare incidents, odd outcomes, overlooked origins, or unusual uses.
 
 ${buildCategoryStyleRules(category)}
+
+${buildCategoryFewShotHints(category)}
 
 NOVELTY REQUIREMENTS:
 - Avoid over-covered topics and headline-level summaries.
@@ -579,7 +786,7 @@ Each line MUST be a JSON object:
 Important:
 - "anchor_entity" and "topic_tag" MUST be short (2-8 words).
 - "topic_tag" must name the specific surprising detail, not a generic label like "history", "biography", "technology", "battery life", or "performance".
-- Score harshly against generic, brochure-like, summary-like, or feature-like output.
+- Score harshly against generic, brochure-like, summary-like, feature-like, or warning-like output.
 
 Return ONLY JSONL. No extra text.
 Start now.
@@ -604,6 +811,11 @@ Curiosity definition:
 - Must include: a specific anchor + a surprising detail + meaningful context.
 - It should feel retellable, concrete, and somewhat rare or unexpected.
 - It must NOT read like a textbook line, product page, feature description, or broad explainer fact.
+
+Extra technology rule:
+- For technology, prefer mass-market, concrete, vivid, retellable curiosities.
+- Reject routine vulnerabilities, dry exploit history, narrow infosec anecdotes, and warning-like copy.
+- Allow spectacular cyber events only when the scale or consequence is obvious to a general reader.
 
 Rules:
 - If likely true but too vague, too generic, too summary-like, or too broad: verdict="rewrite" with a sharper safe_rewrite.
@@ -695,6 +907,7 @@ async function generateForCategory({
 
   const cleaned = [];
   const localSeenCuriosity = new Set();
+  const rejectStats = new Map();
 
   const catKey = category.toLowerCase();
   if (!anchorsUsedByCategory.has(catKey)) {
@@ -724,11 +937,16 @@ async function generateForCategory({
     );
 
     const rejectReason = editorialRejectReason({
+      category: catKey,
       curiosity,
       topicTag: topic_tag,
+      anchorEntity: anchor_entity,
       scores,
     });
-    if (rejectReason) continue;
+    if (rejectReason) {
+      rejectStats.set(rejectReason, (rejectStats.get(rejectReason) || 0) + 1);
+      continue;
+    }
 
     if (computedWow < minWow) continue;
     if (wow < minWow) continue;
@@ -770,6 +988,13 @@ async function generateForCategory({
 
     seenKey.add(key);
     anchorCounts.set(anchorNorm, usedCount + 1);
+  }
+
+  if (catKey === "technology" && rejectStats.size) {
+    console.log(
+      "🧹 technology reject reasons:",
+      Object.fromEntries(rejectStats),
+    );
   }
 
   return cleaned;
@@ -926,13 +1151,16 @@ async function noUrlJudgeBatch(rows) {
     const originalRow = byId.get(id);
     const original = originalRow?.curiosity || "";
     const topicTag = originalRow?.topic_tag || "";
+    const minWowForThisRow = minWowForCategory(originalRow?.category || "");
 
     if (verdict === "pass" && confidence >= MIN_CONFIDENCE_TO_VERIFY) {
-      if (computedWow < MIN_WOW_TO_KEEP) continue;
+      if (computedWow < minWowForThisRow) continue;
 
       const rejectReason = editorialRejectReason({
+        category: originalRow?.category || "",
         curiosity: original,
         topicTag,
+        anchorEntity: originalRow?.anchor_entity || "",
         scores,
       });
       if (rejectReason) {
@@ -963,7 +1191,7 @@ async function noUrlJudgeBatch(rows) {
       rewrite &&
       confidence >= MIN_CONFIDENCE_TO_VERIFY
     ) {
-      if (computedWow < MIN_WOW_TO_KEEP) {
+      if (computedWow < minWowForThisRow) {
         updates.push({
           id,
           status: "flagged",
@@ -976,8 +1204,10 @@ async function noUrlJudgeBatch(rows) {
       }
 
       const rejectReason = editorialRejectReason({
+        category: originalRow?.category || "",
         curiosity: rewrite,
         topicTag,
+        anchorEntity: originalRow?.anchor_entity || "",
         scores,
       });
       if (rejectReason) {
@@ -1046,10 +1276,11 @@ async function applyNoUrlUpdates(updates) {
 // MAIN
 // ----------------------------------------------------------------------------
 async function main() {
-  console.log("🔧 generateCuriositySuggestions.v2.3.js");
+  console.log("🔧 generateCuriositySuggestions.v2.4.js");
   console.log("   model:", MODEL);
   console.log("   categories:", CATEGORIES.join(", "));
   console.log("   MIN_WOW_TO_KEEP:", MIN_WOW_TO_KEEP);
+  console.log("   TECHNOLOGY_MIN_WOW_TO_KEEP:", TECHNOLOGY_MIN_WOW_TO_KEEP);
   console.log("   MIN_NOVELTY_SCORE:", MIN_NOVELTY_SCORE);
   console.log("   MIN_RETELL_SCORE:", MIN_RETELL_SCORE);
   console.log("   MIN_SPECIFICITY_SCORE:", MIN_SPECIFICITY_SCORE);
@@ -1078,9 +1309,10 @@ async function main() {
     const targetUnused = TARGET_BY_CATEGORY[category];
     const haveUnusedEligible = await countEligibleUnused(category);
     const missing = Math.max(0, targetUnused - haveUnusedEligible);
+    const categoryMinWow = minWowForCategory(category);
 
     console.log(
-      `\n--- CATEGORY: ${category.toUpperCase()} (targetUnused=${targetUnused}, haveUnusedEligible=${haveUnusedEligible}, missing=${missing}) ---`,
+      `\n--- CATEGORY: ${category.toUpperCase()} (targetUnused=${targetUnused}, haveUnusedEligible=${haveUnusedEligible}, missing=${missing}, minWow=${categoryMinWow}) ---`,
     );
 
     if (missing === 0) {
@@ -1116,7 +1348,7 @@ async function main() {
         category,
         askCount: ask,
         avoidAnchors,
-        minWow: MIN_WOW_TO_KEEP,
+        minWow: categoryMinWow,
         seenKey,
         anchorsUsedByCategory,
       });
@@ -1212,6 +1444,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("💥 generateCuriositySuggestions.v2.3.js failed:", err);
+  console.error("💥 generateCuriositySuggestions.v2.4.js failed:", err);
   process.exit(1);
 });

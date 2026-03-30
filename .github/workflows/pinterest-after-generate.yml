@@ -3,7 +3,9 @@ name: CurioWire Pinterest Poster
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["CurioWire Auto Article Generator"]
+    workflows:
+      - "CurioWire Auto Article Generator"
+      - "CurioWire Weekly List Article Generator"
     types: [completed]
 
 jobs:
