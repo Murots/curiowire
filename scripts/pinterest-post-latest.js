@@ -1328,14 +1328,14 @@ function categoryColor(category) {
 }
 
 function buildCategoryBadgeSVG(category, x, y) {
-  const label = escapeXml(titleCase(category || "CurioWire"));
+  const label = escapeXml(safeStr(category || "CurioWire").toUpperCase());
   const fill = categoryColor(category);
 
-  const approxTextWidth = Math.max(88, label.length * 11.5);
-  const width = approxTextWidth + 48;
+  const approxTextWidth = Math.max(108, label.length * 13.2);
+  const width = approxTextWidth + 54;
 
-  const height = 44;
-  const radius = 22;
+  const height = 48;
+  const radius = 24;
 
   return `
     <rect
@@ -1354,10 +1354,10 @@ function buildCategoryBadgeSVG(category, x, y) {
       text-anchor="middle"
       dominant-baseline="central"
       fill="white"
-      font-size="24"
+      font-size="28"
       font-weight="700"
       font-family="Arial, Helvetica, sans-serif"
-      letter-spacing="0.3"
+      letter-spacing="1.6"
     >${label}</text>
   `;
 }
@@ -1407,8 +1407,8 @@ function buildOverlaySVG(title, category) {
   const startY = 1500 - 135 - blockHeight;
 
   const badgeX = 70;
-  const badgeHeight = 44;
-  const badgeToTitleGap = 34;
+  const badgeHeight = 48;
+  const badgeToTitleGap = 78;
   const badgeY = startY - badgeToTitleGap - badgeHeight;
 
   const titleSvg = lines
