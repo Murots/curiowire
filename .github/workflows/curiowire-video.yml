@@ -12,9 +12,8 @@ on:
         required: true
         default: "kling"
   schedule:
-    schedule:
-      # Weekdays only — optimized for US evening peak
-      - cron: "15 22 * * 1-5"
+    # Weekdays only — optimized for US evening peak
+    - cron: "15 22 * * 1-5"
 
     # # Weekend ≈ 10 AM US East
     # - cron: "15 14 * * 6,0"
