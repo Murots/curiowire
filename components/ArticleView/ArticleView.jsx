@@ -425,8 +425,8 @@ import {
   RelatedImage,
   RelatedImageOverlay,
   RelatedText,
-  VideoWrap, // ✅ NEW
-  VideoMeta, // ✅ NEW
+  VideoWrap,
+  VideoMeta,
 } from "@/components/ArticleModal/ArticleModal.styles";
 
 import { cleanText } from "@/app/api/utils/cleanText";
@@ -540,6 +540,34 @@ function getDisplaySources(card) {
 }
 
 /* =========================
+   DEFENSIVE VIDEO CHECK
+========================= */
+
+function getPublishAtMs(video) {
+  const raw = video?.posted_results?.youtube?.detail?.publishAt;
+  const ms = raw ? new Date(raw).getTime() : NaN;
+  return Number.isFinite(ms) ? ms : NaN;
+}
+
+function isLiveVideo(video) {
+  if (!video) return false;
+
+  const hasBasicFields =
+    String(video.youtube_video_id || "").trim().length > 0 &&
+    String(video.youtube_url || "").trim().length > 0;
+
+  if (!hasBasicFields) return false;
+
+  const publishAtMs = getPublishAtMs(video);
+
+  // If video comes from live_youtube_videos view, it's already live.
+  // If posted_results is present, still verify publishAt defensively.
+  if (!Number.isFinite(publishAtMs)) return true;
+
+  return publishAtMs <= Date.now();
+}
+
+/* =========================
    COMPONENT
 ========================= */
 
@@ -598,7 +626,7 @@ export default function ArticleView({
     pointerEvents: "none",
   };
 
-  const youtubeId = video?.youtube_video_id;
+  const youtubeId = isLiveVideo(video) ? video?.youtube_video_id : null;
 
   return (
     <Swap $soft={false} data-variant={variant} key={card.id}>

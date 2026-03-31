@@ -8,16 +8,19 @@ async function fetchVideo(articleId) {
   const sb = supabaseServer();
 
   const { data } = await sb
-    .from("videos")
-    .select("youtube_video_id, youtube_url, posted_at")
+    .from("live_youtube_videos")
+    .select("youtube_video_id, youtube_url, posted_at, posted_results")
     .eq("article_id", Number(articleId))
-    .eq("status", "posted")
-    .not("youtube_video_id", "is", null)
     .order("posted_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  return data || null;
+  if (!data) return null;
+
+  return {
+    ...data,
+    status: "posted",
+  };
 }
 
 export default async function ArticleModalPage({ params }) {
