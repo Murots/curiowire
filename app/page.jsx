@@ -454,6 +454,7 @@ export default async function HomePage({ searchParams }) {
 
   const sortQ = normalizeSort(getSP(spResolved, "sort"));
   const q = normalizeQ(getSP(spResolved, "q"));
+  const effectiveQ = q.length >= 3 ? q : "";
 
   // We SSR "newest", "wow", "lists", and "video" with DB ordering/filtering.
   // "trending" and "random" are client modes, but we still SSR a reasonable feed.
@@ -471,7 +472,7 @@ export default async function HomePage({ searchParams }) {
   if (ssrSort === "video") {
     const { data } = await supabase.rpc("get_video_curiosities", {
       p_category: null,
-      p_q: q || null,
+      p_q: effectiveQ || null,
       p_limit: PAGE_SIZE,
       p_offset: 0,
     });
@@ -487,8 +488,8 @@ export default async function HomePage({ searchParams }) {
       .eq("is_listed", true);
 
     // Optional SSR search (keeps SEO coherent for /?q=... URLs too)
-    if (q) {
-      const safeQ = escapePostgrestOrLike(q);
+    if (effectiveQ) {
+      const safeQ = escapePostgrestOrLike(effectiveQ);
       qy = qy.or(`title.ilike.%${safeQ}%,summary_normalized.ilike.%${safeQ}%`);
     }
 
@@ -590,7 +591,7 @@ export default async function HomePage({ searchParams }) {
         initialQuery={{
           category: categoryQ, // always "all" on "/"
           sort: sortQ,
-          q,
+          q: effectiveQ,
         }}
       />
     </>

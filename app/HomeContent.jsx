@@ -1162,6 +1162,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const categoryQ = query.category;
   const sortQ = query.sort;
   const q = query.q;
+  const effectiveQ = q.length >= 3 ? q : "";
 
   const [hydrated, setHydrated] = useState(false);
 
@@ -1299,13 +1300,13 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
       writeSavedFeedState({
         ts: Date.now(),
-        query: { category: categoryQ, sort: sortQ, q },
+        query: { category: categoryQ, sort: sortQ, q: effectiveQ },
         page,
         hasMore,
         cards: cards || [],
       });
     },
-    [cards, categoryQ, sortQ, q, page, hasMore],
+    [cards, categoryQ, sortQ, effectiveQ, page, hasMore],
   );
 
   useEffect(() => {
@@ -1370,7 +1371,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
       setPage((p) => (p === 1 ? p : 1));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryQ, sortQ, q]);
+  }, [categoryQ, sortQ, effectiveQ]);
 
   useEffect(() => {
     let alive = true;
@@ -1408,7 +1409,8 @@ export default function HomeContent({ initialCards, initialQuery }) {
   useEffect(() => {
     let alive = true;
 
-    const isNavPendingBaseState = navPendingRef.current && page === 1 && !q;
+    const isNavPendingBaseState =
+      navPendingRef.current && page === 1 && !effectiveQ;
 
     if (
       isNavPendingBaseState &&
@@ -1424,7 +1426,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
     }
 
     const isDefault =
-      categoryQ === "all" && sortQ === "newest" && page === 1 && !q;
+      categoryQ === "all" && sortQ === "newest" && page === 1 && !effectiveQ;
 
     if (isDefault && !restoredRef.current) {
       setCards(dedupeById(attachLiveVideoToCardRows(initialCards || [])));
@@ -1452,7 +1454,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
           const { data, error } = await supabase.rpc("get_video_curiosities", {
             p_category: catArg,
-            p_q: q || null,
+            p_q: effectiveQ || null,
             p_limit: PAGE_SIZE,
             p_offset: offset,
           });
@@ -1486,8 +1488,8 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
         if (categoryQ !== "all") qy = qy.eq("category", categoryQ);
 
-        if (q) {
-          const safe = escapeLike(q);
+        if (effectiveQ) {
+          const safe = escapeLike(effectiveQ);
           qy = qy.or(
             `title.ilike.%${safe}%,summary_normalized.ilike.%${safe}%`,
           );
@@ -1544,7 +1546,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
     return () => {
       alive = false;
     };
-  }, [categoryQ, sortQ, q, page, initialCards]);
+  }, [categoryQ, sortQ, effectiveQ, page, initialCards]);
 
   useEffect(() => {
     if (sortQ !== "trending") return;
@@ -1554,7 +1556,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
       return;
     }
 
-    const qLower = q.toLowerCase();
+    const qLower = effectiveQ.toLowerCase();
 
     const filteredByCat =
       categoryQ === "all"
@@ -1578,7 +1580,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
     if (!trendingLoading) setDidInit(true);
     navPendingRef.current = false;
-  }, [sortQ, categoryQ, q, trendingList, trendingLoading]);
+  }, [sortQ, categoryQ, effectiveQ, trendingList, trendingLoading]);
 
   useEffect(() => {
     if (sortQ !== "random") return;
@@ -1691,7 +1693,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
   const isEmpty = !cards || cards.length === 0;
 
-  const hasSearch = !!q;
+  const hasSearch = !!effectiveQ;
   const hasCategory = categoryQ !== "all";
 
   const breadcrumbItems = hasCategory
@@ -1701,7 +1703,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const breadcrumbColor = hasCategory ? getCategoryColor(categoryQ) : null;
 
   const emptyMessage = hasSearch
-    ? `No curiosities matched “${q}”.`
+    ? `No curiosities matched “${effectiveQ}”.`
     : hasCategory
       ? `No curiosities found in “${categoryQ}” yet.`
       : isTrendingMode
@@ -1752,9 +1754,9 @@ export default function HomeContent({ initialCards, initialQuery }) {
               >
                 <option value="newest">Newest</option>
                 <option value="trending">Trending</option>
-                <option value="random">Random</option>
                 <option value="lists">List Curios</option>
                 <option value="video">With video</option>
+                <option value="random">Random</option>
               </Select>
             </Controls>
           </TopBar>

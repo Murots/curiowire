@@ -40,6 +40,7 @@ function normalizeSort(input) {
   if (v === "trending") return "trending";
   if (v === "random") return "random";
   if (v === "lists") return "lists";
+  if (v === "video") return "video";
   if (v === "wow") return "wow";
   return "newest";
 }
@@ -80,6 +81,32 @@ function cleanInlineText(s) {
     .trim();
 }
 
+function escapePostgrestOrLike(s) {
+  return String(s || "").replace(/'/g, "''");
+}
+
+function attachLiveVideoToCardRows(rows) {
+  return (Array.isArray(rows) ? rows : []).map((row) => {
+    if (Array.isArray(row?.videos)) return row;
+
+    const liveVideo =
+      row?.youtube_video_id || row?.youtube_url
+        ? {
+            youtube_video_id: row.youtube_video_id || null,
+            youtube_url: row.youtube_url || null,
+            posted_at: row.posted_at || null,
+            posted_results: row.posted_results || null,
+            status: "posted",
+          }
+        : null;
+
+    return {
+      ...row,
+      videos: liveVideo ? [liveVideo] : [],
+    };
+  });
+}
+
 /* === 🧠 SERVER-SIDE METADATA (SEO) === */
 export async function generateMetadata({ params, searchParams }) {
   const baseUrl = "https://curiowire.com";
@@ -98,25 +125,28 @@ export async function generateMetadata({ params, searchParams }) {
 
   const sortQ = normalizeSort(getSP(spResolved, "sort"));
   const q = normalizeQ(getSP(spResolved, "q"));
+  const effectiveQ = q.length >= 3 ? q : "";
 
   const label = category.charAt(0).toUpperCase() + category.slice(1);
 
   // ✅ Index only the "clean" category feed page:
-  const isCleanCategory = !q && sortQ === "newest";
+  const isCleanCategory = !effectiveQ && sortQ === "newest";
 
   const title = `CurioWire — ${label} curiosities`;
 
-  const description = q
-    ? `Search results in ${label} on CurioWire for “${q}”.`
+  const description = effectiveQ
+    ? `Search results in ${label} on CurioWire for “${effectiveQ}”.`
     : sortQ === "trending"
       ? `Trending ${label.toLowerCase()} curiosities on CurioWire.`
       : sortQ === "random"
         ? `Random ${label.toLowerCase()} curiosities on CurioWire.`
         : sortQ === "lists"
           ? `${label} list curiosities on CurioWire.`
-          : sortQ === "wow"
-            ? `Top-rated ${label.toLowerCase()} curiosities on CurioWire.`
-            : `Fresh, short ${category} curiosities — published daily.`;
+          : sortQ === "video"
+            ? `${label} curiosities with video on CurioWire.`
+            : sortQ === "wow"
+              ? `Top-rated ${label.toLowerCase()} curiosities on CurioWire.`
+              : `Fresh, short ${category} curiosities — published daily.`;
 
   const canonical = `${baseUrl}/${category}`;
 
@@ -182,47 +212,69 @@ export default async function CategoryFeedPage({ params, searchParams }) {
 
   const sortQ = normalizeSort(getSP(spResolved, "sort"));
   const q = normalizeQ(getSP(spResolved, "q"));
+  const effectiveQ = q.length >= 3 ? q : "";
 
   // SSR sort
   const ssrSort =
-    sortQ === "wow" ? "wow" : sortQ === "lists" ? "lists" : "newest";
+    sortQ === "wow"
+      ? "wow"
+      : sortQ === "lists"
+        ? "lists"
+        : sortQ === "video"
+          ? "video"
+          : "newest";
 
   const sb = supabaseServer();
 
-  let qy = sb
-    .from("curiosity_cards")
-    .select(
-      "id, category, title, summary_normalized, image_url, created_at, wow_score, article_type, seo_title, seo_description",
-    )
-    .eq("status", "published")
-    .eq("is_listed", true)
-    .eq("category", category);
+  let list = [];
 
-  if (q) {
-    const safeQ = q.replace(/'/g, "''");
-    qy = qy.or(`title.ilike.%${safeQ}%,summary_normalized.ilike.%${safeQ}%`);
+  if (ssrSort === "video") {
+    const { data, error } = await sb.rpc("get_video_curiosities", {
+      p_category: category,
+      p_q: effectiveQ || null,
+      p_limit: PAGE_SIZE,
+      p_offset: 0,
+    });
+
+    if (error) notFound();
+
+    list = attachLiveVideoToCardRows(data || []);
+  } else {
+    let qy = sb
+      .from("curiosity_cards")
+      .select(
+        "id, category, title, summary_normalized, image_url, created_at, wow_score, article_type, seo_title, seo_description, videos(youtube_video_id, youtube_url, posted_at, posted_results, status)",
+      )
+      .eq("status", "published")
+      .eq("is_listed", true)
+      .eq("category", category);
+
+    if (effectiveQ) {
+      const safeQ = escapePostgrestOrLike(effectiveQ);
+      qy = qy.or(`title.ilike.%${safeQ}%,summary_normalized.ilike.%${safeQ}%`);
+    }
+
+    if (ssrSort === "lists") {
+      qy = qy
+        .eq("article_type", "list")
+        .order("created_at", { ascending: false });
+    }
+
+    if (ssrSort === "newest") {
+      qy = qy.order("created_at", { ascending: false });
+    }
+
+    if (ssrSort === "wow") {
+      qy = qy
+        .order("wow_score", { ascending: false })
+        .order("created_at", { ascending: false });
+    }
+
+    const { data: cards, error } = await qy.limit(PAGE_SIZE);
+    if (error) notFound();
+
+    list = attachLiveVideoToCardRows(cards || []);
   }
-
-  if (ssrSort === "lists") {
-    qy = qy
-      .eq("article_type", "list")
-      .order("created_at", { ascending: false });
-  }
-
-  if (ssrSort === "newest") {
-    qy = qy.order("created_at", { ascending: false });
-  }
-
-  if (ssrSort === "wow") {
-    qy = qy
-      .order("wow_score", { ascending: false })
-      .order("created_at", { ascending: false });
-  }
-
-  const { data: cards, error } = await qy.limit(PAGE_SIZE);
-  if (error) notFound();
-
-  const list = Array.isArray(cards) ? cards : [];
 
   const label = category.charAt(0).toUpperCase() + category.slice(1);
 
@@ -307,7 +359,7 @@ export default async function CategoryFeedPage({ params, searchParams }) {
         initialQuery={{
           category,
           sort: sortQ,
-          q,
+          q: effectiveQ,
         }}
       />
     </>

@@ -282,7 +282,6 @@
 //   );
 // }
 
-// components/Header/Header.jsx
 "use client";
 
 import React, { Suspense, useEffect, useMemo, useState } from "react";
@@ -372,7 +371,9 @@ function HeaderInner() {
 
   const categories = useMemo(() => CATEGORIES, []);
 
-  function setQuery(next) {
+  function setQuery(next, options = {}) {
+    const { replace = false } = options;
+
     // Build from current querystring
     const params = new URLSearchParams(sp.toString());
 
@@ -403,6 +404,10 @@ function HeaderInner() {
     // Build target URL
     const basePath = nextCat !== "all" ? `/${nextCat}` : `/`;
     const qs = params.toString();
+    const target = qs ? `${basePath}?${qs}` : basePath;
+    const current = pathname + (sp.toString() ? `?${sp.toString()}` : "");
+
+    if (target === current) return;
 
     // ✅ Drop cached feed/scroll state når header endrer query (samme som HomeContent)
     try {
@@ -410,7 +415,11 @@ function HeaderInner() {
       sessionStorage.removeItem("cw_scroll_y");
     } catch {}
 
-    router.push(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
+    if (replace) {
+      router.replace(target, { scroll: false });
+    } else {
+      router.push(target, { scroll: false });
+    }
   }
 
   // debounce URL update for search
@@ -420,9 +429,18 @@ function HeaderInner() {
 
     const t = setTimeout(() => {
       const cleaned = String(searchVal || "").trim();
+
       // empty string => deletes q
-      setQuery({ q: cleaned });
-    }, 260);
+      if (!cleaned) {
+        setQuery({ q: "" }, { replace: true });
+        return;
+      }
+
+      // don't start search until at least 3 characters
+      if (cleaned.length < 3) return;
+
+      setQuery({ q: cleaned }, { replace: true });
+    }, 500);
 
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -430,7 +448,7 @@ function HeaderInner() {
 
   const clearSearch = () => {
     setSearchVal("");
-    setQuery({ q: "" });
+    setQuery({ q: "" }, { replace: true });
   };
 
   return (
