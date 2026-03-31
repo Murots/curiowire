@@ -40,6 +40,7 @@ export async function GET() {
         youtube_video_id,
         youtube_url,
         posted_at,
+        posted_results,
         curiosity_cards!inner (
           id,
           title,
@@ -76,9 +77,17 @@ export async function GET() {
         "CurioWire short video";
       const thumbnailUrl = `https://img.youtube.com/vi/${row.youtube_video_id}/maxresdefault.jpg`;
       const embedUrl = `https://www.youtube.com/embed/${row.youtube_video_id}`;
+
+      const youtubePublishAt = row?.posted_results?.youtube?.detail?.publishAt;
+
       const publicationDate = new Date(
-        row.posted_at || card.updated_at || card.created_at || Date.now(),
+        youtubePublishAt ||
+          row.posted_at ||
+          card.updated_at ||
+          card.created_at ||
+          Date.now(),
       ).toISOString();
+
       const lastmod = new Date(
         card.updated_at || card.created_at || row.posted_at || Date.now(),
       ).toISOString();
@@ -88,12 +97,12 @@ export async function GET() {
     <loc>${xmlEscape(articleUrl)}</loc>
     <lastmod>${lastmod}</lastmod>
     <video:video>
-        <video:thumbnail_loc>${xmlEscape(thumbnailUrl)}</video:thumbnail_loc>
-        <video:title>${xmlEscape(title)}</video:title>
-        <video:description>${xmlEscape(description)}</video:description>
-        <video:player_loc>${xmlEscape(embedUrl)}</video:player_loc>
-        <video:duration>32</video:duration>
-        <video:publication_date>${publicationDate}</video:publication_date>
+      <video:thumbnail_loc>${xmlEscape(thumbnailUrl)}</video:thumbnail_loc>
+      <video:title>${xmlEscape(title)}</video:title>
+      <video:description>${xmlEscape(description)}</video:description>
+      <video:player_loc>${xmlEscape(embedUrl)}</video:player_loc>
+      <video:duration>32</video:duration>
+      <video:publication_date>${publicationDate}</video:publication_date>
     </video:video>
   </url>`;
     })
