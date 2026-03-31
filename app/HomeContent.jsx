@@ -783,7 +783,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
                 <option value="newest">Newest</option>
                 <option value="trending">Trending</option>
                 <option value="random">Random</option>
-                <option value="lists">List Curios</option>
+                <option value="lists">Lists only</option>
               </Select>
             </Controls>
           </TopBar>
