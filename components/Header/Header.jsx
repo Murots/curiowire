@@ -1,4 +1,3 @@
-// // components/Header/Header.jsx
 // "use client";
 
 // import React, { Suspense, useEffect, useMemo, useState } from "react";
@@ -88,7 +87,9 @@
 
 //   const categories = useMemo(() => CATEGORIES, []);
 
-//   function setQuery(next) {
+//   function setQuery(next, options = {}) {
+//     const { replace = false } = options;
+
 //     // Build from current querystring
 //     const params = new URLSearchParams(sp.toString());
 
@@ -119,6 +120,10 @@
 //     // Build target URL
 //     const basePath = nextCat !== "all" ? `/${nextCat}` : `/`;
 //     const qs = params.toString();
+//     const target = qs ? `${basePath}?${qs}` : basePath;
+//     const current = pathname + (sp.toString() ? `?${sp.toString()}` : "");
+
+//     if (target === current) return;
 
 //     // ✅ Drop cached feed/scroll state når header endrer query (samme som HomeContent)
 //     try {
@@ -126,7 +131,11 @@
 //       sessionStorage.removeItem("cw_scroll_y");
 //     } catch {}
 
-//     router.push(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
+//     if (replace) {
+//       router.replace(target, { scroll: false });
+//     } else {
+//       router.push(target, { scroll: false });
+//     }
 //   }
 
 //   // debounce URL update for search
@@ -136,9 +145,18 @@
 
 //     const t = setTimeout(() => {
 //       const cleaned = String(searchVal || "").trim();
+
 //       // empty string => deletes q
-//       setQuery({ q: cleaned });
-//     }, 260);
+//       if (!cleaned) {
+//         setQuery({ q: "" }, { replace: true });
+//         return;
+//       }
+
+//       // don't start search until at least 3 characters
+//       if (cleaned.length < 3) return;
+
+//       setQuery({ q: cleaned }, { replace: true });
+//     }, 500);
 
 //     return () => clearTimeout(t);
 //     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -146,7 +164,7 @@
 
 //   const clearSearch = () => {
 //     setSearchVal("");
-//     setQuery({ q: "" });
+//     setQuery({ q: "" }, { replace: true });
 //   };
 
 //   return (
@@ -250,8 +268,9 @@
 //               >
 //                 <option value="newest">Newest</option>
 //                 <option value="trending">Trending</option>
+//                 <option value="lists">List Curios</option>
+//                 <option value="video">With video</option>
 //                 <option value="random">Random</option>
-//                 <option value="lists">Lists only</option>
 //               </MobileSelect>
 //             </MobileRow>
 //           </MobilePanel>
@@ -290,7 +309,9 @@ import Link from "next/link";
 import {
   HeaderWrapper,
   Inner,
+  LogoBlock,
   Logo,
+  Tagline,
   DesktopSearchWrap,
   SearchInput,
   ClearButton,
@@ -333,7 +354,7 @@ function HeaderInner() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ------------------------------------------------------------
-  // ✅ Read current state from URL:
+  // Read current state from URL:
   // - category comes from PATH (/science), not querystring
   // - sort/q come from querystring (?sort=trending&q=foo)
   // ------------------------------------------------------------
@@ -409,7 +430,7 @@ function HeaderInner() {
 
     if (target === current) return;
 
-    // ✅ Drop cached feed/scroll state når header endrer query (samme som HomeContent)
+    // Drop cached feed/scroll state when header changes query
     try {
       sessionStorage.removeItem("cw_feed_state_v1");
       sessionStorage.removeItem("cw_scroll_y");
@@ -424,7 +445,7 @@ function HeaderInner() {
 
   // debounce URL update for search
   useEffect(() => {
-    // ✅ Don't auto-navigate away from article pages on mount/hydration
+    // Don't auto-navigate away from article pages on mount/hydration
     if (isArticleRoute) return;
 
     const t = setTimeout(() => {
@@ -454,16 +475,25 @@ function HeaderInner() {
   return (
     <HeaderWrapper>
       <Inner>
-        <Logo>
-          <Link href="/" aria-label="CurioWire home">
-            <img src="/logo.svg" alt="CurioWire" width="140" height="32" />
-          </Link>
-        </Logo>
+        <LogoBlock>
+          <Logo>
+            <Link href="/" aria-label="CurioWire home">
+              <img
+                src="/logo_white.svg"
+                alt="CurioWire"
+                width="140"
+                height="32"
+              />
+            </Link>
+          </Logo>
 
-        {/* ✅ Hide search + filter controls on direct article pages */}
+          {/* {!isArticleRoute ? (
+            <Tagline aria-hidden="true">Weird. Fascinating. True.</Tagline>
+          ) : null} */}
+        </LogoBlock>
+
         {!isArticleRoute ? (
           <>
-            {/* Desktop search (hidden on small screens via CSS) */}
             <DesktopSearchWrap>
               <SearchInput
                 value={searchVal}
@@ -478,12 +508,10 @@ function HeaderInner() {
               ) : null}
             </DesktopSearchWrap>
 
-            {/* Mobile: filter icon (opens drawer with search + controls) */}
             <FilterButton
               onClick={() => setMenuOpen(true)}
               aria-label="Open filters"
             >
-              {/* simple “filter” icon */}
               <svg
                 width="22"
                 height="22"
@@ -506,7 +534,6 @@ function HeaderInner() {
         )}
       </Inner>
 
-      {/* Mobile drawer (disabled on article pages) */}
       {!isArticleRoute && menuOpen ? (
         <MobileMenu onClick={() => setMenuOpen(false)}>
           <MobilePanel onClick={(e) => e.stopPropagation()}>
@@ -565,17 +592,23 @@ function HeaderInner() {
 }
 
 export default function Header() {
-  // ✅ Important: wrap any useSearchParams() usage in Suspense
   return (
     <Suspense
       fallback={
         <HeaderWrapper>
           <Inner>
-            <Logo>
-              <Link href="/" aria-label="CurioWire home">
-                <img src="/logo.svg" alt="CurioWire" width="140" height="32" />
-              </Link>
-            </Logo>
+            <LogoBlock>
+              <Logo>
+                <Link href="/" aria-label="CurioWire home">
+                  <img
+                    src="/logo_white.svg"
+                    alt="CurioWire"
+                    width="140"
+                    height="32"
+                  />
+                </Link>
+              </Logo>
+            </LogoBlock>
           </Inner>
         </HeaderWrapper>
       }
