@@ -14,6 +14,12 @@ export const HeaderWrapper = styled.header`
     inset 0 -14px 34px rgba(255, 120, 140, 0.04);
 
   background:
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.35) 0%,
+      rgba(0, 0, 0, 0.14) 14%,
+      rgba(0, 0, 0, 0) 42%
+    ),
     radial-gradient(
       900px 220px at 10% 8%,
       rgba(255, 128, 72, 0.18) 0%,
@@ -47,12 +53,43 @@ export const HeaderWrapper = styled.header`
       #06101b 100%
     );
 
+  background-size:
+    100% 100%,
+    102% 100%,
+    104% 100%,
+    102% 100%,
+    103% 100%,
+    100% 100%;
+
+  animation: cwBgShift 18s ease-in-out infinite alternate;
+
+  @keyframes cwBgShift {
+    0% {
+      background-position:
+        0% 0%,
+        0% 0%,
+        0% 0%,
+        0% 0%,
+        0% 0%,
+        0% 0%;
+    }
+    100% {
+      background-position:
+        0% 0%,
+        2% 0%,
+        -2% 0%,
+        1% 0%,
+        -1% 0%,
+        0% 0%;
+    }
+  }
+
   &::before {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: 0.8;
+    opacity: 0.88;
     background:
       radial-gradient(
         circle at 5% 28%,
@@ -133,6 +170,21 @@ export const HeaderWrapper = styled.header`
         340px 110px at 86% 26%,
         rgba(85, 160, 255, 0.08) 0%,
         rgba(85, 160, 255, 0) 74%
+      ),
+      radial-gradient(
+        circle at 22% 35%,
+        rgba(255, 255, 255, 1) 0 1.6px,
+        transparent 3px
+      ),
+      radial-gradient(
+        circle at 58% 22%,
+        rgba(255, 220, 240, 1) 0 1.8px,
+        transparent 3px
+      ),
+      radial-gradient(
+        circle at 82% 30%,
+        rgba(170, 210, 255, 1) 0 1.8px,
+        transparent 3px
       );
   }
 
@@ -155,9 +207,9 @@ export const HeaderWrapper = styled.header`
       rgba(72, 142, 255, 0.08) 100%
     );
     box-shadow:
-      0 0 10px rgba(255, 120, 140, 0.32),
-      0 0 24px rgba(255, 120, 140, 0.22),
-      0 0 40px rgba(100, 170, 255, 0.15);
+      0 0 12px rgba(255, 120, 140, 0.35),
+      0 0 28px rgba(255, 120, 140, 0.25),
+      0 0 60px rgba(100, 170, 255, 0.18);
   }
 `;
 
@@ -229,7 +281,9 @@ export const Logo = styled.div`
     display: block;
     height: 30px;
     width: auto;
-    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.12))
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15))
+      drop-shadow(0 0 18px rgba(255, 140, 120, 0.12))
+      drop-shadow(0 1px 0 rgba(255, 255, 255, 0.12))
       drop-shadow(0 2px 14px rgba(255, 255, 255, 0.08));
   }
 
@@ -291,6 +345,20 @@ export const DesktopSearchWrap = styled.div`
     filter: blur(16px);
   }
 
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -20px -30px;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at 80% 50%,
+      rgba(120, 170, 255, 0.18) 0%,
+      rgba(120, 170, 255, 0.06) 40%,
+      rgba(120, 170, 255, 0) 70%
+    );
+    filter: blur(20px);
+  }
+
   @media (max-width: 770px) {
     display: none;
   }
@@ -342,6 +410,7 @@ export const SearchInput = styled.input`
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.14),
       0 0 0 3px rgba(255, 130, 150, 0.12),
+      0 0 20px rgba(120, 170, 255, 0.18),
       0 10px 24px rgba(0, 0, 0, 0.22);
   }
 `;
