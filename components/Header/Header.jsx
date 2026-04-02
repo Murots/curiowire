@@ -22,6 +22,8 @@ import {
   MobileSearchWrap,
   CloseMobile,
 } from "./Header.styles";
+import HeaderDecorLeft from "./HeaderDecorLeft";
+import HeaderDecorRight from "./HeaderDecorRight";
 
 // Keep category list in one place (same as elsewhere)
 const CATEGORIES = [
@@ -171,6 +173,9 @@ function HeaderInner() {
 
   return (
     <HeaderWrapper>
+      <HeaderDecorLeft />
+      <HeaderDecorRight />
+
       <Inner>
         <LogoBlock>
           <Logo>
