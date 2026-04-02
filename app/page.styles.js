@@ -11,11 +11,6 @@ export const MainWrapper = styled.div`
   }
 `;
 
-// export const BreadcrumbSlot = styled.div`
-//   width: 100%;
-//   padding: 3px 20px;
-//   background-color: ${({ theme }) => theme.colors.muted};
-// `;
 export const BreadcrumbSlot = styled.div`
   width: 100%;
   padding: 3px 20px;
