@@ -439,9 +439,7 @@ export default async function ArticlePage({ params }) {
     ],
   };
 
-  const imageUrl = card.image_url
-    ? `${card.image_url}?width=1200&quality=78&format=webp`
-    : `${baseUrl}/OMImage.png`;
+  const imageUrl = card.image_url ? card.image_url : `${baseUrl}/OMImage.png`;
 
   const imgWidth = 1200;
   const imgHeight = 630;

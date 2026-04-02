@@ -649,16 +649,10 @@ export default function ArticleView({
         <>
           <HeroImageWrap>
             <Image
-              src={`${card.image_url}?width=1200&quality=78&format=webp`}
-              srcSet={[
-                `${card.image_url}?width=800&quality=78&format=webp 800w`,
-                `${card.image_url}?width=1200&quality=78&format=webp 1200w`,
-                `${card.image_url}?width=1600&quality=78&format=webp 1600w`,
-              ].join(", ")}
-              sizes="(max-width: 980px) 100vw, 980px"
+              src={card.image_url}
               alt={cleanText(card.title)}
               loading={heroLoading}
-              fetchPriority={heroFetchPriority}
+              $fetchPriority={heroFetchPriority}
               decoding="async"
             />
           </HeroImageWrap>
@@ -786,7 +780,7 @@ export default function ArticleView({
                   {a.image_url ? (
                     <>
                       <RelatedImage
-                        src={`${a.image_url}?width=400&quality=70&format=webp`}
+                        src={a.image_url}
                         width={400}
                         height={225}
                         alt={cleanText(a.title)}
