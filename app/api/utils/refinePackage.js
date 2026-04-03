@@ -34,6 +34,7 @@ ${safe(fun_fact)}
 
 YOUR TASK
 - Fix ONLY: awkward phrasing, grammar, spelling, punctuation, clarity, and flow.
+- Rewrite or tighten typical AI-style phrasing where it appears (e.g. vague transitions, generic contrast lines, abstract filler). Prefer direct, concrete wording. Do this minimally, without changing meaning or adding new facts.
 - If the LAST paragraph ends with “next time you” / “so, next time you” / “so next time you” / “so, the next time you” / “so the next time you” (any casing/punctuation), rephrase that sentence to remove this framing while keeping the same meaning and claims and without adding new facts.
 - Keep the SAME meaning, SAME claims, SAME uncertainty markers (allegedly/claimed/unconfirmed/no definitive proof).
 - Do NOT add new facts, numbers, dates, names, locations, or explanations.
