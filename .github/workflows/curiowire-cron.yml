@@ -28,6 +28,12 @@ jobs:
       PREMISE_GATE_MODEL: ${{ secrets.PREMISE_GATE_MODEL }}
       FACTCHECK_MODEL: ${{ secrets.FACTCHECK_MODEL }}
       SALVAGE_MODEL: ${{ secrets.SALVAGE_MODEL }}
+      ARTICLE_MODEL: ${{ secrets.ARTICLE_MODEL }}
+      SUMMARY_MODEL: ${{ secrets.SUMMARY_MODEL }}
+      REFINE_MODEL: ${{ secrets.REFINE_MODEL }}
+
+      ARTICLE_PLANNER_MODEL: ${{ secrets.ARTICLE_PLANNER_MODEL }}
+      SOURCE_RESOLVER_MODEL: ${{ secrets.SOURCE_RESOLVER_MODEL }}
 
       # Scene prompt models
       SCENE_BLUEPRINT_MODEL: ${{ secrets.SCENE_BLUEPRINT_MODEL }}
