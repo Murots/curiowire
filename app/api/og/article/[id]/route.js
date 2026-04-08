@@ -57,123 +57,134 @@ async function getImageDataUrl(url) {
 }
 
 export async function GET(_req, { params }) {
-  const id = await getId(params);
-  const card = await fetchCard(id);
+  try {
+    const id = await getId(params);
+    const card = await fetchCard(id);
 
-  if (!card) {
-    return new Response("Not found", { status: 404 });
-  }
+    if (!card) {
+      return new Response("Not found", { status: 404 });
+    }
 
-  const title = cleanText(card.seo_title || card.title || "CurioWire");
-  const category = cleanText(card.category || "curiosity");
-  const imageUrl = String(card.image_url || "").trim();
+    const title = cleanText(card.seo_title || card.title || "CurioWire");
+    const category = cleanText(card.category || "curiosity");
+    const imageUrl = String(card.image_url || "").trim();
 
-  const hasImage = /^https?:\/\//i.test(imageUrl);
-  const imageDataUrl = hasImage ? await getImageDataUrl(imageUrl) : null;
+    const hasImage = /^https?:\/\//i.test(imageUrl);
 
-  return new ImageResponse(
-    <div
-      style={{
-        width: "1200px",
-        height: "630px",
-        position: "relative",
-        display: "flex",
-        overflow: "hidden",
-        background: "#0f172a",
-      }}
-    >
-      {imageDataUrl ? (
-        <img
-          src={imageDataUrl}
-          alt=""
-          width="1200"
-          height="630"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "1200px",
-            height: "630px",
-            objectFit: "contain",
-            objectPosition: "center center",
-          }}
-        />
-      ) : (
+    let imageDataUrl = null;
+    let debug = "ok";
+
+    if (hasImage) {
+      try {
+        const res = await fetch(imageUrl);
+
+        if (!res.ok) {
+          debug = `fetch failed: ${res.status}`;
+        } else {
+          const contentType = res.headers.get("content-type") || "image/webp";
+          const buffer = await res.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString("base64");
+
+          imageDataUrl = `data:${contentType};base64,${base64}`;
+        }
+      } catch (e) {
+        debug = "fetch error: " + String(e.message || e);
+      }
+    } else {
+      debug = "no image url";
+    }
+
+    return new ImageResponse(
+      <div
+        style={{
+          width: "1200px",
+          height: "630px",
+          position: "relative",
+          display: "flex",
+          overflow: "hidden",
+          background: "#0f172a",
+        }}
+      >
+        {imageDataUrl ? (
+          <img
+            src={imageDataUrl}
+            alt=""
+            width="1200"
+            height="630"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "1200px",
+              height: "630px",
+              objectFit: "contain",
+              objectPosition: "center center",
+            }}
+          />
+        ) : null}
+
+        {/* overlay */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             display: "flex",
             background:
-              "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%)",
+              "linear-gradient(to bottom, rgba(0,0,0,0.10), rgba(0,0,0,0.58))",
           }}
         />
-      )}
 
+        {/* TEXT */}
+        <div
+          style={{
+            position: "absolute",
+            left: "56px",
+            right: "56px",
+            bottom: "44px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div style={{ color: "#facc15", fontSize: 28 }}>CurioWire</div>
+          <div style={{ color: "#ccc", fontSize: 22 }}>{category}</div>
+          <div style={{ color: "white", fontSize: 48 }}>{title}</div>
+
+          {/* 🔥 DEBUG TEXT */}
+          <div
+            style={{
+              marginTop: "20px",
+              color: "red",
+              fontSize: 18,
+            }}
+          >
+            DEBUG: {debug}
+          </div>
+        </div>
+      </div>,
+      {
+        width: 1200,
+        height: 630,
+      },
+    );
+  } catch (err) {
+    return new ImageResponse(
       <div
         style={{
-          position: "absolute",
-          inset: 0,
+          width: "1200px",
+          height: "630px",
+          background: "black",
+          color: "red",
+          fontSize: 32,
           display: "flex",
-          background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.10), rgba(0,0,0,0.58))",
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          left: "56px",
-          right: "56px",
-          bottom: "44px",
-          display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            marginBottom: "18px",
-            color: "#facc15",
-            fontSize: 28,
-            fontWeight: 700,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          CurioWire
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            marginBottom: "14px",
-            color: "rgba(255,255,255,0.78)",
-            fontSize: 24,
-            fontWeight: 500,
-            textTransform: "capitalize",
-          }}
-        >
-          {category}
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            color: "white",
-            fontSize: 56,
-            fontWeight: 700,
-            lineHeight: 1.08,
-            textShadow: "0 2px 12px rgba(0,0,0,0.35)",
-            maxWidth: "1000px",
-          }}
-        >
-          {title}
-        </div>
-      </div>
-    </div>,
-    {
-      width: 1200,
-      height: 630,
-    },
-  );
+        ERROR: {String(err.message || err)}
+      </div>,
+      {
+        width: 1200,
+        height: 630,
+      },
+    );
+  }
 }
