@@ -48,7 +48,7 @@ export async function GET(_req, { params }) {
   const title = cleanText(card.seo_title || card.title || "CurioWire");
   const category = cleanText(card.category || "curiosity");
   const imageUrl =
-    "https://images.unsplash.com/photo-1516117172878-fd2c41f4a759";
+    "https://qshftfehnecovxxgldsc.supabase.co/storage/v1/object/public/curiowire/curiowire/products-1775632135116.webp";
   const hasImage = /^https?:\/\//i.test(imageUrl);
 
   return new ImageResponse(
