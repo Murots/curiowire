@@ -35,6 +35,25 @@ async function fetchCard(id) {
   return data || null;
 }
 
+async function toDataUrl(url) {
+  try {
+    const res = await fetch(url, {
+      cache: "force-cache",
+    });
+
+    if (!res.ok) return null;
+
+    const contentType = res.headers.get("content-type") || "image/webp";
+    const arrayBuffer = await res.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+
+    return `data:${contentType};base64,${base64}`;
+  } catch (err) {
+    console.error("OG image fetch failed:", err);
+    return null;
+  }
+}
+
 export async function GET(_req, { params }) {
   const id = await getId(params);
   const card = await fetchCard(id);
@@ -47,7 +66,11 @@ export async function GET(_req, { params }) {
   const imageUrl = String(card.image_url || "").trim();
   const hasImage = /^https?:\/\//i.test(imageUrl);
 
-  console.log({ id, card, imageUrl });
+  let imageDataUrl = null;
+
+  if (hasImage) {
+    imageDataUrl = await toDataUrl(imageUrl);
+  }
 
   return new ImageResponse(
     <div
@@ -60,15 +83,30 @@ export async function GET(_req, { params }) {
         overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          background:
-            "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%)",
-        }}
-      />
+      {imageDataUrl ? (
+        <img
+          src={imageDataUrl}
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center 30%",
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            background:
+              "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%)",
+          }}
+        />
+      )}
 
       <div
         style={{
