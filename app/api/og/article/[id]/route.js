@@ -1,4 +1,6 @@
 // app/api/og/article/[id]/route.js
+
+/* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from "next/og";
 import { supabaseServer } from "@/lib/supabaseServer";
 
