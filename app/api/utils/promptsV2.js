@@ -73,7 +73,7 @@ Avoid:
 ${avoid}
 
 Write:
-1) A curiosity-driven, click-strong, SEO-friendly headline (5–8 words)
+1) A curiosity-driven, click-strong, SEO-friendly headline (6–10 words)
 2) A high-quality, curiosity-driven, SEO-friendly article (350–500 words)
 3) A super-viral short-video script for TikTok/YouTube Shorts
 4) SEO block (<title>, <description>, <keywords>)
@@ -91,9 +91,11 @@ GLOBAL RULES
 - Avoid padded intros, vague reflection, and generic closing questions unless truly necessary.
 
 HEADLINE STYLE RULES
-- Prefer natural, curiosity-driven phrasing.
-- Avoid academic or bureaucratic wording.
-- Avoid subtitles separated by colon unless necessary.
+- 6–10 words.
+- Start with the main subject or keyword.
+- Do NOT start with "How", "Why", "When", or "What".
+- Prefer: [Main topic] + outcome/result.
+- Keep it concrete and specific.
 
 GLOBAL FORMAT RULES (STRICT)
 - Return ONLY the required sections. No extra text.
@@ -120,7 +122,7 @@ SEO RULES (plain text only; no HTML tags)
 Output exactly:
 SEO:
 <title> — SAME as headline text (without tags)
-<description> — 150–160 characters, factual, curiosity-driven, no quotes, no emojis
+<description> — 150–160 characters, factual and specific to this exact article, summarize the core subject and outcome plainly, avoid generic phrases, no quotes, no emojis
 <keywords> — 7–10 comma-separated long-tail keyword phrases (2–6 words each)
 
 HASHTAGS RULES (plain text only; no HTML tags)

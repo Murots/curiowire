@@ -36,7 +36,8 @@ export async function GET() {
   const { count, error: countError } = await supabase
     .from("curiosity_cards")
     .select("id", { count: "exact", head: true })
-    .eq("status", "published");
+    .eq("status", "published")
+    .eq("is_listed", true);
 
   if (countError) {
     return new NextResponse("Failed to count curiosity_cards", { status: 500 });
@@ -48,6 +49,7 @@ export async function GET() {
     .from("curiosity_cards")
     .select("updated_at, created_at")
     .eq("status", "published")
+    .eq("is_listed", true)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();

@@ -39,8 +39,8 @@ Optional factual frame (constraints; may be empty):
 ${safeFrame ? `"${safeFrame}"` : "(none)"}
 
 Write:
-1) A curiosity-driven, click-strong, SEO-friendly list headline (5–8 words)
-2) A super-viral, high-retention wow-curiosity LIST ARTICLE (450–750 words)
+1) A curiosity-driven, click-strong, SEO-friendly list headline (6–10 words)
+2) A high-quality, curiosity-driven, SEO-friendly LIST ARTICLE (450–750 words)
 3) A super-viral short-video script for TikTok/YouTube Shorts
 4) SEO block (<title>, <description>, <keywords>)
 5) Hashtags block (space-separated)
@@ -54,9 +54,11 @@ GLOBAL RULES
 - The ending/final paragraph must NOT tell the reader what to do “next time”.
 
 HEADLINE STYLE RULES
-- Prefer natural, curiosity-driven phrasing.
-- Avoid academic or bureaucratic wording.
-- Avoid subtitles separated by colon unless necessary.
+- 6–10 words.
+- Start with the main subject or keyword.
+- Do NOT start with "How", "Why", "When", or "What".
+- Prefer: [Main topic] + outcome/result.
+- Keep it concrete and specific.
 
 LIST ARTICLE RULES
 - The article must feel like one coherent piece, not a pasted list.
@@ -98,7 +100,7 @@ SEO RULES (plain text only; no HTML tags)
 Output exactly:
 SEO:
 <title> — SAME as headline text (without tags)
-<description> — 150–160 characters, factual, curiosity-driven, no quotes, no emojis
+<description> — 150–160 characters, factual and specific to this exact article, summarize the core subject and outcome plainly, avoid generic phrases, no quotes, no emojis
 <keywords> — 7–10 comma-separated long-tail keyword phrases (2–6 words each)
 
 HASHTAGS RULES (plain text only; no HTML tags)

@@ -87,6 +87,7 @@ export async function GET(req) {
     .from("curiosity_cards")
     .select("id, created_at, updated_at")
     .eq("status", "published")
+    .eq("is_listed", true)
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -100,6 +101,7 @@ export async function GET(req) {
     .from("curiosity_cards")
     .select("updated_at, created_at")
     .eq("status", "published")
+    .eq("is_listed", true)
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();

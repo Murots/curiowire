@@ -265,6 +265,18 @@ export default async function HomePage({ searchParams }) {
     },
   };
 
+  const collectionPageData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${baseUrl}/#collection`,
+    name: "CurioWire — All curiosities",
+    url: `${baseUrl}/`,
+    inLanguage: "en",
+    description:
+      "Fresh, short curiosities in science, history, nature, technology and more — published daily",
+    isPartOf: { "@id": `${baseUrl}/#website` },
+  };
+
   const itemListData = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -272,9 +284,10 @@ export default async function HomePage({ searchParams }) {
     inLanguage: "en",
     name: "CurioWire Feed",
     description: "Latest curiosities on CurioWire.",
+    mainEntityOfPage: { "@id": `${baseUrl}/#collection` },
     numberOfItems: list.length,
     itemListElement: list.map((a, index) => {
-      const safeName = cleanInlineText(a?.seo_title || a?.title);
+      const safeName = cleanInlineText(a?.title);
       const img = String(a?.image_url || "").trim();
 
       // ✅ Make image absolute; fallback to site icon
@@ -292,7 +305,7 @@ export default async function HomePage({ searchParams }) {
     }),
   };
 
-  const allStructuredData = [webSiteData, itemListData];
+  const allStructuredData = [webSiteData, collectionPageData, itemListData];
 
   return (
     <>
@@ -300,7 +313,7 @@ export default async function HomePage({ searchParams }) {
       <Script
         id="structured-data-home"
         type="application/ld+json"
-        strategy="afterInteractive"
+        strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(allStructuredData),
         }}

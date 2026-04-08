@@ -302,7 +302,7 @@ export default async function CategoryFeedPage({ params, searchParams }) {
     description: `Latest ${category} curiosities on CurioWire.`,
     numberOfItems: list.length,
     itemListElement: list.map((a, index) => {
-      const safeName = cleanInlineText(a?.seo_title || a?.title);
+      const safeName = cleanInlineText(a?.title);
 
       const img = String(a?.image_url || "").trim();
 
