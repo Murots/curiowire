@@ -72,43 +72,43 @@ export async function GET(_req, { params }) {
     const res = await fetch(imageUrl);
     const contentType = res.headers.get("content-type") || "unknown";
 
-    if (!res.ok) {
-      return new Response(
-        `IMAGE FETCH FAILED
-status=${res.status}
-contentType=${contentType}
-url=${imageUrl}`,
-        { status: 500 },
-      );
-    }
-
-    const buffer = await res.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const imageDataUrl = `data:${contentType};base64,${base64}`;
-
-    return new ImageResponse(
-      <div
-        style={{
-          width: "1200px",
-          height: "630px",
-          display: "flex",
-          background: "#111827",
-          color: "white",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 40,
-        }}
-      >
-        {title} — {category} — {imageDataUrl ? "ok" : "no image"}
-      </div>,
-      { width: 1200, height: 630 },
+    return new Response(
+      JSON.stringify(
+        {
+          id,
+          title,
+          category,
+          imageUrl,
+          fetchOk: res.ok,
+          status: res.status,
+          contentType,
+        },
+        null,
+        2,
+      ),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      },
     );
   } catch (err) {
     return new Response(
-      `OG ROUTE ERROR
-message=${err?.message || String(err)}
-stack=${err?.stack || "no stack"}`,
-      { status: 500 },
+      JSON.stringify(
+        {
+          error: err?.message || String(err),
+          stack: err?.stack || null,
+        },
+        null,
+        2,
+      ),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      },
     );
   }
 }
