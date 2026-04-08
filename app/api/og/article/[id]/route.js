@@ -47,6 +47,8 @@ export async function GET(_req, { params }) {
   const imageUrl = String(card.image_url || "").trim();
   const hasImage = /^https?:\/\//i.test(imageUrl);
 
+  console.log({ id, card, imageUrl });
+
   return new ImageResponse(
     <div
       style={{
@@ -58,31 +60,15 @@ export async function GET(_req, { params }) {
         overflow: "hidden",
       }}
     >
-      {hasImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={imageUrl}
-          alt=""
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: "center 30%",
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            background:
-              "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%)",
-          }}
-        />
-      )}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          background:
+            "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%)",
+        }}
+      />
 
       <div
         style={{
