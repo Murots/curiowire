@@ -81,7 +81,10 @@ export async function generateMetadata({ params }) {
     "CurioWire curiosity";
 
   const url = `${baseUrl}/article/${card.id}`;
-  const shareImageUrl = `${baseUrl}/api/og/article/${card.id}`;
+  const shareImageUrl =
+    card.image_url && /^https?:\/\//i.test(card.image_url)
+      ? card.image_url
+      : `${baseUrl}/OMImage.png`;
 
   const ogWidth = 1200;
   const ogHeight = 630;
@@ -200,7 +203,10 @@ export default async function ArticlePage({ params }) {
     ],
   };
 
-  const imageUrl = `${baseUrl}/api/og/article/${card.id}`;
+  const imageUrl =
+    card.image_url && /^https?:\/\//i.test(card.image_url)
+      ? card.image_url
+      : `${baseUrl}/OMImage.png`;
 
   const imgWidth = 1200;
   const imgHeight = 630;
