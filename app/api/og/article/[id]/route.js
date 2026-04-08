@@ -47,7 +47,8 @@ export async function GET(_req, { params }) {
 
   const title = cleanText(card.seo_title || card.title || "CurioWire");
   const category = cleanText(card.category || "curiosity");
-  const imageUrl = String(card.image_url || "").trim();
+  const imageUrl =
+    "https://images.unsplash.com/photo-1516117172878-fd2c41f4a759";
   const hasImage = /^https?:\/\//i.test(imageUrl);
 
   return new ImageResponse(
