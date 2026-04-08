@@ -26,32 +26,13 @@ async function fetchCard(id) {
 
   const { data, error } = await sb
     .from("curiosity_cards")
-    .select("id, title, seo_title, image_url")
+    .select("id, title, seo_title, category")
     .eq("id", numericId)
     .eq("status", "published")
     .maybeSingle();
 
   if (error) return null;
   return data || null;
-}
-
-async function toDataUrl(url) {
-  try {
-    const res = await fetch(url, {
-      cache: "force-cache",
-    });
-
-    if (!res.ok) return null;
-
-    const contentType = res.headers.get("content-type") || "image/webp";
-    const arrayBuffer = await res.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-
-    return `data:${contentType};base64,${base64}`;
-  } catch (err) {
-    console.error("OG image fetch failed:", err);
-    return null;
-  }
 }
 
 export async function GET(_req, { params }) {
@@ -63,14 +44,7 @@ export async function GET(_req, { params }) {
   }
 
   const title = cleanText(card.seo_title || card.title || "CurioWire");
-  const imageUrl = String(card.image_url || "").trim();
-  const hasImage = /^https?:\/\//i.test(imageUrl);
-
-  let imageDataUrl = null;
-
-  if (hasImage) {
-    imageDataUrl = await toDataUrl(imageUrl);
-  }
+  const category = cleanText(card.category || "curiosity");
 
   return new ImageResponse(
     <div
@@ -79,67 +53,53 @@ export async function GET(_req, { params }) {
         height: "630px",
         position: "relative",
         display: "flex",
-        background: "#111",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        background:
+          "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%)",
         overflow: "hidden",
+        padding: "44px 56px",
       }}
     >
-      {imageDataUrl ? (
-        <img
-          src={imageDataUrl}
-          alt=""
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: "center 30%",
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            background:
-              "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%)",
-          }}
-        />
-      )}
-
       <div
         style={{
-          position: "absolute",
-          inset: 0,
           display: "flex",
-          background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.12), rgba(0,0,0,0.62))",
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          left: "56px",
-          right: "56px",
-          bottom: "44px",
-          display: "flex",
-          flexDirection: "column",
+          marginBottom: "18px",
+          color: "#facc15",
+          fontSize: 28,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            color: "white",
-            fontSize: 56,
-            fontWeight: 700,
-            lineHeight: 1.08,
-            textShadow: "0 2px 12px rgba(0,0,0,0.45)",
-          }}
-        >
-          {title}
-        </div>
+        CurioWire
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          marginBottom: "14px",
+          color: "rgba(255,255,255,0.78)",
+          fontSize: 24,
+          fontWeight: 500,
+          textTransform: "capitalize",
+        }}
+      >
+        {category}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          color: "white",
+          fontSize: 56,
+          fontWeight: 700,
+          lineHeight: 1.08,
+          textShadow: "0 2px 12px rgba(0,0,0,0.35)",
+          maxWidth: "1000px",
+        }}
+      >
+        {title}
       </div>
     </div>,
     {
