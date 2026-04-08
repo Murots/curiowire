@@ -39,10 +39,7 @@ async function fetchCard(id) {
 
 async function getImageDataUrl(url) {
   try {
-    const res = await fetch(url, {
-      cache: "force-cache",
-    });
-
+    const res = await fetch(url, { cache: "force-cache" });
     if (!res.ok) return null;
 
     const contentType = res.headers.get("content-type") || "image/webp";
@@ -50,8 +47,7 @@ async function getImageDataUrl(url) {
     const base64 = Buffer.from(buffer).toString("base64");
 
     return `data:${contentType};base64,${base64}`;
-  } catch (err) {
-    console.error("OG image fetch failed:", err);
+  } catch {
     return null;
   }
 }
@@ -69,28 +65,133 @@ export async function GET(_req, { params }) {
     const category = cleanText(card.category || "curiosity");
     const imageUrl = String(card.image_url || "").trim();
 
-    const res = await fetch(imageUrl);
-    const contentType = res.headers.get("content-type") || "unknown";
+    const imageDataUrl = /^https?:\/\//i.test(imageUrl)
+      ? await getImageDataUrl(imageUrl)
+      : null;
 
-    return new Response(
-      JSON.stringify(
-        {
-          id,
-          title,
-          category,
-          imageUrl,
-          fetchOk: res.ok,
-          status: res.status,
-          contentType,
-        },
-        null,
-        2,
-      ),
+    return new ImageResponse(
+      <div
+        style={{
+          width: "1200px",
+          height: "630px",
+          position: "relative",
+          display: "flex",
+          flexDirection: "row",
+          background:
+            "linear-gradient(135deg, #081227 0%, #0c1b3a 45%, #13233f 100%)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: "56%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "34px",
+            position: "relative",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: "26px",
+              borderRadius: "28px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex",
+            }}
+          />
+
+          {imageDataUrl ? (
+            <img
+              src={imageDataUrl}
+              alt=""
+              width="560"
+              height="420"
+              style={{
+                maxWidth: "560px",
+                maxHeight: "420px",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center center",
+                position: "relative",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "rgba(255,255,255,0.45)",
+                fontSize: 28,
+                position: "relative",
+              }}
+            >
+              CurioWire
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            width: "44%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            padding: "54px 56px 54px 20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              marginBottom: "18px",
+              color: "#facc15",
+              fontSize: 28,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            CurioWire
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              marginBottom: "16px",
+              color: "rgba(255,255,255,0.78)",
+              fontSize: 24,
+              fontWeight: 500,
+              textTransform: "capitalize",
+            }}
+          >
+            {category}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              color: "white",
+              fontSize: 54,
+              fontWeight: 700,
+              lineHeight: 1.08,
+              textShadow: "0 2px 12px rgba(0,0,0,0.35)",
+            }}
+          >
+            {title}
+          </div>
+        </div>
+      </div>,
       {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-        },
+        width: 1200,
+        height: 630,
       },
     );
   } catch (err) {
