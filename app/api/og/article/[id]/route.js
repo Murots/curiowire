@@ -37,6 +37,25 @@ async function fetchCard(id) {
   return data || null;
 }
 
+async function getImageDataUrl(url) {
+  try {
+    const res = await fetch(url, {
+      cache: "force-cache",
+    });
+
+    if (!res.ok) return null;
+
+    const contentType = res.headers.get("content-type") || "image/webp";
+    const buffer = await res.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+
+    return `data:${contentType};base64,${base64}`;
+  } catch (err) {
+    console.error("OG image fetch failed:", err);
+    return null;
+  }
+}
+
 export async function GET(_req, { params }) {
   const id = await getId(params);
   const card = await fetchCard(id);
@@ -48,7 +67,9 @@ export async function GET(_req, { params }) {
   const title = cleanText(card.seo_title || card.title || "CurioWire");
   const category = cleanText(card.category || "curiosity");
   const imageUrl = String(card.image_url || "").trim();
+
   const hasImage = /^https?:\/\//i.test(imageUrl);
+  const imageDataUrl = hasImage ? await getImageDataUrl(imageUrl) : null;
 
   return new ImageResponse(
     <div
@@ -61,9 +82,9 @@ export async function GET(_req, { params }) {
         background: "#0f172a",
       }}
     >
-      {hasImage ? (
+      {imageDataUrl ? (
         <img
-          src={imageUrl}
+          src={imageDataUrl}
           alt=""
           width="1200"
           height="630"
