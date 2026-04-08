@@ -37,24 +37,6 @@ async function fetchCard(id) {
   return data || null;
 }
 
-async function getImageDataUrl(url) {
-  try {
-    const res = await fetch(url, {
-      cache: "force-cache",
-    });
-
-    if (!res.ok) return null;
-
-    const contentType = res.headers.get("content-type") || "image/webp";
-    const buffer = await res.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-
-    return `data:${contentType};base64,${base64}`;
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(_req, { params }) {
   const id = await getId(params);
   const card = await fetchCard(id);
@@ -66,10 +48,7 @@ export async function GET(_req, { params }) {
   const title = cleanText(card.seo_title || card.title || "CurioWire");
   const category = cleanText(card.category || "curiosity");
   const imageUrl = String(card.image_url || "").trim();
-
-  const imageDataUrl = /^https?:\/\//i.test(imageUrl)
-    ? await getImageDataUrl(imageUrl)
-    : null;
+  const hasImage = /^https?:\/\//i.test(imageUrl);
 
   return new ImageResponse(
     <div
@@ -80,15 +59,14 @@ export async function GET(_req, { params }) {
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
-        overflow: "hidden",
-
-        // KNALLRØD fallback så vi ser tydelig om bilde IKKE vises
         background: "#ff0000",
+        overflow: "hidden",
+        padding: "44px 56px",
       }}
     >
-      {imageDataUrl ? (
+      {hasImage ? (
         <img
-          src={imageDataUrl}
+          src={imageUrl}
           alt=""
           width="1200"
           height="630"
@@ -97,11 +75,7 @@ export async function GET(_req, { params }) {
             inset: 0,
             width: "1200px",
             height: "630px",
-
-            // test 1: fyll hele flaten
             objectFit: "cover",
-
-            // test 1: tving sentrum
             objectPosition: "center center",
           }}
         />
@@ -122,7 +96,6 @@ export async function GET(_req, { params }) {
           position: "relative",
           display: "flex",
           flexDirection: "column",
-          padding: "44px 56px",
         }}
       >
         <div
@@ -143,7 +116,7 @@ export async function GET(_req, { params }) {
           style={{
             display: "flex",
             marginBottom: "14px",
-            color: "rgba(255,255,255,0.82)",
+            color: "rgba(255,255,255,0.78)",
             fontSize: 24,
             fontWeight: 500,
             textTransform: "capitalize",
