@@ -66,6 +66,7 @@ HEADLINE STYLE RULES
 LIST ARTICLE RULES
 - The article must feel like one coherent piece, not a pasted list.
 - Start with 2 short intro paragraphs.
+- Ensure the main topic, entity, or category is made clear in the intro for search clarity.
 - Then cover the items one by one.
 - Use exactly one <h2> per item.
 - Each <h2> MUST start with the item number. For example: "1. The Lost City of Atlantis"

@@ -85,6 +85,7 @@ GLOBAL RULES
 - Include time marker and/or place marker and/or names if available, natural and fitting.
 - Follow the editorial plan in a flexible, natural way. Do NOT turn it into a rigid template.
 - The opening should fit the selected opening style, but still feel natural for the topic.
+- Ensure the core subject is clearly introduced within the first 1–2 sentences for search clarity.
 - The body should follow the selected body and explanation style.
 - Include one clear insight in the selected insight style, if it fits naturally.
 - The ending/final paragraph should follow the selected ending style and must NOT tell the reader what to do “next time” (avoid “next time you” / “so, next time you” / “so next time you” / “so, the next time you” / “so the next time you” and variations).
