@@ -47,6 +47,8 @@ quote:
 - Use only if the article contains one strong sentence that works well alone.
 - The quote must be copied exactly from the article text, not rewritten.
 - Do not choose a weak summary sentence.
+- Do NOT choose a sentence from paragraph 1.
+- Prefer a sentence from paragraph 2 or later.
 
 hero_number:
 - Use when one number, year, duration, rank, or scale is the strongest visual hook.

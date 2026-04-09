@@ -30,6 +30,7 @@ import { buildRefinePackagePrompt } from "../app/api/utils/refinePackage.js";
 import { buildFactCheckPackagePrompt } from "../app/api/utils/factCheckPackage.js";
 import { buildSourceResolverPrompt } from "../app/api/utils/sourceResolverPrompt.js";
 import { decideArticlePlan } from "../app/api/utils/articlePlanner.js";
+import { decideArticleBreak } from "../app/api/utils/articleBreakPlanner.js";
 import { insertSeoHeadings } from "../app/api/utils/insertSeoHeadings.js";
 
 // ----------------------------------------------------------------------------
@@ -752,6 +753,40 @@ async function upgradeArticle(article) {
     );
   }
 
+  // Article break (visual interruption metadata) — after PASS
+  let articleBreak = {
+    use_break: false,
+    break_type: "none",
+    insert_after_paragraph: null,
+    confidence: 0,
+    reason: "Not evaluated.",
+    payload: null,
+  };
+
+  try {
+    articleBreak = await decideArticleBreak({
+      openai,
+      title: checked.title,
+      category: categoryKey,
+      card_text: checked.card_text,
+      summary_normalized: checked.summary_normalized || "",
+    });
+
+    console.log(
+      `🧩 ArticleBreak: type=${articleBreak.break_type} use=${articleBreak.use_break ? "YES" : "NO"} afterP=${articleBreak.insert_after_paragraph ?? "null"} confidence=${articleBreak.confidence}`,
+    );
+  } catch (e) {
+    console.warn("⚠️ Article break planning failed:", e.message);
+    articleBreak = {
+      use_break: false,
+      break_type: "none",
+      insert_after_paragraph: null,
+      confidence: 0,
+      reason: `Planner failed: ${e.message}`,
+      payload: null,
+    };
+  }
+
   let nextSourceUrl = sourceUrl || null;
   if (RESOLVE_SOURCE || !nextSourceUrl) {
     try {
@@ -782,6 +817,18 @@ async function upgradeArticle(article) {
     seo_description: seo.description || null,
     seo_keywords: seo.keywords || null,
     hashtags: parts.hashtags || null,
+
+    article_break_type: articleBreak.use_break ? articleBreak.break_type : null,
+    article_break_payload: articleBreak.use_break ? articleBreak.payload : null,
+    article_break_after_paragraph: articleBreak.use_break
+      ? articleBreak.insert_after_paragraph
+      : null,
+    article_break_confidence: articleBreak.use_break
+      ? articleBreak.confidence
+      : null,
+    article_break_reason: articleBreak.use_break
+      ? articleBreak.reason || null
+      : null,
   };
 }
 
@@ -800,6 +847,11 @@ async function saveUpgrade(articleId, payload) {
     seo_description: payload.seo_description,
     seo_keywords: payload.seo_keywords,
     hashtags: payload.hashtags,
+    article_break_type: payload.article_break_type,
+    article_break_payload: payload.article_break_payload,
+    article_break_after_paragraph: payload.article_break_after_paragraph,
+    article_break_confidence: payload.article_break_confidence,
+    article_break_reason: payload.article_break_reason,
     updated_at: nowIso(),
   };
 
@@ -848,6 +900,27 @@ async function run() {
     console.log("\n================ UPGRADED ARTICLE ================\n");
     console.log(`Title: ${upgraded.title}`);
     console.log(`Source URL: ${upgraded.source_url || "None"}`);
+    console.log(`Article Break Type: ${upgraded.article_break_type || "None"}`);
+    console.log(
+      `Article Break After Paragraph: ${
+        upgraded.article_break_after_paragraph ?? "None"
+      }`,
+    );
+    console.log(
+      `Article Break Confidence: ${
+        upgraded.article_break_confidence ?? "None"
+      }`,
+    );
+    console.log(
+      `Article Break Reason: ${upgraded.article_break_reason || "None"}`,
+    );
+    console.log(
+      `Article Break Payload: ${
+        upgraded.article_break_payload
+          ? JSON.stringify(upgraded.article_break_payload, null, 2)
+          : "None"
+      }`,
+    );
     console.log(`\n--- ARTICLE ---\n${upgraded.card_text || ""}`);
     console.log(
       `\n--- SUMMARY ---\n${upgraded.summary_normalized || "(none)"}`,

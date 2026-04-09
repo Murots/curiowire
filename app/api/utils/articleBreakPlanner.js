@@ -37,6 +37,28 @@ function countParagraphs(html) {
   return (String(html || "").match(/<p[\s\S]*?<\/p>/gi) || []).length;
 }
 
+function extractParagraphTexts(html) {
+  return (String(html || "").match(/<p[\s\S]*?<\/p>/gi) || [])
+    .map((p) =>
+      p
+        .replace(/<p[\s\S]*?>/gi, " ")
+        .replace(/<\/p>/gi, " ")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
+function normalizeComparableText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[“”"'`]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractYears(text) {
   const matches = String(text || "").match(/\b(18|19|20)\d{2}\b/g) || [];
   return [...new Set(matches)].slice(0, 8);
@@ -75,6 +97,8 @@ function buildSignals({ card_text, summary_normalized, title, category }) {
   const what = extractSummaryField(summary_normalized, "what");
   const paragraphs = countParagraphs(card_text);
   const sentences = splitSentences(plainText);
+  const paragraphTexts = extractParagraphTexts(card_text);
+  const firstParagraph = paragraphTexts[0] || "";
 
   const strongSentence = sentences.find(
     (s) => s.length >= 60 && s.length <= 180,
@@ -101,6 +125,7 @@ function buildSignals({ card_text, summary_normalized, title, category }) {
     has_standout_number: numbers.length >= 1,
     has_strong_sentence: Boolean(strongSentence),
     sample_strong_sentence: strongSentence || "",
+    first_paragraph_text: firstParagraph,
   };
 }
 
@@ -206,7 +231,7 @@ function normalizePayload(type, payload) {
   }
 }
 
-function normalizeBreakPlan(raw, paragraphCount) {
+function normalizeBreakPlan(raw, paragraphCount, cardText = "") {
   const plan = raw && typeof raw === "object" ? raw : {};
 
   const breakType = ALLOWED_BREAK_TYPES.has(plan.break_type)
@@ -242,6 +267,24 @@ function normalizeBreakPlan(raw, paragraphCount) {
     : 1;
 
   const payload = normalizePayload(breakType, plan.payload);
+
+  if (breakType === "quote" && payload?.text) {
+    const paragraphTexts = extractParagraphTexts(cardText);
+    const firstParagraph = normalizeComparableText(paragraphTexts[0] || "");
+    const quoteText = normalizeComparableText(payload.text);
+
+    if (firstParagraph && quoteText && firstParagraph.includes(quoteText)) {
+      return {
+        use_break: false,
+        break_type: "none",
+        insert_after_paragraph: null,
+        confidence: 0,
+        reason:
+          "Rejected quote because it repeats a sentence from paragraph 1.",
+        payload: null,
+      };
+    }
+  }
 
   if (!payload) {
     return {
@@ -313,5 +356,5 @@ export async function decideArticleBreak({
   const text = resp.choices[0]?.message?.content?.trim() || "";
   const parsed = extractJson(text);
 
-  return normalizeBreakPlan(parsed, paragraphCount);
+  return normalizeBreakPlan(parsed, paragraphCount, card_text);
 }
