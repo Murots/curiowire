@@ -30,6 +30,7 @@ import {
 } from "@/components/ArticleModal/ArticleModal.styles";
 
 import { cleanText } from "@/app/api/utils/cleanText";
+import { injectArticleBreakIntoCardText } from "@/app/api/utils/renderArticleBreak.js";
 
 /* =========================
    HELPERS (UNCHANGED)
@@ -208,6 +209,22 @@ export default function ArticleView({
     [card.summary_normalized],
   );
 
+  const composedCardHtml = useMemo(() => {
+    const articleBreak = {
+      use_break: Boolean(card.article_break_type),
+      break_type: card.article_break_type || "none",
+      insert_after_paragraph: card.article_break_after_paragraph,
+      payload: card.article_break_payload,
+    };
+
+    return injectArticleBreakIntoCardText(card.card_text || "", articleBreak);
+  }, [
+    card.card_text,
+    card.article_break_type,
+    card.article_break_after_paragraph,
+    card.article_break_payload,
+  ]);
+
   const displaySources = useMemo(() => getDisplaySources(card), [card]);
 
   const showRelated = (relatedArticles || []).length > 0;
@@ -266,7 +283,7 @@ export default function ArticleView({
           <div dangerouslySetInnerHTML={{ __html: summaryHtml }} />
         ) : null}
 
-        <div dangerouslySetInnerHTML={{ __html: card.card_text || "" }} />
+        <div dangerouslySetInnerHTML={{ __html: composedCardHtml }} />
 
         {card.fun_fact ? (
           <div style={{ marginTop: 18 }}>

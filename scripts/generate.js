@@ -26,6 +26,7 @@ import { decideArticlePlan } from "../app/api/utils/articlePlanner.js";
 import { insertSeoHeadings } from "../app/api/utils/insertSeoHeadings.js";
 
 import { selectBestImage } from "../lib/imageSelector.js";
+import { decideArticleBreak } from "../app/api/utils/articleBreakPlanner.js";
 import { updateAndPingSearchEngines } from "../app/api/utils/seoTools.js";
 
 // ----------------------------------------------------------------------------
@@ -795,6 +796,11 @@ async function run() {
         seo_keywords: null,
         hashtags: null,
         wow_score: wowScoreFromSuggestion,
+        article_break_type: null,
+        article_break_payload: null,
+        article_break_after_paragraph: null,
+        article_break_confidence: null,
+        article_break_reason: null,
       },
     });
 
@@ -876,6 +882,11 @@ async function run() {
           seo_keywords: null,
           hashtags: null,
           wow_score: wowScoreFromSuggestion,
+          article_break_type: null,
+          article_break_payload: null,
+          article_break_after_paragraph: null,
+          article_break_confidence: null,
+          article_break_reason: null,
         },
       });
 
@@ -889,6 +900,40 @@ async function run() {
     const fcVideoScript = checked.video_script || null;
     const fcSummary = checked.summary_normalized;
     const fcFunFact = checked.fun_fact;
+
+    // Article break (visual interruption metadata) — after PASS
+    let articleBreak = {
+      use_break: false,
+      break_type: "none",
+      insert_after_paragraph: null,
+      confidence: 0,
+      reason: "Not evaluated.",
+      payload: null,
+    };
+
+    try {
+      articleBreak = await decideArticleBreak({
+        openai,
+        title: fcTitle,
+        category: categoryKey,
+        card_text: fcCardText,
+        summary_normalized: fcSummary || "",
+      });
+
+      console.log(
+        `🧩 ArticleBreak: type=${articleBreak.break_type} use=${articleBreak.use_break ? "YES" : "NO"} afterP=${articleBreak.insert_after_paragraph ?? "null"} confidence=${articleBreak.confidence}`,
+      );
+    } catch (e) {
+      console.warn("⚠️ Article break planning failed:", e.message);
+      articleBreak = {
+        use_break: false,
+        break_type: "none",
+        insert_after_paragraph: null,
+        confidence: 0,
+        reason: `Planner failed: ${e.message}`,
+        payload: null,
+      };
+    }
 
     // Source URL (ONE) — after PASS
     let source_url = null;
@@ -993,6 +1038,22 @@ async function run() {
       image_source,
       image_prompt,
       scene_prompt,
+
+      article_break_type: articleBreak.use_break
+        ? articleBreak.break_type
+        : null,
+      article_break_payload: articleBreak.use_break
+        ? articleBreak.payload
+        : null,
+      article_break_after_paragraph: articleBreak.use_break
+        ? articleBreak.insert_after_paragraph
+        : null,
+      article_break_confidence: articleBreak.use_break
+        ? articleBreak.confidence
+        : null,
+      article_break_reason: articleBreak.use_break
+        ? articleBreak.reason || null
+        : null,
 
       status: "published",
       created_at: nowIso(),
