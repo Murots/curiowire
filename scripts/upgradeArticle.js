@@ -30,6 +30,7 @@ import { buildRefinePackagePrompt } from "../app/api/utils/refinePackage.js";
 import { buildFactCheckPackagePrompt } from "../app/api/utils/factCheckPackage.js";
 import { buildSourceResolverPrompt } from "../app/api/utils/sourceResolverPrompt.js";
 import { decideArticlePlan } from "../app/api/utils/articlePlanner.js";
+import { insertSeoHeadings } from "../app/api/utils/insertSeoHeadings.js";
 
 // ----------------------------------------------------------------------------
 // ENV
@@ -138,6 +139,25 @@ function splitGenerated(text) {
   return out;
 }
 
+function isEmptyFunFactText(text) {
+  const t = String(text || "")
+    .trim()
+    .toLowerCase();
+
+  return [
+    "",
+    "none",
+    "null",
+    "n/a",
+    "none available",
+    "not available",
+    "no fun fact",
+    "no fun fact available",
+    "no real fun fact exists",
+    "none available without adding information beyond the card text",
+  ].includes(t);
+}
+
 function splitSummaryOutput(text) {
   const out = { summary_normalized: null, fun_fact: null };
 
@@ -149,16 +169,29 @@ function splitSummaryOutput(text) {
   const ff = s.match(/FunFact:\s*([\s\S]*)$/i);
   if (ff) out.fun_fact = ff[1].trim();
 
+  // Safety: discard too-short summaries
   if (out.summary_normalized && out.summary_normalized.length < 10) {
     out.summary_normalized = null;
   }
 
   if (out.fun_fact) {
     let cleaned = out.fun_fact.trim();
+
+    // Remove empty <p></p>
     cleaned = cleaned.replace(/^<p>\s*<\/p>\s*$/i, "").trim();
+
+    // Extract inner text if wrapped in <p>
     cleaned = cleaned.replace(/^<p>\s*([\s\S]*?)\s*<\/p>$/i, "$1").trim();
-    cleaned = cleaned.replace(/^\s*(none|null|n\/a)\s*$/i, "").trim();
-    out.fun_fact = cleaned ? `<p>${cleaned}</p>` : null;
+
+    // Normalize whitespace
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+    // Kill placeholder / junk outputs
+    if (isEmptyFunFactText(cleaned)) {
+      out.fun_fact = null;
+    } else {
+      out.fun_fact = `<p>${cleaned}</p>`;
+    }
   }
 
   return out;
@@ -654,6 +687,23 @@ async function upgradeArticle(article) {
   const headlineRaw = parts.headline || "";
   const headline = stripH1(headlineRaw) || oldTitle;
 
+  // Post-rewrite SEO H2 insertion
+  try {
+    const withSeoHeadings = await insertSeoHeadings({
+      openai,
+      title: headline,
+      category: categoryKey,
+      card_text: parts.cardText,
+    });
+
+    const headingsInserted = withSeoHeadings !== parts.cardText;
+    parts.cardText = withSeoHeadings;
+
+    console.log(`🧩 SEO H2 insert: ${headingsInserted ? "changed" : "same"}`);
+  } catch (e) {
+    console.warn("⚠️ SEO H2 insert failed:", e.message);
+  }
+
   const seo = parseSeo(parts.seoBlock);
 
   const meta = await generateSummaryAndFunFact({ cardText: parts.cardText });
@@ -667,7 +717,7 @@ async function upgradeArticle(article) {
     card_text: parts.cardText,
     video_script: parts.videoScript || "<p></p>",
     summary_normalized: meta.summary_normalized || "",
-    fun_fact: meta.fun_fact || "<p></p>",
+    fun_fact: meta.fun_fact || "",
   });
 
   if (refined) {

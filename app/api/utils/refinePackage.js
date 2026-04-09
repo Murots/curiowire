@@ -40,7 +40,9 @@ YOUR TASK
 - Do NOT add new facts, numbers, dates, names, locations, or explanations.
 - Do NOT remove claims either. If a sentence is unclear, rewrite it minimally.
 - Do NOT change structure, formatting, or sections.
-- Preserve HTML tags as-is and keep the same tag style per field.
+- Preserve HTML tags and block structure as-is.
+- If Card contains <h2> and <p> blocks, keep them in the same order and preserve them exactly; you may edit text inside them only.
+- Preserve the same tag style per field.
 
 OUTPUT FORMAT (ABSOLUTE)
 Return EXACTLY these labels in this exact order:
@@ -49,7 +51,7 @@ Title:
 [title text only, no HTML]
 
 Card:
-[HTML, preserve <p> blocks exactly; you may edit text inside them]
+[HTML, preserve existing <h2> and <p> blocks exactly; you may edit text inside them]
 
 VideoScript:
 [HTML, preserve <p> blocks exactly; you may edit text inside them]
@@ -58,7 +60,7 @@ Summary:
 [HTML, keep the <ul> structure and the <span data-summary-*> attributes]
 
 FunFact:
-[HTML <p>...</p> OR empty <p></p> if none]
+[HTML <p>...</p> if present, otherwise leave empty]
 
 DO NOT add anything else.
 `.trim();

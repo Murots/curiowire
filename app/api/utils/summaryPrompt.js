@@ -22,7 +22,8 @@ GLOBAL RULES
 - Do NOT invent facts.
 - Do NOT speculate.
 - If something is uncertain, say so plainly.
-- If no real fun fact exists, leave FunFact empty.
+- If no real fun fact exists, return an empty FunFact: <p></p>
+- Do NOT write placeholder text such as "none", "none available", "not available", or explanations about why no fun fact was added.
 
 STRUCTURE LOCK (ABSOLUTE)
 Return output in EXACTLY this order with these exact labels:
@@ -35,7 +36,7 @@ Summary:
 </ul>
 
 FunFact:
-<p>[One SHORT, factual fun fact that adds new information not already mentioned in the card text — or leave empty]</p>
+<p>[One SHORT, factual fun fact that adds new information directly related to the topic, or a closely relevant aspect of it, not already mentioned in the card text, or empty]</p>
 
 DO NOT add anything else.
 `.trim();

@@ -95,7 +95,7 @@ HEADLINE STYLE RULES
 - 6–12 words.
 - Lead with the main search topic or entity.
 - Make the title match likely search intent as closely as possible.
-- Prefer clear, concrete titles over clever or indirect ones.
+- Prefer clear, concrete, and commonly used phrasing over clever or abstract wording.
 - Use a question title only if the topic is naturally searched as a question.
 - Otherwise prefer: [Keyword/topic] + [clear context or outcome].
 - Avoid vague curiosity headlines that hide the subject.
