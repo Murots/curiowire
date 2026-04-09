@@ -39,7 +39,7 @@ Optional factual frame (constraints; may be empty):
 ${safeFrame ? `"${safeFrame}"` : "(none)"}
 
 Write:
-1) A curiosity-driven, click-strong, SEO-friendly list headline (6–10 words)
+1) A curiosity-driven, click-strong, SEO-friendly list headline (6–12 words)
 2) A high-quality, curiosity-driven, SEO-friendly LIST ARTICLE (450–750 words)
 3) A super-viral short-video script for TikTok/YouTube Shorts
 4) SEO block (<title>, <description>, <keywords>)
@@ -54,11 +54,14 @@ GLOBAL RULES
 - The ending/final paragraph must NOT tell the reader what to do “next time”.
 
 HEADLINE STYLE RULES
-- 6–10 words.
-- Start with the main subject or keyword.
-- Do NOT start with "How", "Why", "When", or "What".
-- Prefer: [Main topic] + outcome/result.
-- Keep it concrete and specific.
+- 6–12 words.
+- Lead with the main search topic, entity, or category.
+- Prefer: [Number] + [topic/entity] + [specific angle].
+- Match likely Google search intent.
+- Keep the subject explicit; do not hide the topic.
+- Prefer clear, searchable titles over clever phrasing.
+- Use "facts", "stories", "mysteries", "inventions", "moments", or similar only when they accurately fit the items.
+- Avoid vague list titles like "These Stories Changed Everything" or "This List Gets Stranger Fast".
 
 LIST ARTICLE RULES
 - The article must feel like one coherent piece, not a pasted list.

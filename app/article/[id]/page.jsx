@@ -86,8 +86,8 @@ export async function generateMetadata({ params }) {
       ? card.image_url
       : `${baseUrl}/OMImage.png`;
 
-  const ogWidth = 1200;
-  const ogHeight = 630;
+  // const ogWidth = 1200;
+  // const ogHeight = 630;
   const ogAlt = title;
 
   const metadata = {
@@ -119,8 +119,6 @@ export async function generateMetadata({ params }) {
       images: [
         {
           url: shareImageUrl,
-          width: ogWidth,
-          height: ogHeight,
           alt: ogAlt,
         },
       ],
@@ -208,8 +206,8 @@ export default async function ArticlePage({ params }) {
       ? card.image_url
       : `${baseUrl}/OMImage.png`;
 
-  const imgWidth = 1200;
-  const imgHeight = 630;
+  // const imgWidth = 1200;
+  // const imgHeight = 630;
 
   const articleJsonLd = {
     "@context": "https://schema.org",
@@ -227,8 +225,6 @@ export default async function ArticlePage({ params }) {
       {
         "@type": "ImageObject",
         url: imageUrl,
-        width: imgWidth,
-        height: imgHeight,
       },
     ],
     author: {
