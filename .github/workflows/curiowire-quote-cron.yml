@@ -2,10 +2,10 @@ name: CurioWire Auto Quote Article Generator
 
 on:
   workflow_dispatch:
-  # schedule:
-  # # 🗣️ Quote articles: Tuesdays and Saturdays at 06:00 UTC
-  # - cron: "0 6 * * 2"
-  # - cron: "0 6 * * 6"
+  schedule:
+    # 🗣️ Quote articles: Tuesdays and Saturdays at 06:00 UTC
+    - cron: "0 6 * * 2"
+    - cron: "0 6 * * 6"
 
 concurrency:
   group: curiowire-production-quote
