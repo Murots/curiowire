@@ -53,7 +53,7 @@ export async function GET(req) {
     const { data: cards, error: cardsErr } = await supabase
       .from("curiosity_cards")
       .select(
-        "id, category, title, summary_normalized, image_url, created_at, wow_score, article_type",
+        "id, category, title, summary_normalized, image_url, created_at, wow_score, article_type, quote_text",
       )
       .in("id", ids)
       .eq("status", "published")

@@ -10,8 +10,13 @@ export function buildArticleBreakPrompt({
   card_text,
   summary_normalized,
   signals = {},
+  disallowedBreakTypes = [],
 }) {
   const safe = (v) => String(v || "").trim();
+
+  const disallowed = Array.isArray(disallowedBreakTypes)
+    ? disallowedBreakTypes.map((x) => safe(x)).filter(Boolean)
+    : [];
 
   return `
 You are a visual article-break planner.
@@ -28,6 +33,7 @@ IMPORTANT
 - Do NOT rewrite the article.
 - Do NOT return HTML.
 - The break should be visually useful and feel editorial, not decorative.
+- Do NOT choose any break type listed under DISALLOWED FOR THIS RUN.
 
 ALLOWED BREAK TYPES
 - timeline
@@ -36,6 +42,9 @@ ALLOWED BREAK TYPES
 - map_dot
 - factbox
 - none
+
+DISALLOWED FOR THIS RUN
+${disallowed.length ? disallowed.map((x) => `- ${x}`).join("\n") : "- (none)"}
 
 WHEN TO USE EACH
 timeline:
@@ -51,19 +60,23 @@ quote:
 - Prefer a sentence from paragraph 2 or later.
 
 hero_number:
-- Use when one number, year, duration, rank, or scale is the strongest visual hook.
-- Best when the article has a clear standout value such as "1962", "60+", "3,000", "2 years", etc.
+- Use when one number or quantity carries the core curiosity of the story.
+- Prefer durations, counts, sizes, distances, scores, or magnitudes.
+- Hero_number is especially strong when the same number or quantity is central to the title, repeated in the article, or defines the tension of the story.
+- Avoid using a year unless the year itself is unusually central to the curiosity.
+- If the strongest candidate is just a historical year, prefer another type or none.
 - Keep supporting labels short.
 
 map_dot:
-- Use when the article is clearly anchored to one specific place.
-- This is a minimal location marker, not a full travel guide.
-- Only use if the place is explicit and central.
+- Use when the place is explicit and central to the identity of the story.
+- The location should contribute meaning, not just background context.
+- Do not use map_dot for a place that is merely where something happened.
 
 factbox:
-- Use when the article is mainly about a specific place, person, object, or phenomenon.
-- The factbox should be compact and factual.
-- Use only short fields supported by the article/summary.
+- Use when the article centers on a specific place, person, animal, fish, insect, plant, object, phenomenon, tool, technology, event, incident, or case.
+- Only use factbox if the content can be organized naturally into 2–4 short labeled facts.
+- Do not use factbox as a generic fallback.
+- If the article is mainly flowing narrative and the fields would feel forced, prefer another type or none.
 
 none:
 - Use if none of the above feels naturally strong.
@@ -131,8 +144,8 @@ For quote:
 
 For hero_number:
 {
-  "value": "1962",
-  "label": "Fire began",
+  "value": "3 seconds",
+  "label": "left on the clock",
   "kicker": "optional short line"
 }
 

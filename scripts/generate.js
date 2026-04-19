@@ -1051,9 +1051,7 @@ async function run() {
       article_break_confidence: articleBreak.use_break
         ? articleBreak.confidence
         : null,
-      article_break_reason: articleBreak.use_break
-        ? articleBreak.reason || null
-        : null,
+      article_break_reason: articleBreak.reason || null,
 
       status: "published",
       created_at: nowIso(),

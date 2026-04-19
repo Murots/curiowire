@@ -1,23 +1,18 @@
-name: CurioWire Auto Article Generator
+name: CurioWire Auto Quote Article Generator
 
 on:
   workflow_dispatch:
   # schedule:
-  #   # 📰 Articles: 4 times per day
-  #   - cron: "0 0,6,12,18 * * *"
-  # schedule:
-  #   # 📰 Articles: 3 times per day
-  #   - cron: "0 0,8,16 * * *"
-  schedule:
-    # 📰 Articles: 2 times per day
-    - cron: "0 0,12 * * *"
+  # # 🗣️ Quote articles: Tuesdays and Saturdays at 06:00 UTC
+  # - cron: "0 6 * * 2"
+  # - cron: "0 6 * * 6"
 
 concurrency:
-  group: curiowire-production
+  group: curiowire-production-quote
   cancel-in-progress: false
 
 jobs:
-  generate:
+  generate-quote:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: Production
@@ -27,16 +22,14 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_ORG_ID: ${{ secrets.OPENAI_ORG_ID }}
 
-      # Your article-check models
+      # Article / verification models
       PREMISE_GATE_MODEL: ${{ secrets.PREMISE_GATE_MODEL }}
       FACTCHECK_MODEL: ${{ secrets.FACTCHECK_MODEL }}
-      SALVAGE_MODEL: ${{ secrets.SALVAGE_MODEL }}
       ARTICLE_MODEL: ${{ secrets.ARTICLE_MODEL }}
       SUMMARY_MODEL: ${{ secrets.SUMMARY_MODEL }}
       REFINE_MODEL: ${{ secrets.REFINE_MODEL }}
 
       ARTICLE_PLANNER_MODEL: ${{ secrets.ARTICLE_PLANNER_MODEL }}
-      SOURCE_RESOLVER_MODEL: ${{ secrets.SOURCE_RESOLVER_MODEL }}
 
       # Scene prompt models
       SCENE_BLUEPRINT_MODEL: ${{ secrets.SCENE_BLUEPRINT_MODEL }}
@@ -51,11 +44,6 @@ jobs:
       NEXT_PUBLIC_PEXELS_API_KEY: ${{ secrets.NEXT_PUBLIC_PEXELS_API_KEY }}
       NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
 
-      # === Reddit ===
-      REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-      REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-      REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
-
     steps:
       - uses: actions/checkout@v5
 
@@ -65,5 +53,5 @@ jobs:
 
       - run: npm ci
 
-      - name: 📰 Generate articles
-        run: node scripts/generate.js
+      - name: 🗣️ Generate quote article
+        run: node scripts/generateQuoteArticle.js

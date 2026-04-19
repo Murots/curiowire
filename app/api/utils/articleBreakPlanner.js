@@ -67,7 +67,7 @@ function extractYears(text) {
 function extractNumbers(text) {
   const matches =
     String(text || "").match(
-      /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\+?\b|\b\d+\+\b|\b\d+\s?(?:years?|months?|days?|decades?|centuries?)\b/gi,
+      /\b\d+\s*[–-]\s*\d+\b|\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\+?\b|\b\d+\+\b|\b\d+\s?(?:years?|months?|days?|decades?|centuries?|seconds?|minutes?|hours?)\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:years?|months?|days?|decades?|centuries?|seconds?|minutes?|hours?)\b/gi,
     ) || [];
   return [...new Set(matches)].slice(0, 8);
 }
@@ -308,6 +308,39 @@ function normalizeBreakPlan(raw, paragraphCount, cardText = "") {
   };
 }
 
+async function runArticleBreakPlanner({
+  openai,
+  title,
+  category,
+  card_text,
+  summary_normalized,
+  signals,
+  disallowedBreakTypes = [],
+}) {
+  const prompt = buildArticleBreakPrompt({
+    title,
+    category,
+    card_text,
+    summary_normalized,
+    signals,
+    disallowedBreakTypes,
+  });
+
+  const resp = await openai.chat.completions.create({
+    model:
+      process.env.ARTICLE_BREAK_MODEL ||
+      process.env.ARTICLE_MODEL ||
+      "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
+
+  const text = resp.choices[0]?.message?.content?.trim() || "";
+  console.log("🧩 ArticleBreak raw output:", text);
+
+  return extractJson(text);
+}
+
 export async function decideArticleBreak({
   openai,
   title,
@@ -336,25 +369,41 @@ export async function decideArticleBreak({
     category,
   });
 
-  const prompt = buildArticleBreakPrompt({
+  const firstParsed = await runArticleBreakPlanner({
+    openai,
     title,
     category,
     card_text,
     summary_normalized,
     signals,
+    disallowedBreakTypes: [],
   });
 
-  const resp = await openai.chat.completions.create({
-    model:
-      process.env.ARTICLE_BREAK_MODEL ||
-      process.env.ARTICLE_MODEL ||
-      "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
+  const firstNormalized = normalizeBreakPlan(
+    firstParsed,
+    paragraphCount,
+    card_text,
+  );
+
+  const quoteRejected =
+    firstParsed?.break_type === "quote" &&
+    !firstNormalized.use_break &&
+    firstNormalized.reason ===
+      "Rejected quote because it repeats a sentence from paragraph 1.";
+
+  if (!quoteRejected) {
+    return firstNormalized;
+  }
+
+  const secondParsed = await runArticleBreakPlanner({
+    openai,
+    title,
+    category,
+    card_text,
+    summary_normalized,
+    signals,
+    disallowedBreakTypes: ["quote"],
   });
 
-  const text = resp.choices[0]?.message?.content?.trim() || "";
-  const parsed = extractJson(text);
-
-  return normalizeBreakPlan(parsed, paragraphCount, card_text);
+  return normalizeBreakPlan(secondParsed, paragraphCount, card_text);
 }
