@@ -828,6 +828,15 @@ async function run() {
     console.log(`Posting to Pinterest: [${variant.key}] ${variant.pinTitle}`);
     console.log(`Overlay title: ${variant.overlayTitle}`);
 
+    console.log(
+      "Pinterest token present:",
+      Boolean(PINTEREST_ACCESS_TOKEN),
+      "length:",
+      PINTEREST_ACCESS_TOKEN ? PINTEREST_ACCESS_TOKEN.length : 0,
+    );
+    console.log("Pinterest board:", boardId);
+    console.log("Pinterest article URL:", articleUrl);
+
     const { res, data } = await postPin({
       boardId,
       title: variant.pinTitle,
