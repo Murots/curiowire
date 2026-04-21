@@ -1828,7 +1828,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
   const feedInterrupt = useMemo(() => {
     if (isEmpty) return null;
-    return getFeedInterruptAt(cards.length >= 6 ? 6 : 0);
+    return getFeedInterruptAt(cards.length >= 8 ? 8 : 0);
   }, [cards.length, isEmpty]);
 
   const cardsBeforeInterrupt = useMemo(() => {
