@@ -1,7 +1,7 @@
 // // components/ArticleView/ArticleView.jsx
 // "use client";
 
-// import React, { useMemo, useState } from "react";
+// import React, { useEffect, useMemo, useState } from "react";
 // import {
 //   ModalHeader,
 //   ModalTitle,
@@ -9,6 +9,7 @@
 //   Body,
 //   Image,
 //   HeroImageWrap,
+//   HeroPortraitBackdrop,
 //   Credit,
 //   CategoryBadge,
 //   Divider,
@@ -22,6 +23,7 @@
 //   RelatedTitle,
 //   RelatedGrid,
 //   RelatedCard,
+//   RelatedPortraitBackdrop,
 //   RelatedImage,
 //   RelatedImageOverlay,
 //   RelatedText,
@@ -244,6 +246,10 @@
 // }) {
 //   const [playVideo, setPlayVideo] = useState(false);
 
+//   const [isPortraitImage, setIsPortraitImage] = useState(false);
+//   const [imageOrientationReady, setImageOrientationReady] = useState(false);
+//   const [relatedPortraitMap, setRelatedPortraitMap] = useState({});
+
 //   const formattedDate = new Date(card.created_at).toLocaleDateString("en-GB", {
 //     day: "2-digit",
 //     month: "short",
@@ -309,7 +315,96 @@
 //   const isQuoteArticle =
 //     String(card.article_type || "").toLowerCase() === "quote";
 
+//   useEffect(() => {
+//     if (!card.image_url || isQuoteArticle) {
+//       setIsPortraitImage(false);
+//       setImageOrientationReady(true);
+//       return;
+//     }
+
+//     let cancelled = false;
+
+//     setImageOrientationReady(false);
+
+//     const img = new window.Image();
+//     img.src = card.image_url;
+
+//     img.onload = () => {
+//       if (cancelled) return;
+
+//       const portrait = img.naturalHeight > img.naturalWidth;
+//       setIsPortraitImage(portrait);
+//       setImageOrientationReady(true);
+//     };
+
+//     img.onerror = () => {
+//       if (cancelled) return;
+
+//       setIsPortraitImage(false);
+//       setImageOrientationReady(true);
+//     };
+
+//     return () => {
+//       cancelled = true;
+//     };
+//   }, [card.image_url, isQuoteArticle]);
+
+//   useEffect(() => {
+//     const items = Array.isArray(relatedArticles) ? relatedArticles : [];
+
+//     if (!items.length) {
+//       setRelatedPortraitMap({});
+//       return;
+//     }
+
+//     let cancelled = false;
+
+//     async function measureRelatedImages() {
+//       const entries = await Promise.all(
+//         items.map(
+//           (article) =>
+//             new Promise((resolve) => {
+//               const id = Number(article?.id);
+//               const src = String(article?.image_url || "").trim();
+
+//               if (!id || !src) {
+//                 resolve([id, false]);
+//                 return;
+//               }
+
+//               const img = new window.Image();
+//               img.src = src;
+
+//               img.onload = () => {
+//                 resolve([id, img.naturalHeight > img.naturalWidth]);
+//               };
+
+//               img.onerror = () => {
+//                 resolve([id, false]);
+//               };
+//             }),
+//         ),
+//       );
+
+//       if (cancelled) return;
+
+//       setRelatedPortraitMap(Object.fromEntries(entries));
+//     }
+
+//     measureRelatedImages();
+
+//     return () => {
+//       cancelled = true;
+//     };
+//   }, [relatedArticles]);
+
 //   const quoteHeroBg = getCategoryColor(card.category) || "#222";
+
+//   const usePortraitImageMode =
+//     Boolean(card.image_url) &&
+//     !isQuoteArticle &&
+//     imageOrientationReady &&
+//     isPortraitImage;
 
 //   return (
 //     <Swap $soft={false} data-variant={variant} key={card.id}>
@@ -340,13 +435,18 @@
 //         </QuoteHeroWrap>
 //       ) : card.image_url ? (
 //         <>
-//           <HeroImageWrap>
+//           <HeroImageWrap $portrait={usePortraitImageMode}>
+//             {usePortraitImageMode ? (
+//               <HeroPortraitBackdrop aria-hidden="true" $src={card.image_url} />
+//             ) : null}
+
 //             <Image
 //               src={card.image_url}
 //               alt={cleanText(card.title)}
 //               loading={heroLoading}
 //               $fetchPriority={heroFetchPriority}
 //               decoding="async"
+//               $portrait={usePortraitImageMode}
 //             />
 //           </HeroImageWrap>
 
@@ -461,34 +561,47 @@
 //             </RelatedTitle>
 //             <Divider />
 //             <RelatedGrid>
-//               {relatedArticles.slice(0, 3).map((a) => (
-//                 <RelatedCard
-//                   key={a.id}
-//                   href={`/article/${a.id}`}
-//                   onClick={(e) => {
-//                     e.preventDefault();
-//                     onOpenRelated?.(a.id);
-//                   }}
-//                 >
-//                   {a.image_url ? (
-//                     <>
-//                       <RelatedImage
-//                         src={a.image_url}
-//                         width={400}
-//                         height={225}
-//                         alt={cleanText(a.title)}
-//                         loading="lazy"
-//                         decoding="async"
-//                       />
-//                       <RelatedImageOverlay />
-//                     </>
-//                   ) : null}
-//                   <RelatedText>
-//                     {cleanText(a.title)}
-//                     <span className="arrow"> →</span>
-//                   </RelatedText>
-//                 </RelatedCard>
-//               ))}
+//               {relatedArticles.slice(0, 3).map((a) => {
+//                 const isRelatedPortrait = Boolean(relatedPortraitMap[a.id]);
+
+//                 return (
+//                   <RelatedCard
+//                     key={a.id}
+//                     href={`/article/${a.id}`}
+//                     $portrait={isRelatedPortrait}
+//                     onClick={(e) => {
+//                       e.preventDefault();
+//                       onOpenRelated?.(a.id);
+//                     }}
+//                   >
+//                     {a.image_url ? (
+//                       <>
+//                         {isRelatedPortrait ? (
+//                           <RelatedPortraitBackdrop
+//                             aria-hidden="true"
+//                             $src={a.image_url}
+//                           />
+//                         ) : null}
+
+//                         <RelatedImage
+//                           src={a.image_url}
+//                           width={400}
+//                           height={225}
+//                           alt={cleanText(a.title)}
+//                           loading="lazy"
+//                           decoding="async"
+//                           $portrait={isRelatedPortrait}
+//                         />
+//                         <RelatedImageOverlay />
+//                       </>
+//                     ) : null}
+//                     <RelatedText>
+//                       {cleanText(a.title)}
+//                       <span className="arrow"> →</span>
+//                     </RelatedText>
+//                   </RelatedCard>
+//                 );
+//               })}
 //             </RelatedGrid>
 //           </RelatedSection>
 //         ) : null}
@@ -641,6 +754,17 @@ function formatImageCredit(raw) {
   return s.replace(/^Image:\s*/i, "").trim();
 }
 
+function formatImageCaptionLine(imageCaption, imageCredit) {
+  const caption = cleanText(String(imageCaption || "").trim());
+  const credit = formatImageCredit(imageCredit);
+
+  if (caption && credit) return `${caption} | Image by ${credit}`;
+  if (credit) return `Image by ${credit}`;
+  if (caption) return caption;
+
+  return null;
+}
+
 function ensureSummaryBox(html) {
   const s = String(html || "").trim();
   if (!s) return "";
@@ -673,7 +797,7 @@ function parseSourceList(value) {
   return [];
 }
 
-function injectQuoteInlineImage(html, card, creditText) {
+function injectQuoteInlineImage(html, card, imageCaptionLine) {
   const source = String(html || "").trim();
   if (!source) return source;
 
@@ -701,8 +825,8 @@ function injectQuoteInlineImage(html, card, creditText) {
         />
       </div>
       ${
-        creditText
-          ? `<figcaption class="cw-inline-image__credit">Image by ${creditText}</figcaption>`
+        imageCaptionLine
+          ? `<figcaption class="cw-inline-image__credit">${imageCaptionLine}</figcaption>`
           : ""
       }
     </figure>
@@ -803,9 +927,9 @@ export default function ArticleView({
     [card.category],
   );
 
-  const creditText = useMemo(
-    () => formatImageCredit(card.image_credit),
-    [card.image_credit],
+  const imageCaptionLine = useMemo(
+    () => formatImageCaptionLine(card.image_caption, card.image_credit),
+    [card.image_caption, card.image_credit],
   );
 
   const summaryHtml = useMemo(
@@ -830,8 +954,8 @@ export default function ArticleView({
       card.card_text || "",
       articleBreak,
     );
-    return injectQuoteInlineImage(withBreak, card, creditText);
-  }, [card, creditText]);
+    return injectQuoteInlineImage(withBreak, card, imageCaptionLine);
+  }, [card, imageCaptionLine]);
 
   const displaySources = useMemo(() => getDisplaySources(card), [card]);
 
@@ -991,7 +1115,7 @@ export default function ArticleView({
             />
           </HeroImageWrap>
 
-          {creditText ? <Credit>Image by {creditText}</Credit> : null}
+          {imageCaptionLine ? <Credit>{imageCaptionLine}</Credit> : null}
         </>
       ) : null}
 
