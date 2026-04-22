@@ -213,26 +213,13 @@ async function quotePremiseGateCheck({ seedPackage, categoryKey }) {
 //   return { table: "quote_suggestions", row: data };
 // }
 async function fetchOneQuoteSuggestion() {
-  // 1) Verified + unused + random
-  let { data, error } = await supabase.rpc("pick_random_verified_unused_quote");
+  const { data, error } = await supabase.rpc(
+    "pick_random_unused_unflagged_quote",
+  );
 
   if (error) throw error;
 
-  let row = Array.isArray(data) ? data[0] : data;
-
-  if (row) {
-    return {
-      table: "quote_suggestions",
-      row,
-    };
-  }
-
-  // 2) Fallback: unreviewed + unused + random
-  ({ data, error } = await supabase.rpc("pick_random_unreviewed_unused_quote"));
-
-  if (error) throw error;
-
-  row = Array.isArray(data) ? data[0] : data;
+  const row = Array.isArray(data) ? data[0] : data;
 
   if (!row) return null;
 
