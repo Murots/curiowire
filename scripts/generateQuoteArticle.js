@@ -179,6 +179,22 @@ async function quotePremiseGateCheck({ seedPackage, categoryKey }) {
 // ----------------------------------------------------------------------------
 // Pick quote suggestion
 // ----------------------------------------------------------------------------
+async function fetchOneQuoteSuggestion() {
+  const { data, error } = await supabase.rpc(
+    "pick_random_unused_unflagged_quote",
+  );
+
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+
+  if (!row) return null;
+
+  return {
+    table: "quote_suggestions",
+    row,
+  };
+}
 // async function fetchOneQuoteSuggestion() {
 //   // 1) Prefer verified, unused, highest wow
 //   let { data, error } = await supabase
@@ -212,22 +228,6 @@ async function quotePremiseGateCheck({ seedPackage, categoryKey }) {
 
 //   return { table: "quote_suggestions", row: data };
 // }
-async function fetchOneQuoteSuggestion() {
-  const { data, error } = await supabase.rpc(
-    "pick_random_unused_unflagged_quote",
-  );
-
-  if (error) throw error;
-
-  const row = Array.isArray(data) ? data[0] : data;
-
-  if (!row) return null;
-
-  return {
-    table: "quote_suggestions",
-    row,
-  };
-}
 
 async function markQuoteSuggestionFailed(sourceTable, id, reason) {
   try {
