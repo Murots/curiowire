@@ -1174,7 +1174,7 @@ export const QuoteHeroText = styled.blockquote`
   margin: 0;
   color: white;
   font-family: "Playfair Display", serif;
-  font-size: clamp(1.35rem, 3.6vw, 3rem);
+  font-size: clamp(1.2rem, 3.6vw, 3rem);
   line-height: 1.24;
   font-weight: 700;
   letter-spacing: -0.02em;
