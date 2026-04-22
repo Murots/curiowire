@@ -13,6 +13,10 @@ export const GlobalStyle = createGlobalStyle`
 
   html { font-size: 18.5px; }
 
+  main {
+    overflow-x: hidden;
+  }
+
   a {
     color: ${({ theme }) => theme.colors.link};
     text-decoration: none;

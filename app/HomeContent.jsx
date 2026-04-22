@@ -12,6 +12,8 @@
 // import { supabase } from "@/lib/supabaseClient";
 // import Breadcrumbs from "@/components/Breadcrumbs/Breadcrumbs";
 // import CurioCard from "@/components/CurioCard/CurioCard";
+// import FeedInterrupt from "@/components/FeedInterrupt/FeedInterrupt";
+// import { getFeedInterruptAt } from "@/lib/feedInterrupts";
 // import {
 //   Wrapper,
 //   TopBar,
@@ -837,6 +839,23 @@
 //       ? randomLoading
 //       : loading;
 
+//   const isEmpty = !cards || cards.length === 0;
+
+//   const feedInterrupt = useMemo(() => {
+//     if (isEmpty) return null;
+//     return getFeedInterruptAt(cards.length >= 8 ? 8 : 0);
+//   }, [cards.length, isEmpty]);
+
+//   const cardsBeforeInterrupt = useMemo(() => {
+//     if (!feedInterrupt) return cards;
+//     return cards.slice(0, feedInterrupt.insertAfter);
+//   }, [cards, feedInterrupt]);
+
+//   const cardsAfterInterrupt = useMemo(() => {
+//     if (!feedInterrupt) return [];
+//     return cards.slice(feedInterrupt.insertAfter);
+//   }, [cards, feedInterrupt]);
+
 //   if (!didInit) {
 //     return <Loader>Loading curiosities…</Loader>;
 //   }
@@ -852,8 +871,6 @@
 //       </Loader>
 //     );
 //   }
-
-//   const isEmpty = !cards || cards.length === 0;
 
 //   const hasSearch = !!effectiveQ;
 //   const hasCategory = categoryQ !== "all";
@@ -946,16 +963,33 @@
 //               {emptyMessage} <span style={{ opacity: 0.7 }}>{emptyHint}</span>
 //             </Loader>
 //           ) : (
-//             <Grid>
-//               {cards.map((c) => (
-//                 <CurioCard
-//                   key={c.id}
-//                   card={c}
-//                   isTrending={hydrated && trendingIds.has(Number(c.id))}
-//                   onOpen={rememberFeedContext}
-//                 />
-//               ))}
-//             </Grid>
+//             <>
+//               <Grid>
+//                 {cardsBeforeInterrupt.map((c) => (
+//                   <CurioCard
+//                     key={c.id}
+//                     card={c}
+//                     isTrending={hydrated && trendingIds.has(Number(c.id))}
+//                     onOpen={rememberFeedContext}
+//                   />
+//                 ))}
+//               </Grid>
+
+//               {feedInterrupt ? <FeedInterrupt block={feedInterrupt} /> : null}
+
+//               {cardsAfterInterrupt.length > 0 ? (
+//                 <Grid>
+//                   {cardsAfterInterrupt.map((c) => (
+//                     <CurioCard
+//                       key={c.id}
+//                       card={c}
+//                       isTrending={hydrated && trendingIds.has(Number(c.id))}
+//                       onOpen={rememberFeedContext}
+//                     />
+//                   ))}
+//                 </Grid>
+//               ) : null}
+//             </>
 //           )}
 
 //           {!isEmpty && hasMore && !isTrendingMode && !isRandomMode && (
@@ -998,7 +1032,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Breadcrumbs from "@/components/Breadcrumbs/Breadcrumbs";
 import CurioCard from "@/components/CurioCard/CurioCard";
 import FeedInterrupt from "@/components/FeedInterrupt/FeedInterrupt";
-import { getFeedInterruptAt } from "@/lib/feedInterrupts";
+import { getEligibleFeedInterrupts } from "@/lib/feedInterrupts";
 import {
   Wrapper,
   TopBar,
@@ -1317,6 +1351,8 @@ export default function HomeContent({ initialCards, initialQuery }) {
   const [trendingLoading, setTrendingLoading] = useState(false);
 
   const [randomLoading, setRandomLoading] = useState(false);
+  const [videoItems, setVideoItems] = useState([]);
+  const [videoItemsLoading, setVideoItemsLoading] = useState(false);
 
   const restoredRef = useRef(false);
   const [cards, setCards] = useState(() =>
@@ -1545,6 +1581,37 @@ export default function HomeContent({ initialCards, initialQuery }) {
     return () => {
       alive = false;
       clearInterval(t);
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadFeedVideos() {
+      setVideoItemsLoading(true);
+
+      try {
+        const res = await fetch("/api/feed-videos", {
+          cache: "no-store",
+        });
+
+        const json = await res.json();
+
+        if (!alive) return;
+
+        setVideoItems(Array.isArray(json?.items) ? json.items : []);
+      } catch {
+        if (!alive) return;
+        setVideoItems([]);
+      } finally {
+        if (alive) setVideoItemsLoading(false);
+      }
+    }
+
+    loadFeedVideos();
+
+    return () => {
+      alive = false;
     };
   }, []);
 
@@ -1826,20 +1893,35 @@ export default function HomeContent({ initialCards, initialQuery }) {
 
   const isEmpty = !cards || cards.length === 0;
 
-  const feedInterrupt = useMemo(() => {
-    if (isEmpty) return null;
-    return getFeedInterruptAt(cards.length >= 8 ? 8 : 0);
+  const eligibleInterrupts = useMemo(() => {
+    if (isEmpty) return [];
+    return getEligibleFeedInterrupts(cards.length);
   }, [cards.length, isEmpty]);
 
-  const cardsBeforeInterrupt = useMemo(() => {
-    if (!feedInterrupt) return cards;
-    return cards.slice(0, feedInterrupt.insertAfter);
-  }, [cards, feedInterrupt]);
+  const firstInterrupt = eligibleInterrupts[0] || null;
+  const secondInterrupt = eligibleInterrupts[1] || null;
 
-  const cardsAfterInterrupt = useMemo(() => {
-    if (!feedInterrupt) return [];
-    return cards.slice(feedInterrupt.insertAfter);
-  }, [cards, feedInterrupt]);
+  const cardsBeforeFirstInterrupt = useMemo(() => {
+    if (!firstInterrupt) return cards;
+    return cards.slice(0, firstInterrupt.insertAfter);
+  }, [cards, firstInterrupt]);
+
+  const cardsBetweenInterrupts = useMemo(() => {
+    if (!firstInterrupt) return [];
+
+    const start = firstInterrupt.insertAfter;
+
+    if (!secondInterrupt) {
+      return cards.slice(start);
+    }
+
+    return cards.slice(start, secondInterrupt.insertAfter);
+  }, [cards, firstInterrupt, secondInterrupt]);
+
+  const cardsAfterSecondInterrupt = useMemo(() => {
+    if (!secondInterrupt) return [];
+    return cards.slice(secondInterrupt.insertAfter);
+  }, [cards, secondInterrupt]);
 
   if (!didInit) {
     return <Loader>Loading curiosities…</Loader>;
@@ -1950,7 +2032,7 @@ export default function HomeContent({ initialCards, initialQuery }) {
           ) : (
             <>
               <Grid>
-                {cardsBeforeInterrupt.map((c) => (
+                {cardsBeforeFirstInterrupt.map((c) => (
                   <CurioCard
                     key={c.id}
                     card={c}
@@ -1960,11 +2042,31 @@ export default function HomeContent({ initialCards, initialQuery }) {
                 ))}
               </Grid>
 
-              {feedInterrupt ? <FeedInterrupt block={feedInterrupt} /> : null}
+              {firstInterrupt ? <FeedInterrupt block={firstInterrupt} /> : null}
 
-              {cardsAfterInterrupt.length > 0 ? (
+              {cardsBetweenInterrupts.length > 0 ? (
                 <Grid>
-                  {cardsAfterInterrupt.map((c) => (
+                  {cardsBetweenInterrupts.map((c) => (
+                    <CurioCard
+                      key={c.id}
+                      card={c}
+                      isTrending={hydrated && trendingIds.has(Number(c.id))}
+                      onOpen={rememberFeedContext}
+                    />
+                  ))}
+                </Grid>
+              ) : null}
+
+              {secondInterrupt ? (
+                <FeedInterrupt
+                  block={secondInterrupt}
+                  videoItems={videoItemsLoading ? [] : videoItems}
+                />
+              ) : null}
+
+              {cardsAfterSecondInterrupt.length > 0 ? (
+                <Grid>
+                  {cardsAfterSecondInterrupt.map((c) => (
                     <CurioCard
                       key={c.id}
                       card={c}
