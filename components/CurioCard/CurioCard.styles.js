@@ -169,7 +169,7 @@ export const QuoteCardHero = styled.div`
 export const QuoteCardInner = styled.div`
   position: relative;
   z-index: 1;
-  width: min(82%, 560px);
+  width: ${({ $wide }) => ($wide ? "min(82%, 720px)" : "min(86%, 560px)")};
   margin: 0 auto;
   text-align: center;
 `;
@@ -195,30 +195,166 @@ export const QuoteCardText = styled.div`
   margin: 0;
   color: white;
   font-family: "Playfair Display", serif;
-  font-size: clamp(1.35rem, 3.2vw, 2.8rem);
-  line-height: 1.22;
   font-weight: 700;
   letter-spacing: -0.02em;
   text-wrap: balance;
 
+  ${({ $wide, $tone }) => {
+    if ($wide) {
+      if ($tone === "hero") {
+        return css`
+          font-size: clamp(3rem, 5vw, 4.6rem);
+          line-height: 1.02;
+          -webkit-line-clamp: 3;
+        `;
+      }
+      if ($tone === "xl") {
+        return css`
+          font-size: clamp(2.5rem, 4.2vw, 3.8rem);
+          line-height: 1.05;
+          -webkit-line-clamp: 3;
+        `;
+      }
+      if ($tone === "lg") {
+        return css`
+          font-size: clamp(2rem, 3.5vw, 3rem);
+          line-height: 1.1;
+          -webkit-line-clamp: 4;
+        `;
+      }
+      return css`
+        font-size: clamp(1.65rem, 2.7vw, 2.35rem);
+        line-height: 1.14;
+        -webkit-line-clamp: 4;
+      `;
+    }
+
+    if ($tone === "lg") {
+      return css`
+        font-size: clamp(1.9rem, 3.3vw, 2.7rem);
+        line-height: 1.08;
+        -webkit-line-clamp: 4;
+      `;
+    }
+    if ($tone === "md") {
+      return css`
+        font-size: clamp(1.55rem, 2.8vw, 2.15rem);
+        line-height: 1.12;
+        -webkit-line-clamp: 4;
+      `;
+    }
+    if ($tone === "sm") {
+      return css`
+        font-size: clamp(1.3rem, 2.35vw, 1.8rem);
+        line-height: 1.16;
+        -webkit-line-clamp: 4;
+      `;
+    }
+    return css`
+      font-size: clamp(1.1rem, 2vw, 1.45rem);
+      line-height: 1.2;
+      -webkit-line-clamp: 5;
+    `;
+  }}
+
   display: -webkit-box;
-  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+
+  @media (max-width: 780px) {
+    ${({ $wide, $tone }) => {
+      if ($wide) {
+        if ($tone === "hero") {
+          return css`
+            font-size: clamp(2.1rem, 8vw, 3rem);
+            line-height: 1.04;
+            -webkit-line-clamp: 4;
+          `;
+        }
+        if ($tone === "xl") {
+          return css`
+            font-size: clamp(1.8rem, 7vw, 2.5rem);
+            line-height: 1.08;
+            -webkit-line-clamp: 4;
+          `;
+        }
+        if ($tone === "lg") {
+          return css`
+            font-size: clamp(1.55rem, 6vw, 2.1rem);
+            line-height: 1.12;
+            -webkit-line-clamp: 4;
+          `;
+        }
+        return css`
+          font-size: clamp(1.3rem, 5.2vw, 1.75rem);
+          line-height: 1.16;
+          -webkit-line-clamp: 5;
+        `;
+      }
+
+      if ($tone === "lg") {
+        return css`
+          font-size: clamp(1.45rem, 5.4vw, 1.95rem);
+          line-height: 1.12;
+        `;
+      }
+      if ($tone === "md") {
+        return css`
+          font-size: clamp(1.25rem, 4.8vw, 1.65rem);
+          line-height: 1.16;
+        `;
+      }
+      if ($tone === "sm") {
+        return css`
+          font-size: clamp(1.08rem, 4.2vw, 1.4rem);
+          line-height: 1.18;
+        `;
+      }
+      return css`
+        font-size: clamp(1rem, 3.8vw, 1.2rem);
+        line-height: 1.2;
+      `;
+    }}
+  }
 `;
 
 export const QuoteCardWho = styled.div`
   margin-top: 16px;
   color: rgba(255, 255, 255, 0.92);
   font-family: "Playfair Display", serif;
-  font-size: 0.98rem;
-  line-height: 1.2;
   text-align: center;
+
+  ${({ $wide, $tone }) => {
+    if ($wide) {
+      return css`
+        font-size: ${$tone === "hero" || $tone === "xl" ? "1.15rem" : "1rem"};
+        line-height: 1.2;
+      `;
+    }
+
+    if ($tone === "xs") {
+      return css`
+        font-size: 0.88rem;
+        line-height: 1.15;
+      `;
+    }
+
+    return css`
+      font-size: 0.98rem;
+      line-height: 1.2;
+    `;
+  }}
 
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+
+  @media (max-width: 780px) {
+    font-size: 0.9rem;
+    line-height: 1.15;
+    margin-top: 12px;
+  }
 `;
 
 export const FireBadge = styled.div`

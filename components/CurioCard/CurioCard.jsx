@@ -138,6 +138,24 @@ function isLiveYoutubeVideo(v) {
   );
 }
 
+function getQuoteTone(quoteText, isWide) {
+  const text = String(quoteText || "").trim();
+  const len = text.length;
+  const words = text ? text.split(/\s+/).length : 0;
+
+  if (isWide) {
+    if (len <= 32 && words <= 7) return "hero";
+    if (len <= 60 && words <= 12) return "xl";
+    if (len <= 95 && words <= 18) return "lg";
+    return "md";
+  }
+
+  if (len <= 26 && words <= 6) return "lg";
+  if (len <= 50 && words <= 10) return "md";
+  if (len <= 80 && words <= 16) return "sm";
+  return "xs";
+}
+
 function hasPostedYoutubeVideo(card) {
   const videos = Array.isArray(card?.videos) ? card.videos : [];
 
@@ -232,6 +250,11 @@ export default function CurioCard({
     [summary_normalized],
   );
 
+  const quoteTone = useMemo(
+    () => getQuoteTone(quoteText, isWide),
+    [quoteText, isWide],
+  );
+
   const quoteBg = useMemo(
     () => getCategoryColor(category) || "#222",
     [category],
@@ -272,11 +295,17 @@ export default function CurioCard({
       <Card>
         <ImageWrapper $portrait={usePortraitImageMode}>
           {isQuoteArticle ? (
-            <QuoteCardHero $bg={quoteBg}>
-              <QuoteCardInner>
+            <QuoteCardHero $bg={quoteBg} $wide={isWide}>
+              <QuoteCardInner $wide={isWide}>
                 <QuoteCardKicker>Quote Explained</QuoteCardKicker>
-                <QuoteCardText>{quoteText}</QuoteCardText>
-                {quoteWho ? <QuoteCardWho>— {quoteWho}</QuoteCardWho> : null}
+                <QuoteCardText $tone={quoteTone} $wide={isWide}>
+                  {quoteText}
+                </QuoteCardText>
+                {quoteWho ? (
+                  <QuoteCardWho $tone={quoteTone} $wide={isWide}>
+                    — {quoteWho}
+                  </QuoteCardWho>
+                ) : null}
               </QuoteCardInner>
             </QuoteCardHero>
           ) : image_url ? (
