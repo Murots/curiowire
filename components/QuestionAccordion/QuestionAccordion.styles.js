@@ -70,6 +70,10 @@ export const AnswerPanel = styled.div`
   padding: 0 18px 18px;
   border-top: 1px solid
     ${({ theme }) => theme.colors.border || "rgba(0,0,0,0.08)"};
+
+  &[hidden] {
+    display: none;
+  }
 `;
 
 export const AnswerText = styled.p`

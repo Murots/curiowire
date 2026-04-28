@@ -66,7 +66,7 @@ export async function generateMetadata() {
   const baseUrl = "https://curiowire.com";
 
   return {
-    title: { absolute: "CurioWire Questions" },
+    title: { absolute: "Questions & Answers | CurioWire" },
     description:
       "Explore curious questions and clear answers connected to CurioWire stories.",
     alternates: {
@@ -78,7 +78,7 @@ export async function generateMetadata() {
     },
     openGraph: {
       type: "website",
-      title: "CurioWire Questions",
+      title: "Questions & Answers | CurioWire",
       description:
         "Explore curious questions and clear answers connected to CurioWire stories.",
       url: `${baseUrl}/questions`,
@@ -87,7 +87,7 @@ export async function generateMetadata() {
     },
     twitter: {
       card: "summary_large_image",
-      title: "CurioWire Questions",
+      title: "Questions & Answers | CurioWire",
       description:
         "Explore curious questions and clear answers connected to CurioWire stories.",
       images: [`${baseUrl}/OMImage.png`],
@@ -161,6 +161,19 @@ export default async function QuestionsPage({ searchParams }) {
     },
   };
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: questions.slice(0, 20).map((q) => ({
+      "@type": "Question",
+      name: cleanText(q.question),
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: cleanText(q.answer),
+      },
+    })),
+  };
+
   const breadcrumbItems = [
     { label: "Home", href: "/" },
     { label: "Questions" },
@@ -174,6 +187,15 @@ export default async function QuestionsPage({ searchParams }) {
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(itemListJsonLd),
+        }}
+      />
+
+      <Script
+        id="faq-data"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqJsonLd),
         }}
       />
 

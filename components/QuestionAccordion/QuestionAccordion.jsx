@@ -122,33 +122,31 @@ export default function QuestionAccordion({ questions = [] }) {
               <Icon aria-hidden="true">{isOpen ? "−" : "+"}</Icon>
             </QuestionButton>
 
-            {isOpen ? (
-              <AnswerPanel id={panelId}>
-                <AnswerText>{item.answer}</AnswerText>
+            <AnswerPanel id={panelId} hidden={!isOpen} aria-hidden={!isOpen}>
+              <AnswerText>{item.answer}</AnswerText>
 
-                <MetaRow>
-                  {item.sourceUrl ? (
-                    <MetaLink
-                      href={item.sourceUrl}
-                      target="_blank"
-                      rel="nofollow noopener noreferrer"
-                    >
-                      Source
+              <MetaRow>
+                {item.sourceUrl ? (
+                  <MetaLink
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                  >
+                    Source
+                  </MetaLink>
+                ) : null}
+
+                {item.articleId ? (
+                  <>
+                    {item.sourceUrl ? <MetaDot>·</MetaDot> : null}
+
+                    <MetaLink href={`/article/${item.articleId}`}>
+                      Related article
                     </MetaLink>
-                  ) : null}
-
-                  {item.articleId ? (
-                    <>
-                      {item.sourceUrl ? <MetaDot>·</MetaDot> : null}
-
-                      <MetaLink href={`/article/${item.articleId}`}>
-                        Related article
-                      </MetaLink>
-                    </>
-                  ) : null}
-                </MetaRow>
-              </AnswerPanel>
-            ) : null}
+                  </>
+                ) : null}
+              </MetaRow>
+            </AnswerPanel>
           </QuestionItem>
         );
       })}
