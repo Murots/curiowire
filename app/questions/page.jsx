@@ -141,10 +141,11 @@ export default async function QuestionsPage({ searchParams }) {
     ? `${baseUrl}/questions?category=${encodeURIComponent(category)}`
     : `${baseUrl}/questions`;
 
-  const itemListJsonLd = {
+  const collectionJsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: category ? `CurioWire ${category} questions` : "CurioWire Questions",
+    "@id": `${pageUrl}#collection`,
+    name: "Questions & Answers | CurioWire",
     url: pageUrl,
     inLanguage: "en",
     description:
@@ -164,6 +165,10 @@ export default async function QuestionsPage({ searchParams }) {
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
+    "@id": `${pageUrl}#faq`,
+    url: pageUrl,
+    name: "Questions & Answers | CurioWire",
+    inLanguage: "en",
     mainEntity: questions.slice(0, 20).map((q) => ({
       "@type": "Question",
       name: cleanText(q.question),
@@ -172,6 +177,26 @@ export default async function QuestionsPage({ searchParams }) {
         text: cleanText(q.answer),
       },
     })),
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "@id": `${pageUrl}#breadcrumbs`,
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Questions",
+        item: pageUrl,
+      },
+    ],
   };
 
   const breadcrumbItems = [
@@ -186,16 +211,11 @@ export default async function QuestionsPage({ searchParams }) {
         type="application/ld+json"
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(itemListJsonLd),
-        }}
-      />
-
-      <Script
-        id="faq-data"
-        type="application/ld+json"
-        strategy="beforeInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(faqJsonLd),
+          __html: JSON.stringify([
+            collectionJsonLd,
+            faqJsonLd,
+            breadcrumbJsonLd,
+          ]),
         }}
       />
 
