@@ -705,31 +705,6 @@
 //     return;
 //   }
 
-//   // const FORCE_SUGGESTION_ID = process.env.FORCE_SUGGESTION_ID || null;
-
-//   // let found;
-
-//   // if (FORCE_SUGGESTION_ID) {
-//   //   const { data, error } = await supabase
-//   //     .from("curiosity_suggestions")
-//   //     .select("*")
-//   //     .eq("id", FORCE_SUGGESTION_ID)
-//   //     .single();
-
-//   //   if (error || !data) {
-//   //     throw new Error("Forced suggestion not found");
-//   //   }
-
-//   //   found = { table: "curiosity_suggestions", row: data };
-//   //   console.log("🧪 FORCE MODE — using suggestion", FORCE_SUGGESTION_ID);
-//   // } else {
-//   //   found = await fetchOneCuriositySuggestion();
-//   //   if (!found) {
-//   //     console.log("😴 No eligible curiosity suggestion found.");
-//   //     return;
-//   //   }
-//   // }
-
 //   const { table: sourceTable, row } = found;
 
 //   const suggestionId = row.id;
@@ -816,6 +791,7 @@
 //   let image_credit = null;
 //   let image_source = null;
 //   let image_prompt = null;
+//   let image_caption = null;
 //   let scene_prompt = null;
 
 //   try {
@@ -981,6 +957,7 @@
 //       if (img?.imageUrl) {
 //         image_url = img.imageUrl;
 //         image_source = img.source || img.provider || null;
+//         image_caption = img.caption || null;
 
 //         image_credit =
 //           img.attribution ||
@@ -1002,6 +979,7 @@
 
 //         if (src === "DALL·E" || src === "DALLE" || src === "DALL-E") {
 //           image_prompt = img.prompt || null;
+//           image_caption = null;
 //         }
 //       }
 
@@ -1035,6 +1013,7 @@
 
 //       image_url,
 //       image_credit,
+//       image_caption,
 //       image_source,
 //       image_prompt,
 //       scene_prompt,
@@ -1110,6 +1089,11 @@ import { insertSeoHeadings } from "../app/api/utils/insertSeoHeadings.js";
 import { selectBestImage } from "../lib/imageSelector.js";
 import { decideArticleBreak } from "../app/api/utils/articleBreakPlanner.js";
 import { updateAndPingSearchEngines } from "../app/api/utils/seoTools.js";
+import { generateQuestions } from "../app/api/utils/questions/generateQuestions.js";
+import {
+  validateSourceUrl,
+  cleanUrl,
+} from "../app/api/utils/sourceUrlValidator.js";
 
 // ----------------------------------------------------------------------------
 // ENV
@@ -1541,11 +1525,17 @@ function splitSourceResolverOutput(text) {
   return cleaned;
 }
 
-async function resolveOneSourceUrl({ title, summary_normalized, category }) {
+async function resolveOneSourceUrl({
+  title,
+  summary_normalized,
+  category,
+  avoidUrls = [],
+}) {
   const prompt = buildSourceResolverPrompt({
     title,
     summary_normalized,
     category,
+    avoidUrls,
   });
 
   const resp = await openai.responses.create({
@@ -1564,7 +1554,49 @@ async function resolveOneSourceUrl({ title, summary_normalized, category }) {
   console.log(`🔗 SourceResolver: ${url ? "FOUND" : "NONE"}`);
   if (url) console.log(`   source_url=${url}`);
 
-  return url; // string | null
+  return url;
+}
+
+async function resolveAndValidateOneSourceUrl({
+  title,
+  summary_normalized,
+  category,
+  maxAttempts = 3,
+}) {
+  const triedUrls = new Set();
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const rawUrl = await resolveOneSourceUrl({
+      title,
+      summary_normalized,
+      category,
+      avoidUrls: Array.from(triedUrls),
+    });
+
+    const cleaned = cleanUrl(rawUrl);
+
+    if (!cleaned) continue;
+
+    const key = cleaned.toLowerCase();
+
+    if (triedUrls.has(key)) {
+      continue;
+    }
+
+    triedUrls.add(key);
+
+    const verifiedUrl = await validateSourceUrl(cleaned);
+
+    if (verifiedUrl) {
+      console.log(`✅ Source validated: ${verifiedUrl}`);
+      return verifiedUrl;
+    }
+
+    console.warn(`⚠️ Source validation failed: ${cleaned}`);
+  }
+
+  console.warn("⚠️ No valid article source found after retries.");
+  return null;
 }
 
 // ----------------------------------------------------------------------------
@@ -1787,31 +1819,6 @@ async function run() {
     return;
   }
 
-  // const FORCE_SUGGESTION_ID = process.env.FORCE_SUGGESTION_ID || null;
-
-  // let found;
-
-  // if (FORCE_SUGGESTION_ID) {
-  //   const { data, error } = await supabase
-  //     .from("curiosity_suggestions")
-  //     .select("*")
-  //     .eq("id", FORCE_SUGGESTION_ID)
-  //     .single();
-
-  //   if (error || !data) {
-  //     throw new Error("Forced suggestion not found");
-  //   }
-
-  //   found = { table: "curiosity_suggestions", row: data };
-  //   console.log("🧪 FORCE MODE — using suggestion", FORCE_SUGGESTION_ID);
-  // } else {
-  //   found = await fetchOneCuriositySuggestion();
-  //   if (!found) {
-  //     console.log("😴 No eligible curiosity suggestion found.");
-  //     return;
-  //   }
-  // }
-
   const { table: sourceTable, row } = found;
 
   const suggestionId = row.id;
@@ -2021,10 +2028,11 @@ async function run() {
     // Source URL (ONE) — after PASS
     let source_url = null;
     try {
-      source_url = await resolveOneSourceUrl({
+      source_url = await resolveAndValidateOneSourceUrl({
         title: fcTitle,
         summary_normalized: fcSummary || "",
         category: categoryKey,
+        maxAttempts: 3,
       });
     } catch (e) {
       console.warn("⚠️ SourceResolver failed:", e.message);
@@ -2153,6 +2161,27 @@ async function run() {
     if (insertErr) throw insertErr;
 
     console.log(`📝 Card saved to "${cardsTable}" id=${inserted?.id}`);
+
+    // ------------------------------------------------------------
+    // Generate article questions (non-blocking)
+    // ------------------------------------------------------------
+    try {
+      const questions = await generateQuestions({
+        openai,
+        supabase,
+        card: {
+          id: inserted.id,
+          category: categoryKey,
+          title: normalizedTitle,
+          card_text: fcCardText,
+          summary_normalized: fcSummary,
+        },
+      });
+
+      console.log(`❓ Questions generated: ${questions.length}`);
+    } catch (err) {
+      console.warn("⚠️ Question generation failed:", err.message);
+    }
 
     await updateAndPingSearchEngines();
 

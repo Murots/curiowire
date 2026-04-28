@@ -100,6 +100,17 @@
 //   return s.replace(/^Image:\s*/i, "").trim();
 // }
 
+// function formatImageCaptionLine(imageCaption, imageCredit) {
+//   const caption = cleanText(String(imageCaption || "").trim());
+//   const credit = formatImageCredit(imageCredit);
+
+//   if (caption && credit) return `${caption} | Image by ${credit}`;
+//   if (credit) return `Image by ${credit}`;
+//   if (caption) return caption;
+
+//   return null;
+// }
+
 // function ensureSummaryBox(html) {
 //   const s = String(html || "").trim();
 //   if (!s) return "";
@@ -132,7 +143,7 @@
 //   return [];
 // }
 
-// function injectQuoteInlineImage(html, card, creditText) {
+// function injectQuoteInlineImage(html, card, imageCaptionLine) {
 //   const source = String(html || "").trim();
 //   if (!source) return source;
 
@@ -160,8 +171,8 @@
 //         />
 //       </div>
 //       ${
-//         creditText
-//           ? `<figcaption class="cw-inline-image__credit">Image by ${creditText}</figcaption>`
+//         imageCaptionLine
+//           ? `<figcaption class="cw-inline-image__credit">${imageCaptionLine}</figcaption>`
 //           : ""
 //       }
 //     </figure>
@@ -262,9 +273,9 @@
 //     [card.category],
 //   );
 
-//   const creditText = useMemo(
-//     () => formatImageCredit(card.image_credit),
-//     [card.image_credit],
+//   const imageCaptionLine = useMemo(
+//     () => formatImageCaptionLine(card.image_caption, card.image_credit),
+//     [card.image_caption, card.image_credit],
 //   );
 
 //   const summaryHtml = useMemo(
@@ -289,8 +300,8 @@
 //       card.card_text || "",
 //       articleBreak,
 //     );
-//     return injectQuoteInlineImage(withBreak, card, creditText);
-//   }, [card, creditText]);
+//     return injectQuoteInlineImage(withBreak, card, imageCaptionLine);
+//   }, [card, imageCaptionLine]);
 
 //   const displaySources = useMemo(() => getDisplaySources(card), [card]);
 
@@ -450,7 +461,7 @@
 //             />
 //           </HeroImageWrap>
 
-//           {creditText ? <Credit>Image by {creditText}</Credit> : null}
+//           {imageCaptionLine ? <Credit>{imageCaptionLine}</Credit> : null}
 //         </>
 //       ) : null}
 
@@ -693,6 +704,7 @@ import {
 import { getCategoryColor } from "@/lib/categoryColors";
 import { cleanText } from "@/app/api/utils/cleanText";
 import { injectArticleBreakIntoCardText } from "@/app/api/utils/renderArticleBreak.js";
+import ArticleQuestions from "@/components/ArticleQuestions/ArticleQuestions";
 
 /* =========================
    HELPERS (UNCHANGED)
@@ -899,6 +911,7 @@ function isLiveVideo(video) {
 export default function ArticleView({
   card,
   video,
+  questions = [],
   prevId,
   nextId,
   positionText,
@@ -1216,6 +1229,8 @@ export default function ArticleView({
             </div>
           </div>
         ) : null}
+
+        <ArticleQuestions questions={questions} category={card.category} />
 
         {!relatedLoading && showRelated ? (
           <RelatedSection>

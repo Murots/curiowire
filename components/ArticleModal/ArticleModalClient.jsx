@@ -8,7 +8,7 @@ import { Overlay, Modal, CloseWrap, CloseLink } from "./ArticleModal.styles";
 
 import ArticleView from "@/components/ArticleView/ArticleView";
 
-export default function ArticleModalClient({ card, video }) {
+export default function ArticleModalClient({ card, video, questions = [] }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -282,6 +282,7 @@ export default function ArticleModalClient({ card, video }) {
           variant="modal"
           card={card}
           video={video}
+          questions={questions}
           prevId={nav.prevId}
           nextId={nav.nextId}
           positionText={nav.positionText}
