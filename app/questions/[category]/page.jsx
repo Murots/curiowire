@@ -78,8 +78,8 @@ export async function generateMetadata({ params }) {
   const url = `${baseUrl}/questions/${category}`;
 
   return {
-    title: { absolute: `${label} Questions — CurioWire` },
-    description: `Explore ${label.toLowerCase()} questions and clear answers connected to CurioWire stories.`,
+    title: { absolute: `${label} Questions & Answers | CurioWire` },
+    description: `Explore ${label.toLowerCase()} questions, expert answers, facts, and quick explanations from CurioWire.`,
     alternates: {
       canonical: url,
     },
@@ -95,16 +95,16 @@ export async function generateMetadata({ params }) {
     },
     openGraph: {
       type: "website",
-      title: `${label} Questions — CurioWire`,
-      description: `Explore ${label.toLowerCase()} questions and clear answers connected to CurioWire stories.`,
+      title: `${label} Questions & Answers | CurioWire`,
+      description: `Explore ${label.toLowerCase()} questions, expert answers, facts, and quick explanations from CurioWire.`,
       url,
       siteName: "CurioWire",
       images: [{ url: `${baseUrl}/OMImage.png` }],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${label} Questions — CurioWire`,
-      description: `Explore ${label.toLowerCase()} questions and clear answers connected to CurioWire stories.`,
+      title: `${label} Questions & Answers | CurioWire`,
+      description: `Explore ${label.toLowerCase()} questions, expert answers, facts, and quick explanations from CurioWire.`,
       images: [`${baseUrl}/OMImage.png`],
     },
   };
@@ -155,9 +155,9 @@ export default async function CategoryQuestionsPage({ params }) {
     "@type": "FAQPage",
     "@id": `${pageUrl}#faq`,
     url: pageUrl,
-    name: `${label} Questions — CurioWire`,
+    name: `${label} Questions & Answers | CurioWire`,
     inLanguage: "en",
-    mainEntity: questions.map((q) => ({
+    mainEntity: questions.slice(0, 20).map((q) => ({
       "@type": "Question",
       name: cleanText(q.question),
       acceptedAnswer: {
@@ -167,9 +167,30 @@ export default async function CategoryQuestionsPage({ params }) {
     })),
   };
 
+  const collectionJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${pageUrl}#collection`,
+    name: `${label} Questions & Answers | CurioWire`,
+    url: pageUrl,
+    inLanguage: "en",
+    description: `${label} questions and answers from CurioWire.`,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: questions.length,
+      itemListElement: questions.map((q, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${pageUrl}#${q.slug}`,
+        name: cleanText(q.question),
+      })),
+    },
+  };
+
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    "@id": `${pageUrl}#breadcrumbs`,
     itemListElement: [
       {
         "@type": "ListItem",
@@ -205,7 +226,11 @@ export default async function CategoryQuestionsPage({ params }) {
         type="application/ld+json"
         strategy="beforeInteractive"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([faqJsonLd, breadcrumbJsonLd]),
+          __html: JSON.stringify([
+            collectionJsonLd,
+            faqJsonLd,
+            breadcrumbJsonLd,
+          ]),
         }}
       />
 
