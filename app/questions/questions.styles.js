@@ -7,7 +7,6 @@ import { getCategoryColor } from "@/lib/categoryColors";
 
 export const BreadcrumbSlot = styled.div`
   width: 100%;
-  padding: 3px 20px;
   background-color: ${({ theme }) => theme.colors.muted};
 `;
 

@@ -7,7 +7,7 @@ export const Nav = styled.nav`
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
-  padding: 0 18px;
+  padding: 3px 18px;
 `;
 
 export const List = styled.ol`
