@@ -928,12 +928,20 @@ export default function ArticleView({
   const [imageOrientationReady, setImageOrientationReady] = useState(false);
   const [relatedPortraitMap, setRelatedPortraitMap] = useState({});
 
-  const formattedDate = new Date(card.created_at).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  function formatDate(value) {
+    return new Date(value).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
+
+  const publishedDate = formatDate(card.created_at);
+  const updatedDateRaw = formatDate(card.updated_at);
+
+  const updatedDate =
+    card.updated_at && updatedDateRaw !== publishedDate ? updatedDateRaw : null;
 
   const categoryIntro = useMemo(
     () => getCategoryIntro(card.category),
@@ -1097,7 +1105,10 @@ export default function ArticleView({
           <CategoryBadge as="a" href={categoryHref} $category={card.category}>
             {card.category}
           </CategoryBadge>
-          <span className="date">Published {formattedDate}</span>
+          <span className="date">
+            Published {publishedDate}
+            {updatedDate ? ` | Updated ${updatedDate}` : ""}
+          </span>
         </MetaRow>
       </ModalHeader>
 
