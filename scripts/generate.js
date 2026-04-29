@@ -1094,6 +1094,7 @@ import {
   validateSourceUrl,
   cleanUrl,
 } from "../app/api/utils/sourceUrlValidator.js";
+import { buildSourceRelevancePrompt } from "../app/api/utils/sourceRelevancePrompt.js";
 
 // ----------------------------------------------------------------------------
 // ENV
@@ -1557,6 +1558,37 @@ async function resolveOneSourceUrl({
   return url;
 }
 
+async function checkSourceRelevance({ title, summary_normalized, sourceUrl }) {
+  const prompt = buildSourceRelevancePrompt({
+    title,
+    summary_normalized,
+    sourceUrl,
+  });
+
+  const resp = await openai.responses.create({
+    model:
+      process.env.SOURCE_RELEVANCE_MODEL ||
+      process.env.FACTCHECK_MODEL ||
+      "gpt-5",
+    tools: [{ type: "web_search" }],
+    tool_choice: "auto",
+    input: prompt,
+  });
+
+  const out = (resp.output_text || "").trim();
+
+  const verdict = (
+    out.match(/Verdict:\s*(PASS|FAIL)/i)?.[1] || ""
+  ).toUpperCase();
+
+  const reason = out.match(/Reason:\s*([\s\S]*)$/i)?.[1]?.trim() || "";
+
+  return {
+    pass: verdict === "PASS",
+    reason,
+  };
+}
+
 async function resolveAndValidateOneSourceUrl({
   title,
   summary_normalized,
@@ -1574,28 +1606,39 @@ async function resolveAndValidateOneSourceUrl({
     });
 
     const cleaned = cleanUrl(rawUrl);
-
     if (!cleaned) continue;
 
     const key = cleaned.toLowerCase();
-
-    if (triedUrls.has(key)) {
-      continue;
-    }
+    if (triedUrls.has(key)) continue;
 
     triedUrls.add(key);
 
     const verifiedUrl = await validateSourceUrl(cleaned);
 
-    if (verifiedUrl) {
-      console.log(`✅ Source validated: ${verifiedUrl}`);
+    if (!verifiedUrl) {
+      console.warn(`⚠️ Source validation failed: ${cleaned}`);
+      continue;
+    }
+
+    triedUrls.add(verifiedUrl.toLowerCase());
+
+    const relevance = await checkSourceRelevance({
+      title,
+      summary_normalized,
+      sourceUrl: verifiedUrl,
+    });
+
+    if (relevance.pass) {
+      console.log(`✅ Source validated and relevant: ${verifiedUrl}`);
       return verifiedUrl;
     }
 
-    console.warn(`⚠️ Source validation failed: ${cleaned}`);
+    console.warn(
+      `⚠️ Source relevance failed: ${verifiedUrl} — ${relevance.reason}`,
+    );
   }
 
-  console.warn("⚠️ No valid article source found after retries.");
+  console.warn("⚠️ No valid and relevant article source found after retries.");
   return null;
 }
 

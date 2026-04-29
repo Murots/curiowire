@@ -1165,6 +1165,7 @@ import {
   validateSourceUrl,
   cleanUrl,
 } from "../app/api/utils/sourceUrlValidator.js";
+import { buildSourceRelevancePrompt } from "../app/api/utils/sourceRelevancePrompt.js";
 
 // ----------------------------------------------------------------------------
 // ENV
@@ -1641,6 +1642,37 @@ async function factCheckListPackage({
   };
 }
 
+async function checkSourceRelevance({ title, summary_normalized, sourceUrl }) {
+  const prompt = buildSourceRelevancePrompt({
+    title,
+    summary_normalized,
+    sourceUrl,
+  });
+
+  const resp = await openai.responses.create({
+    model:
+      process.env.SOURCE_RELEVANCE_MODEL ||
+      process.env.FACTCHECK_MODEL ||
+      "gpt-5",
+    tools: [{ type: "web_search" }],
+    tool_choice: "auto",
+    input: prompt,
+  });
+
+  const out = (resp.output_text || "").trim();
+
+  const verdict = (
+    out.match(/Verdict:\s*(PASS|FAIL)/i)?.[1] || ""
+  ).toUpperCase();
+
+  const reason = out.match(/Reason:\s*([\s\S]*)$/i)?.[1]?.trim() || "";
+
+  return {
+    pass: verdict === "PASS",
+    reason,
+  };
+}
+
 // ----------------------------------------------------------------------------
 // SOURCE RESOLVER
 // ----------------------------------------------------------------------------
@@ -1690,8 +1722,15 @@ async function resolveListSourceUrls({
       tried.add(key);
 
       const verified = await validateSourceUrl(cleaned);
+      if (!verified) continue;
 
-      if (verified) {
+      const relevance = await checkSourceRelevance({
+        title,
+        summary_normalized,
+        sourceUrl: verified,
+      });
+
+      if (relevance.pass) {
         accepted.push(verified);
       }
     }
@@ -2152,8 +2191,18 @@ async function run() {
 
       for (const raw of uniqueStrings(row.source_urls || [])) {
         const verified = await validateSourceUrl(cleanUrl(raw));
+        if (!verified) continue;
 
-        if (verified) sources.push(verified);
+        const relevance = await checkSourceRelevance({
+          title: fcTitle,
+          summary_normalized: fcSummary || "",
+          sourceUrl: verified,
+        });
+
+        if (relevance.pass) {
+          sources.push(verified);
+        }
+
         if (sources.length >= 3) break;
       }
 

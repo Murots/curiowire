@@ -80,6 +80,59 @@ export function isBlockedSourceUrl(value) {
   );
 }
 
+function looksNonEnglishUrl(value) {
+  const url = cleanUrl(value).toLowerCase();
+
+  return (
+    url.includes("/ja/") ||
+    url.includes("/jp/") ||
+    url.includes("/fr/") ||
+    url.includes("/de/") ||
+    url.includes("/es/") ||
+    url.includes("/it/") ||
+    url.includes("/pt/") ||
+    url.includes("/zh/") ||
+    url.includes("/ko/")
+  );
+}
+
+function buildEnglishUrlCandidates(value) {
+  const url = cleanUrl(value);
+  const candidates = new Set();
+
+  try {
+    const u = new URL(url);
+
+    const replacements = [
+      ["/ja/", "/en/"],
+      ["/jp/", "/en/"],
+      ["/fr/", "/en/"],
+      ["/de/", "/en/"],
+      ["/es/", "/en/"],
+      ["/it/", "/en/"],
+      ["/pt/", "/en/"],
+      ["/zh/", "/en/"],
+      ["/ko/", "/en/"],
+    ];
+
+    for (const [from, to] of replacements) {
+      if (u.pathname.includes(from)) {
+        const copy = new URL(u.toString());
+        copy.pathname = copy.pathname.replace(from, to);
+        candidates.add(copy.toString());
+      }
+    }
+
+    const withLang = new URL(u.toString());
+    withLang.searchParams.set("lang", "en");
+    candidates.add(withLang.toString());
+  } catch {
+    return [];
+  }
+
+  return Array.from(candidates).filter((x) => x !== url);
+}
+
 export async function validateSourceUrl(value, options = {}) {
   const url = cleanUrl(value);
   const timeoutMs = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
@@ -128,6 +181,22 @@ export async function validateSourceUrl(value, options = {}) {
     // If a deep article URL redirects to homepage, reject it.
     if (!isHomepageUrl(url) && isHomepageUrl(finalUrl)) {
       return null;
+    }
+
+    if (options.preferEnglish !== false && looksNonEnglishUrl(finalUrl)) {
+      const englishCandidates = buildEnglishUrlCandidates(finalUrl);
+
+      for (const candidate of englishCandidates) {
+        const englishUrl = await validateSourceUrl(candidate, {
+          ...options,
+          preferEnglish: false,
+        });
+
+        if (englishUrl) {
+          console.log(`🌐 English source version found: ${englishUrl}`);
+          return englishUrl;
+        }
+      }
     }
 
     return finalUrl;

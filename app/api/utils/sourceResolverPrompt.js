@@ -68,40 +68,32 @@ export function buildSourceResolverPrompt({
     : [];
 
   return `
-You are a source finder for a fact-checked article that already PASSED.
+You are selecting ONE source URL for an article that already passed fact-checking.
 
 GOAL:
-Find ONE credible, publicly accessible web page that directly supports the article’s core curiosity claim.
+Return the single best public webpage that directly supports the article's core topic and main claim.
 
-PRIORITY:
-Prefer:
-- Encyclopedias / reference works, including Britannica and Wikipedia
+PREFER:
+- Specific pages mainly about the exact topic
+- Wikipedia, Britannica, museums, universities, .gov/.edu, official organizations
 - Reputable science, history, news, or educational publishers
-- Museums, universities, .gov/.edu sites
-- Official organizations
-- Accessible academic publishers or journals
+- English-language pages when available
 
-Avoid:
-- Forums, Reddit, Quora, social media
-- Content farms / SEO spam
-- Product pages or affiliate pages
-- Mirrors or scraper sites
-- Login-only pages
-- Broken or unavailable pages
-- File/document links (.pdf, .doc, .xls, .ppt, downloads)
-- Generic homepages unless the homepage itself clearly contains the claim
+AVOID:
+- Broad background pages only loosely related
+- Pages where the topic is only briefly mentioned
+- Forums, social media, spam, affiliate pages
+- Login pages, broken pages, downloads, homepages
 - URLs listed in DO NOT RETURN
 
 RULES:
-- Use web_search.
-- Choose the SINGLE best source that most directly confirms the main claim.
-- Prefer a direct article/page URL, not a homepage or file download.
-- Only output a URL you actually found through web_search.
-- Do not guess, invent, or construct URLs.
-- Do not return a vague page that only loosely relates to the topic.
-- If the best result redirects to a homepage, choose another result.
-- If you cannot find a good source, output NONE.
-- Keep it simple: no explanations.
+- Use web_search
+- Prefer exact topic-match pages over general pages
+- If a named subject exists, prioritize that subject
+- Prefer English versions when available
+- Only return a URL actually found via web_search
+- If no strong source exists, return NONE
+- No explanation
 
 DO NOT RETURN:
 ${blocked.length ? blocked.map((url) => `- ${url}`).join("\n") : "- None"}
@@ -117,7 +109,7 @@ ${safe(summary_normalized)}
 Category:
 ${safe(category)}
 
-OUTPUT (EXACTLY ONE LINE):
-URL: <direct URL>   OR   URL: NONE
+OUTPUT (ONE LINE ONLY):
+URL: <direct URL> OR URL: NONE
 `.trim();
 }
