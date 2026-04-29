@@ -13,7 +13,7 @@ export const MainWrapper = styled.div`
 
 export const BreadcrumbSlot = styled.div`
   width: 100%;
-  padding: 3px 20px;
+  padding: 3px 0px;
   background-color: ${({ $bg, theme }) => $bg || theme.colors.muted};
 `;
 

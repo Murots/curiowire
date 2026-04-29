@@ -8,10 +8,6 @@ export const Nav = styled.nav`
   margin-left: auto;
   margin-right: auto;
   padding: 0 18px;
-
-  @media (max-width: 770px) {
-    padding: 0 14px;
-  }
 `;
 
 export const List = styled.ol`
