@@ -4,7 +4,14 @@ import Link from "next/link";
 
 export const Nav = styled.nav`
   width: 100%;
-  //   margin: 5px 0 0 18px;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 18px;
+
+  @media (max-width: 770px) {
+    padding: 0 14px;
+  }
 `;
 
 export const List = styled.ol`
