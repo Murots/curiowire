@@ -59,11 +59,11 @@ RULES
 - Do NOT rewrite the article except for the minimum formatting needed to place headings.
 - Do NOT add new facts, claims, dates, names, or explanations.
 - Do NOT remove any existing text.
-- Headings must be concrete, searchable, and closely match likely search intent.
-- Prefer headings that clarify the topic, entity, event, cause, purpose, or significance.
+- Headings must be concrete and search-oriented, clearly naming the main subject or key event/mechanism and matching likely search intent, while avoiding vague or generic phrasing.
+- Prefer headings that clarify the topic, entity, or key event.
 - Prefer concise H2 headings (3–7 words when possible).
-- Avoid full-sentence style headings when a shorter phrase works
-- Avoid vague or poetic headings.
+- Avoid full-sentence style headings when a shorter phrase works.
+- Avoid poetic or overly abstract phrasing.
 - Avoid repeating the exact title wording in every heading.
 - Do NOT add an H2 before the very first paragraph.
 - Do NOT add an H2 before every paragraph.

@@ -116,6 +116,7 @@ GLOBAL RULES
 - Brief context about the speaker is allowed only when it helps explain the force of the quote.
 - Follow the editorial plan naturally, not rigidly.
 - Avoid padded intros, vague reflection, and generic closing questions.
+- The final paragraph should resolve the article by returning to the core subject in a concrete, specific way, avoiding broad or generic statements.
 
 ARTICLE SHAPE
 Aim for a natural flow like:

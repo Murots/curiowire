@@ -90,6 +90,7 @@ GLOBAL RULES
 - Include one clear insight in the selected insight style, if it fits naturally.
 - The ending/final paragraph should follow the selected ending style and must NOT tell the reader what to do “next time” (avoid “next time you” / “so, next time you” / “so next time you” / “so, the next time you” / “so the next time you” and variations).
 - Avoid padded intros, vague reflection, and generic closing questions unless truly necessary.
+- The final paragraph should resolve the article by returning to the core subject in a concrete, specific way, avoiding broad or generic statements.
 
 HEADLINE STYLE RULES
 - 6–12 words.
